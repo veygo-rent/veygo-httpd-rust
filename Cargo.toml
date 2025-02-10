@@ -1,0 +1,11 @@
+[package]
+name = "veygo-httpd-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+csv = "1"
+postgres = "0.19"
+diesel = { version = "2", features = ["postgres"] }
