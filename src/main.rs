@@ -1,5 +1,6 @@
-mod schemas;
 mod api;
+mod model;
+mod schema;
 
 use warp::Filter;
 

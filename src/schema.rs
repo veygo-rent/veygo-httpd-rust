@@ -1,0 +1,276 @@
+// @generated automatically by Diesel CLI.
+
+pub mod sql_types {
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "agreement_status_enum"))]
+    pub struct AgreementStatusEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "employee_tier_enum"))]
+    pub struct EmployeeTierEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "gender_enum"))]
+    pub struct GenderEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "payment_type_enum"))]
+    pub struct PaymentTypeEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "plan_tier_enum"))]
+    pub struct PlanTierEnum;
+}
+
+diesel::table! {
+    access_tokens (id) {
+        id -> Int4,
+        user_id -> Int4,
+        token -> Varchar,
+        exp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::AgreementStatusEnum;
+
+    agreements (id) {
+        id -> Int4,
+        confirmation -> Varchar,
+        status -> AgreementStatusEnum,
+        user_name -> Varchar,
+        user_date_of_birth -> Date,
+        user_email -> Varchar,
+        user_phone -> Varchar,
+        user_billing_address -> Varchar,
+        rsvp_pickup_time -> Timestamptz,
+        rsvp_drop_off_time -> Timestamptz,
+        liability_protection_rate -> Float8,
+        pcdw_protection_rate -> Float8,
+        pcdw_ext_protection_rate -> Float8,
+        rsa_protection_rate -> Float8,
+        pai_protection_rate -> Float8,
+        actual_pickup_time -> Nullable<Timestamptz>,
+        pickup_odometer -> Nullable<Int4>,
+        pickup_level -> Nullable<Int4>,
+        actual_drop_off_time -> Nullable<Timestamptz>,
+        drop_off_odometer -> Nullable<Int4>,
+        drop_off_level -> Nullable<Int4>,
+        msrp_factor -> Float8,
+        plan_duration -> Float8,
+        pay_as_you_go_duration -> Float8,
+        duration_rate -> Float8,
+        apartment_id -> Int4,
+        vehicle_id -> Int4,
+        renter_id -> Int4,
+        payment_method_id -> Int4,
+    }
+}
+
+diesel::table! {
+    apartments (id) {
+        id -> Int4,
+        name -> Varchar,
+        email -> Varchar,
+        phone -> Varchar,
+        address -> Varchar,
+        accepted_school_email_domain -> Varchar,
+        free_tier_hours -> Float8,
+        free_tier_rate -> Float8,
+        silver_tier_hours -> Float8,
+        silver_tier_rate -> Float8,
+        gold_tier_hours -> Float8,
+        gold_tier_rate -> Float8,
+        platinum_tier_hours -> Float8,
+        platinum_tier_rate -> Float8,
+        duration_rate -> Float8,
+        liability_protection_rate -> Float8,
+        pcdw_protection_rate -> Float8,
+        pcdw_ext_protection_rate -> Float8,
+        rsa_protection_rate -> Float8,
+        pai_protection_rate -> Float8,
+        sales_tax_rate -> Float8,
+        is_operating -> Bool,
+        is_public -> Bool,
+    }
+}
+
+diesel::table! {
+    charges (id) {
+        id -> Int4,
+        name -> Varchar,
+        time -> Timestamptz,
+        amount -> Float8,
+        note -> Nullable<Varchar>,
+        agreement_id -> Int4,
+    }
+}
+
+diesel::table! {
+    damages (id) {
+        id -> Int4,
+        note -> Text,
+        record_date -> Timestamptz,
+        occur_date -> Timestamptz,
+        standard_coordination_x_percentage -> Int4,
+        standard_coordination_y_percentage -> Int4,
+        first_image -> Nullable<Varchar>,
+        second_image -> Nullable<Varchar>,
+        third_image -> Nullable<Varchar>,
+        forth_image -> Nullable<Varchar>,
+        fixed_date -> Nullable<Timestamptz>,
+        fixed_amount -> Nullable<Float8>,
+        agreement_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    do_not_rent_lists (id) {
+        id -> Int4,
+        name -> Nullable<Varchar>,
+        phone -> Nullable<Varchar>,
+        email -> Nullable<Varchar>,
+        note -> Text,
+        exp -> Nullable<Date>,
+    }
+}
+
+diesel::table! {
+    payment_methods (id) {
+        id -> Int4,
+        cardholder_name -> Varchar,
+        masked_card_number -> Varchar,
+        network -> Varchar,
+        expiration -> Varchar,
+        token -> Varchar,
+        nickname -> Nullable<Varchar>,
+        is_enabled -> Bool,
+        renter_id -> Int4,
+        last_used_date_time -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PaymentTypeEnum;
+
+    payments (id) {
+        id -> Int4,
+        #[sql_name = "type"]
+        type_ -> PaymentTypeEnum,
+        time -> Timestamptz,
+        amount -> Float8,
+        note -> Nullable<Varchar>,
+        reference_number -> Nullable<Varchar>,
+        agreement_id -> Int4,
+        payment_method_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::GenderEnum;
+    use super::sql_types::PlanTierEnum;
+    use super::sql_types::EmployeeTierEnum;
+
+    renters (id) {
+        id -> Int4,
+        name -> Varchar,
+        student_email -> Varchar,
+        student_email_expiration -> Nullable<Date>,
+        password -> Varchar,
+        phone -> Varchar,
+        phone_is_verified -> Bool,
+        date_of_birth -> Date,
+        profile_picture -> Nullable<Varchar>,
+        gender -> Nullable<GenderEnum>,
+        date_of_registration -> Timestamptz,
+        drivers_license_number -> Nullable<Varchar>,
+        drivers_license_state_region -> Nullable<Varchar>,
+        drivers_license_image -> Nullable<Varchar>,
+        drivers_license_image_secondary -> Nullable<Varchar>,
+        drivers_license_expiration -> Nullable<Date>,
+        insurance_id_image -> Nullable<Varchar>,
+        insurance_id_expiration -> Nullable<Date>,
+        lease_agreement_image -> Nullable<Varchar>,
+        apartment_id -> Int4,
+        lease_agreement_expiration -> Nullable<Date>,
+        billing_address -> Nullable<Varchar>,
+        signature_image -> Nullable<Varchar>,
+        signature_datetime -> Nullable<Timestamptz>,
+        plan_tier -> PlanTierEnum,
+        plan_renewal_day -> Varchar,
+        plan_expire_month_year -> Varchar,
+        plan_available_duration -> Float8,
+        is_plan_annual -> Bool,
+        employee_tier -> EmployeeTierEnum,
+    }
+}
+
+diesel::table! {
+    transponder_companies (id) {
+        id -> Int4,
+        name -> Varchar,
+        corresponding_key_for_vehicle_id -> Varchar,
+        corresponding_key_for_transaction_name -> Varchar,
+        custom_prefix_for_transaction_name -> Varchar,
+        corresponding_key_for_transaction_time -> Varchar,
+        corresponding_key_for_transaction_amount -> Varchar,
+    }
+}
+
+diesel::table! {
+    vehicles (id) {
+        id -> Int4,
+        vin -> Varchar,
+        name -> Varchar,
+        available -> Bool,
+        license_number -> Varchar,
+        license_state -> Varchar,
+        year -> Varchar,
+        make -> Varchar,
+        model -> Varchar,
+        msrp_factor -> Float8,
+        image_link -> Nullable<Varchar>,
+        odometer -> Int4,
+        tank_size -> Float8,
+        tank_level_percentage -> Int4,
+        first_transponder_number -> Nullable<Varchar>,
+        first_transponder_company_id -> Nullable<Int4>,
+        second_transponder_number -> Nullable<Varchar>,
+        second_transponder_company_id -> Nullable<Int4>,
+        third_transponder_number -> Nullable<Varchar>,
+        third_transponder_company_id -> Nullable<Int4>,
+        fourth_transponder_number -> Nullable<Varchar>,
+        fourth_transponder_company_id -> Nullable<Int4>,
+        apartment_id -> Int4,
+    }
+}
+
+diesel::joinable!(access_tokens -> renters (user_id));
+diesel::joinable!(agreements -> apartments (apartment_id));
+diesel::joinable!(agreements -> payment_methods (payment_method_id));
+diesel::joinable!(agreements -> renters (renter_id));
+diesel::joinable!(agreements -> vehicles (vehicle_id));
+diesel::joinable!(charges -> agreements (agreement_id));
+diesel::joinable!(damages -> agreements (agreement_id));
+diesel::joinable!(payment_methods -> renters (renter_id));
+diesel::joinable!(payments -> agreements (agreement_id));
+diesel::joinable!(payments -> payment_methods (payment_method_id));
+diesel::joinable!(renters -> apartments (apartment_id));
+diesel::joinable!(vehicles -> apartments (apartment_id));
+
+diesel::allow_tables_to_appear_in_same_query!(
+    access_tokens,
+    agreements,
+    apartments,
+    charges,
+    damages,
+    do_not_rent_lists,
+    payment_methods,
+    payments,
+    renters,
+    transponder_companies,
+    vehicles,
+);
