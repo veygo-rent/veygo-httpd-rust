@@ -1,25 +1,25 @@
+use chrono::{DateTime, NaiveDate, Utc};
 use diesel::prelude::*;
-use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 // Diesel requires us to define a custom mapping between the Rust enum
 // and the database type, if we are not using string.
-use diesel::backend::Backend;
-use diesel::deserialize::{self, FromSql};
-use diesel::serialize::{self, ToSql, Output};
-use std::io::Write;
-use diesel::{AsExpression, FromSqlRow};
 use crate::schema::*;
+use diesel::deserialize::{self, FromSql};
+use diesel::pg::{Pg, PgValue};
+use diesel::serialize::{self, Output, ToSql};
+use diesel::{AsExpression, FromSqlRow};
+use std::io::Write;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Text)] //lets us map the enum to TEXT in PostgresSQL
+#[diesel(sql_type = sql_types::AgreementStatusEnum)] //lets us map the enum to TEXT in PostgresSQL
 pub enum AgreementStatus {
     Rental,
     Void,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::EmployeeTierEnum)]
 pub enum EmployeeTier {
     User,
     GeneralEmployee,
@@ -28,7 +28,7 @@ pub enum EmployeeTier {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::PaymentTypeEnum)]
 pub enum PaymentType {
     Cash,
     ACH,
@@ -37,7 +37,7 @@ pub enum PaymentType {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::PlanTierEnum)]
 pub enum PlanTier {
     Free,
     Silver,
@@ -46,7 +46,7 @@ pub enum PlanTier {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = diesel::sql_types::Text)]
+#[diesel(sql_type = sql_types::GenderEnum)]
 pub enum Gender {
     Male,
     Female,
@@ -55,11 +55,8 @@ pub enum Gender {
 }
 
 //This is for postgres. For other databases the type might be different.
-impl<DB> ToSql<diesel::sql_types::Text, DB> for AgreementStatus
-where
-    DB: Backend,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+impl ToSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             AgreementStatus::Rental => out.write_all(b"Rental")?,
             AgreementStatus::Void => out.write_all(b"Void")?,
@@ -68,26 +65,18 @@ where
     }
 }
 
-impl<DB> FromSql<diesel::sql_types::Text, DB> for AgreementStatus
-where
-    DB: Backend,
-    String: FromSql<diesel::sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<diesel::sql_types::Text, DB>>::from_sql(bytes)?;
-        match value.as_str() {
-            "Rental" => Ok(AgreementStatus::Rental),
-            "Void" => Ok(AgreementStatus::Void),
+impl FromSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Rental" => Ok(AgreementStatus::Rental),
+            b"Void" => Ok(AgreementStatus::Void),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
 }
 // The following is the traits implementation for other Enums.
-impl<DB> ToSql<diesel::sql_types::Text, DB> for EmployeeTier
-where
-    DB: Backend,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+impl ToSql<sql_types::EmployeeTierEnum, Pg> for EmployeeTier {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             EmployeeTier::User => out.write_all(b"User")?,
             EmployeeTier::GeneralEmployee => out.write_all(b"GeneralEmployee")?,
@@ -98,28 +87,20 @@ where
     }
 }
 
-impl<DB> FromSql<diesel::sql_types::Text, DB> for EmployeeTier
-where
-    DB: Backend,
-    String: FromSql<diesel::sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<diesel::sql_types::Text, DB>>::from_sql(bytes)?;
-        match value.as_str() {
-            "User" => Ok(EmployeeTier::User),
-            "GeneralEmployee" => Ok(EmployeeTier::GeneralEmployee),
-            "Maintenance" => Ok(EmployeeTier::Maintenance),
-            "Admin" => Ok(EmployeeTier::Admin),
+impl FromSql<sql_types::EmployeeTierEnum, Pg> for EmployeeTier {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"User" => Ok(EmployeeTier::User),
+            b"GeneralEmployee" => Ok(EmployeeTier::GeneralEmployee),
+            b"Maintenance" => Ok(EmployeeTier::Maintenance),
+            b"Admin" => Ok(EmployeeTier::Admin),
 
             _ => Err("Unrecognized enum variant".into()),
         }
     }
 }
-impl<DB> ToSql<diesel::sql_types::Text, DB> for PaymentType
-where
-    DB: Backend,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             PaymentType::Cash => out.write_all(b"Cash")?,
             PaymentType::ACH => out.write_all(b"ACH")?,
@@ -130,27 +111,19 @@ where
     }
 }
 
-impl<DB> FromSql<diesel::sql_types::Text, DB> for PaymentType
-where
-    DB: Backend,
-    String: FromSql<diesel::sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<diesel::sql_types::Text, DB>>::from_sql(bytes)?;
-        match value.as_str() {
-            "Cash" => Ok(PaymentType::Cash),
-            "ACH" => Ok(PaymentType::ACH),
-            "CC" => Ok(PaymentType::CC),
-            "BadDebt" => Ok(PaymentType::BadDebt),
+impl FromSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Cash" => Ok(PaymentType::Cash),
+            b"ACH" => Ok(PaymentType::ACH),
+            b"CC" => Ok(PaymentType::CC),
+            b"BadDebt" => Ok(PaymentType::BadDebt),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
 }
-impl<DB> ToSql<diesel::sql_types::Text, DB> for PlanTier
-where
-    DB: Backend,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+impl ToSql<sql_types::PlanTierEnum, Pg> for PlanTier {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             PlanTier::Free => out.write_all(b"Free")?,
             PlanTier::Silver => out.write_all(b"Silver")?,
@@ -161,27 +134,19 @@ where
     }
 }
 
-impl<DB> FromSql<diesel::sql_types::Text, DB> for PlanTier
-where
-    DB: Backend,
-    String: FromSql<diesel::sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<diesel::sql_types::Text, DB>>::from_sql(bytes)?;
-        match value.as_str() {
-            "Free" => Ok(PlanTier::Free),
-            "Silver" => Ok(PlanTier::Silver),
-            "Gold" => Ok(PlanTier::Gold),
-            "Platinum" => Ok(PlanTier::Platinum),
+impl FromSql<sql_types::PlanTierEnum, Pg> for PlanTier {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Free" => Ok(PlanTier::Free),
+            b"Silver" => Ok(PlanTier::Silver),
+            b"Gold" => Ok(PlanTier::Gold),
+            b"Platinum" => Ok(PlanTier::Platinum),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
 }
-impl<DB> ToSql<diesel::sql_types::Text, DB> for Gender
-where
-    DB: Backend,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
+impl ToSql<sql_types::GenderEnum, Pg> for Gender {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             Gender::Male => out.write_all(b"Male")?,
             Gender::Female => out.write_all(b"Female")?,
@@ -192,18 +157,13 @@ where
     }
 }
 
-impl<DB> FromSql<diesel::sql_types::Text, DB> for Gender
-where
-    DB: Backend,
-    String: FromSql<diesel::sql_types::Text, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
-        let value = <String as FromSql<diesel::sql_types::Text, DB>>::from_sql(bytes)?;
-        match value.as_str() {
-            "Male" => Ok(Gender::Male),
-            "Female" => Ok(Gender::Female),
-            "Other" => Ok(Gender::Other),
-            "PNTS" => Ok(Gender::PNTS),
+impl FromSql<sql_types::GenderEnum, Pg> for Gender {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Male" => Ok(Gender::Male),
+            b"Female" => Ok(Gender::Female),
+            b"Other" => Ok(Gender::Other),
+            b"PNTS" => Ok(Gender::PNTS),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -303,7 +263,7 @@ pub struct PaymentMethod {
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct  NewPaymentMethod<'a> {
+pub struct NewPaymentMethod<'a> {
     pub cardholder_name: &'a str,
     pub masked_card_number: &'a str,
     pub network: &'a str,
@@ -370,7 +330,6 @@ pub struct NewApartment<'a> {
     pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
-
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,7 +348,7 @@ pub struct TransponderCompany {
 #[derive(Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(table_name = transponder_companies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct  NewTransponderCompany<'a> {
+pub struct NewTransponderCompany<'a> {
     pub name: &'a str,
     pub corresponding_key_for_vehicle_id: &'a str,
     pub corresponding_key_for_transaction_name: &'a str,
@@ -398,7 +357,9 @@ pub struct  NewTransponderCompany<'a> {
     pub corresponding_key_for_transaction_amount: &'a str,
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -457,7 +418,9 @@ pub struct NewVehicle<'a> {
     pub apartment_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Associations,Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -496,7 +459,9 @@ pub struct NewDamage<'a> {
     pub agreement_id: Option<i32>,
 }
 
-#[derive(Queryable, Identifiable, Associations,Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Renter))]
@@ -575,7 +540,9 @@ pub struct NewAgreement<'a> {
     pub payment_method_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = charges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -592,7 +559,7 @@ pub struct Charge {
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = charges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct  NewCharge<'a> {
+pub struct NewCharge<'a> {
     pub name: &'a str,
     pub time: DateTime<Utc>,
     pub amount: f64,
@@ -600,7 +567,9 @@ pub struct  NewCharge<'a> {
     pub agreement_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Associations,Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(table_name = payments)]
@@ -621,7 +590,7 @@ pub struct Payment {
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(table_name = payments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct  NewPayment {
+pub struct NewPayment {
     pub payment_type: PaymentType,
     pub time: DateTime<Utc>,
     pub amount: f64,
@@ -631,7 +600,7 @@ pub struct  NewPayment {
     pub payment_method_id: Option<i32>,
 }
 
-#[derive(Queryable, Identifiable,Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -646,7 +615,7 @@ pub struct AccessToken {
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct  NewAccessToken<'a> {
+pub struct NewAccessToken<'a> {
     pub user_id: i32,
     pub token: &'a str,
     pub exp: DateTime<Utc>,
