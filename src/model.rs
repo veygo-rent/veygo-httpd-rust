@@ -622,7 +622,7 @@ pub struct Payment {
 #[diesel(table_name = payments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct  NewPayment {
-    pub r#type: PaymentType,
+    pub payment_type: PaymentType,
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,

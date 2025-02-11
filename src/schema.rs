@@ -57,6 +57,7 @@ diesel::table! {
         actual_drop_off_time -> Nullable<Timestamptz>,
         drop_off_odometer -> Nullable<Int4>,
         drop_off_level -> Nullable<Int4>,
+        tax_rate -> Float8,
         msrp_factor -> Float8,
         plan_duration -> Float8,
         pay_as_you_go_duration -> Float8,
@@ -118,7 +119,7 @@ diesel::table! {
         first_image -> Nullable<Varchar>,
         second_image -> Nullable<Varchar>,
         third_image -> Nullable<Varchar>,
-        forth_image -> Nullable<Varchar>,
+        fourth_image -> Nullable<Varchar>,
         fixed_date -> Nullable<Timestamptz>,
         fixed_amount -> Nullable<Float8>,
         agreement_id -> Nullable<Int4>,
@@ -157,8 +158,7 @@ diesel::table! {
 
     payments (id) {
         id -> Int4,
-        #[sql_name = "type"]
-        type_ -> PaymentTypeEnum,
+        payment_type -> PaymentTypeEnum,
         time -> Timestamptz,
         amount -> Float8,
         note -> Nullable<Varchar>,
