@@ -9,3 +9,8 @@ warp = "0.3"
 csv = "1"
 postgres = "0.19"
 diesel = { version = "2", features = ["postgres"] }
+dotenv = "0.15"
+serde_derive = "1"
+regex = "1"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
