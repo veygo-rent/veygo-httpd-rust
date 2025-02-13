@@ -6,7 +6,7 @@ CREATE TYPE agreement_status_enum AS ENUM ('Rental', 'Void');
 CREATE TABLE agreements
 (
     id                        SERIAL PRIMARY KEY,
-    confirmation              VARCHAR                  NOT NULL,
+    confirmation              VARCHAR                  NOT NULL UNIQUE,
     status                    agreement_status_enum    NOT NULL,
     user_name                 VARCHAR                  NOT NULL,
     user_date_of_birth        DATE                     NOT NULL,

@@ -2,9 +2,9 @@
 CREATE TABLE apartments
 (
     id                           SERIAL PRIMARY KEY,
-    name                         VARCHAR          NOT NULL,
-    email                        VARCHAR          NOT NULL,
-    phone                        VARCHAR          NOT NULL,
+    name                         VARCHAR          NOT NULL UNIQUE,
+    email                        VARCHAR          NOT NULL UNIQUE,
+    phone                        VARCHAR          NOT NULL UNIQUE,
     address                      VARCHAR          NOT NULL,
     accepted_school_email_domain VARCHAR          NOT NULL,
     free_tier_hours              DOUBLE PRECISION NOT NULL,

@@ -3,7 +3,7 @@
 CREATE TABLE vehicles
 (
     id                            SERIAL PRIMARY KEY,
-    vin                           VARCHAR          NOT NULL,
+    vin                           VARCHAR          NOT NULL UNIQUE,
     name                          VARCHAR          NOT NULL,
     available                     BOOLEAN          NOT NULL,
     license_number                VARCHAR          NOT NULL,

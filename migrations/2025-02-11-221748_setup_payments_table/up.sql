@@ -9,7 +9,7 @@ CREATE TABLE payments
     time              TIMESTAMP WITH TIME ZONE NOT NULL,
     amount            DOUBLE PRECISION         NOT NULL,
     note              VARCHAR,
-    reference_number  VARCHAR,
+    reference_number  VARCHAR UNIQUE,
     agreement_id      INTEGER                  NOT NULL REFERENCES agreements (id),
     payment_method_id INTEGER REFERENCES payment_methods (id) -- Optional FK
 );

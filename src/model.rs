@@ -206,40 +206,20 @@ pub struct Renter {
     pub employee_tier: EmployeeTier,
 }
 
-#[derive(Insertable, Debug, Clone)]
+#[derive(Insertable, Debug, Clone, Deserialize, Serialize)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewRenter<'a> {
-    pub name: &'a str,
-    pub student_email: &'a str,
-    pub student_email_expiration: Option<NaiveDate>,
-    pub password: &'a str, // Hash this before inserting!
-    pub phone: &'a str,
-    pub phone_is_verified: bool,
+pub struct NewRenter {
+    pub name: String,
+    pub student_email: String,
+    pub password: String, // Hash this before inserting!
+    pub phone: String,
     pub date_of_birth: NaiveDate,
-    pub profile_picture: Option<&'a str>,
-    pub gender: Option<Gender>,
-    pub date_of_registration: DateTime<Utc>,
-    pub drivers_license_number: Option<&'a str>,
-    pub drivers_license_state_region: Option<&'a str>,
-    pub drivers_license_image: Option<&'a str>,
-    pub drivers_license_image_secondary: Option<&'a str>,
-    pub drivers_license_expiration: Option<NaiveDate>,
-    pub insurance_id_image: Option<&'a str>,
-    pub insurance_id_expiration: Option<NaiveDate>,
-    pub lease_agreement_image: Option<&'a str>,
     pub apartment_id: i32,
-    pub lease_agreement_expiration: Option<NaiveDate>,
-    pub billing_address: Option<&'a str>,
-    pub signature_image: Option<&'a str>,
-    pub signature_datetime: Option<DateTime<Utc>>,
-    pub plan_tier: PlanTier,
-    pub plan_renewal_day: &'a str,
-    pub plan_expire_month_year: &'a str,
+    pub plan_renewal_day: String,
+    pub plan_expire_month_year: String,
     pub plan_available_duration: f64,
-    pub is_plan_annual: bool,
-    pub employee_tier: EmployeeTier,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
