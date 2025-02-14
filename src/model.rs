@@ -598,6 +598,7 @@ pub struct AccessToken {
 pub struct NewAccessToken {
     pub user_id: i32,
     pub token: Vec<u8>,
+    pub exp: DateTime<Utc>,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
