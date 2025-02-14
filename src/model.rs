@@ -243,13 +243,13 @@ pub struct PaymentMethod {
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewPaymentMethod<'a> {
-    pub cardholder_name: &'a str,
-    pub masked_card_number: &'a str,
-    pub network: &'a str,
-    pub expiration: &'a str,
-    pub token: &'a str,
-    pub nickname: Option<&'a str>,
+pub struct NewPaymentMethod {
+    pub cardholder_name: String,
+    pub masked_card_number: String,
+    pub network: String,
+    pub expiration: String,
+    pub token: String,
+    pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
     pub last_used_date_time: Option<DateTime<Utc>>,
@@ -287,12 +287,12 @@ pub struct Apartment {
 #[derive(Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewApartment<'a> {
-    pub name: &'a str,
-    pub email: &'a str,
-    pub phone: &'a str,
-    pub address: &'a str,
-    pub accepted_school_email_domain: &'a str,
+pub struct NewApartment {
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+    pub address: String,
+    pub accepted_school_email_domain: String,
     pub free_tier_hours: f64,
     pub free_tier_rate: f64,
     pub silver_tier_hours: f64,
@@ -328,13 +328,13 @@ pub struct TransponderCompany {
 #[derive(Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(table_name = transponder_companies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewTransponderCompany<'a> {
-    pub name: &'a str,
-    pub corresponding_key_for_vehicle_id: &'a str,
-    pub corresponding_key_for_transaction_name: &'a str,
-    pub custom_prefix_for_transaction_name: &'a str,
-    pub corresponding_key_for_transaction_time: &'a str,
-    pub corresponding_key_for_transaction_amount: &'a str,
+pub struct NewTransponderCompany {
+    pub name: String,
+    pub corresponding_key_for_vehicle_id: String,
+    pub corresponding_key_for_transaction_name: String,
+    pub custom_prefix_for_transaction_name: String,
+    pub corresponding_key_for_transaction_time: String,
+    pub corresponding_key_for_transaction_amount: String,
 }
 
 #[derive(
@@ -373,27 +373,27 @@ pub struct Vehicle {
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewVehicle<'a> {
-    pub vin: &'a str,
-    pub name: &'a str,
+pub struct NewVehicle {
+    pub vin: String,
+    pub name: String,
     pub available: bool,
-    pub license_number: &'a str,
-    pub license_state: &'a str,
-    pub year: &'a str,
-    pub make: &'a str,
-    pub model: &'a str,
+    pub license_number: String,
+    pub license_state: String,
+    pub year: String,
+    pub make: String,
+    pub model: String,
     pub msrp_factor: f64,
-    pub image_link: Option<&'a str>,
+    pub image_link: Option<String>,
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
-    pub first_transponder_number: Option<&'a str>,
+    pub first_transponder_number: Option<String>,
     pub first_transponder_company_id: Option<i32>,
-    pub second_transponder_number: Option<&'a str>,
+    pub second_transponder_number: Option<String>,
     pub second_transponder_company_id: Option<i32>,
-    pub third_transponder_number: Option<&'a str>,
+    pub third_transponder_number: Option<String>,
     pub third_transponder_company_id: Option<i32>,
-    pub fourth_transponder_number: Option<&'a str>,
+    pub fourth_transponder_number: Option<String>,
     pub fourth_transponder_company_id: Option<i32>,
     pub apartment_id: i32,
 }
@@ -424,16 +424,16 @@ pub struct Damage {
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewDamage<'a> {
-    pub note: &'a str,
+pub struct NewDamage {
+    pub note: String,
     pub record_date: DateTime<Utc>,
     pub occur_date: DateTime<Utc>,
     pub standard_coordination_x_percentage: i32,
     pub standard_coordination_y_percentage: i32,
-    pub first_image: Option<&'a str>,
-    pub second_image: Option<&'a str>,
-    pub third_image: Option<&'a str>,
-    pub fourth_image: Option<&'a str>,
+    pub first_image: Option<String>,
+    pub second_image: Option<String>,
+    pub third_image: Option<String>,
+    pub fourth_image: Option<String>,
     pub fixed_date: Option<DateTime<Utc>>,
     pub fixed_amount: Option<f64>,
     pub agreement_id: Option<i32>,
@@ -488,14 +488,14 @@ pub struct Agreement {
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(table_name = agreements)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewAgreement<'a> {
-    pub confirmation: &'a str,
+pub struct NewAgreement {
+    pub confirmation: String,
     pub status: AgreementStatus,
-    pub user_name: &'a str,
+    pub user_name: String,
     pub user_date_of_birth: NaiveDate,
-    pub user_email: &'a str,
-    pub user_phone: &'a str,
-    pub user_billing_address: &'a str,
+    pub user_email: String,
+    pub user_phone: String,
+    pub user_billing_address: String,
     pub rsvp_pickup_time: DateTime<Utc>,
     pub rsvp_drop_off_time: DateTime<Utc>,
     pub liability_protection_rate: f64,
@@ -539,11 +539,11 @@ pub struct Charge {
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = charges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewCharge<'a> {
-    pub name: &'a str,
+pub struct NewCharge {
+    pub name: String,
     pub time: DateTime<Utc>,
     pub amount: f64,
-    pub note: Option<&'a str>,
+    pub note: Option<String>,
     pub agreement_id: i32,
 }
 
@@ -587,7 +587,7 @@ pub struct NewPayment {
 pub struct AccessToken {
     pub id: i32,
     pub user_id: i32,
-    pub token: String,
+    pub token: Vec<u8>,
     pub exp: DateTime<Utc>,
 }
 
@@ -595,10 +595,9 @@ pub struct AccessToken {
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewAccessToken<'a> {
+pub struct NewAccessToken {
     pub user_id: i32,
-    pub token: &'a str,
-    pub exp: DateTime<Utc>,
+    pub token: Vec<u8>,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -616,10 +615,10 @@ pub struct DoNotRentList {
 #[derive(Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(table_name = do_not_rent_lists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewDoNotRentList<'a> {
-    pub name: Option<&'a str>,
-    pub phone: Option<&'a str>,
-    pub email: Option<&'a str>,
-    pub note: &'a str,
+pub struct NewDoNotRentList {
+    pub name: Option<String>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub note: String,
     pub exp: Option<NaiveDate>,
 }
