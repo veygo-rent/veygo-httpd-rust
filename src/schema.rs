@@ -26,7 +26,7 @@ diesel::table! {
     access_tokens (id) {
         id -> Int4,
         user_id -> Int4,
-        token -> Varchar,
+        token -> Bytea,
         exp -> Timestamptz,
     }
 }

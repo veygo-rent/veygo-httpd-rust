@@ -587,7 +587,7 @@ pub struct NewPayment {
 pub struct AccessToken {
     pub id: i32,
     pub user_id: i32,
-    pub token: String,
+    pub token: Vec<u8>,
     pub exp: DateTime<Utc>,
 }
 
@@ -597,8 +597,7 @@ pub struct AccessToken {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewAccessToken {
     pub user_id: i32,
-    pub token: String,
-    pub exp: DateTime<Utc>,
+    pub token: Vec<u8>,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
