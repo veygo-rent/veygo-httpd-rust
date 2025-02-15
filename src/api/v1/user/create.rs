@@ -6,38 +6,17 @@ use crate::schema::access_tokens::dsl::access_tokens;
 use crate::schema::apartments::dsl::apartments;
 use bcrypt::{hash, DEFAULT_COST};
 use chrono::{DateTime, NaiveDate, Utc};
-use diesel::dsl::exists;
 use diesel::{
-    select, BoolExpressionMethods, ExpressionMethods, PgConnection, QueryDsl, QueryResult,
+    BoolExpressionMethods, ExpressionMethods, QueryDsl, QueryResult,
     RunQueryDsl,
 };
 use regex::Regex;
-use secrets::Secret;
 use tokio::task;
 use warp::http::StatusCode;
 use warp::Filter;
 
 fn email_belongs_to_domain(email: &str, domain: &str) -> bool {
     email.ends_with(&format!("@{}", domain))
-}
-
-pub fn generate_unique_token(conn: &mut PgConnection) -> Vec<u8> {
-    loop {
-        // Generate a secure random 32-byte token
-        let token_vec = Secret::<[u8; 32]>::random(|s| s.to_vec());
-
-        // Check if token already exists
-        let token_exists: bool = select(exists(
-            access_tokens.filter(crate::schema::access_tokens::token.eq(&token_vec)),
-        ))
-        .get_result(conn)
-        .expect("Failed to check token existence");
-
-        // If the token does not exist, return it
-        if !token_exists {
-            return token_vec;
-        }
-    }
 }
 
 fn is_at_least_18(dob: &NaiveDate) -> bool {
@@ -79,7 +58,7 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
         .and(warp::post())
         .and(warp::body::json())
         .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(move |mut renter_create: NewRenter, client_type  : Option<String>| {
+        .and_then(move |mut renter_create: NewRenter, client_type: Option<String>| {
             async move {
                 use crate::schema::renters::dsl::*;
                 let pool = db::get_connection_pool();
@@ -133,7 +112,7 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                             }).await; //Awaiting a JoinHandle, not diesel query.
                                             match _result {
                                                 Ok(Ok(renter)) => {
-                                                    let _token = generate_unique_token(&mut db::get_connection_pool().get().unwrap());
+                                                    let _token = crate::gen_token::generate_unique_token().await;
                                                     let _user_id = renter.id;
                                                     let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
                                                     if let Some(client_type) = client_type {
