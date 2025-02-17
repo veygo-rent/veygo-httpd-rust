@@ -601,6 +601,22 @@ pub struct NewAccessToken {
     pub exp: DateTime<Utc>,
 }
 
+impl AccessToken {
+    pub fn to_publish_access_token(&self) -> PublishAccessToken {
+        let token_string = hex::encode(self.token.clone());
+        PublishAccessToken {
+            token: token_string,
+            exp: self.exp,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishAccessToken {
+    pub token: String,
+    pub exp: DateTime<Utc>,
+}
+
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[diesel(table_name = do_not_rent_lists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

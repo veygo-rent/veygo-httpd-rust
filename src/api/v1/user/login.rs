@@ -1,11 +1,9 @@
-use crate::model::{AccessToken, NewAccessToken, Renter};
+use crate::model::{AccessToken, Renter};
 use crate::schema::access_tokens::dsl::access_tokens;
 use crate::db;
 use bcrypt::verify;
-use chrono::{DateTime, Utc};
 use diesel::{ExpressionMethods, QueryDsl, QueryResult, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
-use std::ops::Add;
 use tokio::task;
 use warp::http::StatusCode;
 use warp::Filter;
@@ -36,19 +34,8 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
                 match result {
                     Ok(Ok(renter)) => {
                         if verify(&input_password, &renter.password).unwrap_or(false) {
-                            let _token = crate::gen_token::generate_unique_token().await;
                             let _user_id = renter.id;
-                            let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
-                            if let Some(client_type) = client_type {
-                                if client_type == "veygo-app" {
-                                    _exp = Utc::now().add(chrono::Duration::days(28));
-                                }
-                            }
-                            let new_access_token = NewAccessToken {
-                                user_id: _user_id,
-                                token: _token,
-                                exp: _exp,
-                            };
+                            let new_access_token = crate::gen_token::gen_token_object(_user_id, client_type).await;
                             let _result: Result<QueryResult<AccessToken>, tokio::task::JoinError> = task::spawn_blocking(move || {
                                 // Diesel operations are synchronous, so we use spawn_blocking
                                 diesel::insert_into(access_tokens)
@@ -57,8 +44,10 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
                             }).await;
                             match _result {
                                 Ok(Ok(access_token)) => {
+                                    let pub_token = access_token.to_publish_access_token();
                                     let renter_msg = serde_json::json!({
                                         "renter": {
+                                            "id": renter.id,
                                             "name": renter.name,
                                             "student_email": renter.student_email,
                                             "student_email_expiration": renter.student_email_expiration,
@@ -87,10 +76,7 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
                                             "plan_available_duration": renter.plan_available_duration,
                                             "is_plan_annual": renter.is_plan_annual
                                         },
-                                        "access_token": {
-                                            "token": hex::encode(access_token.token),
-                                            "exp": access_token.exp,
-                                        }
+                                        "access_token": pub_token,
                                     });
                                     Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::ACCEPTED),))
                                 }

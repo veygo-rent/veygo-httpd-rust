@@ -133,8 +133,10 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                     }).await;
                                                     match _result {
                                                         Ok(Ok(access_token)) => {
+                                                            let pub_token = access_token.to_publish_access_token();
                                                             let renter_msg = serde_json::json!({
                                                                 "renter": {
+                                                                    "id": renter.id,
                                                                     "name": renter.name,
                                                                     "student_email": renter.student_email,
                                                                     "student_email_expiration": renter.student_email_expiration,
@@ -163,12 +165,9 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                                     "plan_available_duration": renter.plan_available_duration,
                                                                     "is_plan_annual": renter.is_plan_annual
                                                                 },
-                                                                "access_token": {
-                                                                    "token": hex::encode(access_token.token),
-                                                                    "exp": access_token.exp,
-                                                                }
+                                                                "access_token": pub_token,
                                                             });
-                                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::ACCEPTED),))
+                                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::CREATED),))
                                                         }
                                                         _ => {
                                                             let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});

@@ -1,7 +1,10 @@
+use std::ops::Add;
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use secrets::Secret;
 use tokio::task;
 use crate::db;
+use crate::model::NewAccessToken;
 
 pub async fn generate_unique_token() -> Vec<u8> {
     loop {
@@ -48,5 +51,22 @@ pub async fn generate_unique_token() -> Vec<u8> {
             // Expose the secret and clone to return owned value
             return token_to_return;
         }
+    }
+}
+
+pub async fn gen_token_object(
+    user_id: i32,
+    client_type: Option<String>,
+) -> NewAccessToken {
+    let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
+    if let Some(client_type) = client_type {
+        if client_type == "veygo-app" {
+            _exp = Utc::now().add(chrono::Duration::days(28));
+        }
+    }
+    NewAccessToken {
+        user_id,
+        token: generate_unique_token().await,
+        exp: _exp,
     }
 }

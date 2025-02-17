@@ -23,6 +23,7 @@ pub mod sql_types {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
     access_tokens (id) {
         id -> Int4,
         user_id -> Int4,
