@@ -5,7 +5,7 @@ use warp::Filter;
 use tokio::task::{spawn_blocking, JoinError};
 use warp::http::StatusCode;
 use crate::db;
-use crate::model::{AccessToken, PaymentMethod};
+use crate::model::{AccessToken, PaymentMethod, PublishPaymentMethod};
 use crate::schema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +38,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                 // get access_token object
                 let user_id_clone = request_body.user_id.clone();
                 let token_in_db_result: Result<QueryResult<AccessToken>, JoinError> = spawn_blocking(move || {
-                    access_tokens.filter(token.eq(_token)).first::<AccessToken>(&mut db::get_connection_pool().get().unwrap())
+                    access_tokens.filter(user_id.eq(user_id_clone)).filter(token.eq(_token)).first::<AccessToken>(&mut db::get_connection_pool().get().unwrap())
                 }).await;
 
                 // check access token
@@ -61,8 +61,8 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                             let new_token_query_result = diesel::insert_into(access_tokens).values(new_token).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap());
                             match new_token_query_result {
                                 Err(_) => {
-                                    let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token invalid. "});
-                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                    let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});
+                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),))
                                 }
                                 Ok(new_token_in_db) => {
                                     let publish_token = new_token_in_db.to_publish_access_token();
@@ -76,9 +76,10 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),))
                                         }
                                         Ok(Ok(payment_results)) => {
+                                            let payments: Vec<PublishPaymentMethod> = payment_results.iter().map(|x| x.to_public_payment_method().clone()).collect();
                                             let msg = serde_json::json!({
                                                 "access_token": publish_token,
-                                                "payment_methods": payment_results,
+                                                "payment_methods": payments,
                                             });
                                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::ACCEPTED),))
                                         }

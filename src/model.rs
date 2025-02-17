@@ -206,6 +206,75 @@ pub struct Renter {
     pub employee_tier: EmployeeTier,
 }
 
+impl Renter {
+    pub fn to_publish_renter(&self) -> PublishRenter{
+        PublishRenter {
+            id: self.id,
+            name: self.name.clone(),
+            student_email: self.student_email.clone(),
+            student_email_expiration: self.student_email_expiration,
+            phone: self.phone.clone(),
+            phone_is_verified: self.phone_is_verified,
+            date_of_birth: self.date_of_birth.clone(),
+            profile_picture: self.profile_picture.clone(),
+            gender: self.gender.clone(),
+            date_of_registration: self.date_of_registration,
+            drivers_license_number: self.drivers_license_number.clone(),
+            drivers_license_state_region: self.drivers_license_state_region.clone(),
+            drivers_license_image: self.drivers_license_image.clone(),
+            drivers_license_image_secondary: self.drivers_license_image_secondary.clone(),
+            drivers_license_expiration: self.drivers_license_expiration.clone(),
+            insurance_id_image: self.insurance_id_image.clone(),
+            insurance_id_expiration: self.insurance_id_expiration.clone(),
+            lease_agreement_image: self.lease_agreement_image.clone(),
+            apartment_id: self.apartment_id,
+            lease_agreement_expiration: self.lease_agreement_expiration,
+            billing_address: self.billing_address.clone(),
+            signature_image: self.signature_image.clone(),
+            signature_datetime: self.signature_datetime.clone(),
+            plan_tier: self.plan_tier.clone(),
+            plan_renewal_day: self.plan_renewal_day.clone(),
+            plan_expire_month_year: self.plan_expire_month_year.clone(),
+            plan_available_duration: self.plan_available_duration,
+            is_plan_annual: self.is_plan_annual,
+            employee_tier: self.employee_tier.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublishRenter {
+    pub id: i32,
+    pub name: String,
+    pub student_email: String,
+    pub student_email_expiration: Option<NaiveDate>,
+    pub phone: String,
+    pub phone_is_verified: bool,
+    pub date_of_birth: NaiveDate,
+    pub profile_picture: Option<String>,
+    pub gender: Option<Gender>,
+    pub date_of_registration: DateTime<Utc>,
+    pub drivers_license_number: Option<String>,
+    pub drivers_license_state_region: Option<String>,
+    pub drivers_license_image: Option<String>,
+    pub drivers_license_image_secondary: Option<String>,
+    pub drivers_license_expiration: Option<NaiveDate>,
+    pub insurance_id_image: Option<String>,
+    pub insurance_id_expiration: Option<NaiveDate>,
+    pub lease_agreement_image: Option<String>,
+    pub apartment_id: i32,
+    pub lease_agreement_expiration: Option<NaiveDate>,
+    pub billing_address: Option<String>,
+    pub signature_image: Option<String>,
+    pub signature_datetime: Option<DateTime<Utc>>,
+    pub plan_tier: PlanTier,
+    pub plan_renewal_day: String,
+    pub plan_expire_month_year: String,
+    pub plan_available_duration: f64,
+    pub is_plan_annual: bool,
+    pub employee_tier: EmployeeTier,
+}
+
 #[derive(Insertable, Debug, Clone, Deserialize, Serialize)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
@@ -237,6 +306,35 @@ pub struct PaymentMethod {
     pub is_enabled: bool,
     pub renter_id: i32,
     pub last_used_date_time: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishPaymentMethod {
+    pub id: i32,
+    pub cardholder_name: String,
+    pub masked_card_number: String,
+    pub network: String,
+    pub expiration: String,
+    pub nickname: Option<String>,
+    pub is_enabled: bool,
+    pub renter_id: i32,
+    pub last_used_date_time: Option<DateTime<Utc>>,
+}
+
+impl PaymentMethod {
+    pub fn to_public_payment_method(&self) -> PublishPaymentMethod {
+        PublishPaymentMethod {
+            id: self.id,
+            cardholder_name: self.cardholder_name.clone(),
+            masked_card_number: self.masked_card_number.clone(),
+            network: self.network.clone(),
+            expiration: self.expiration.clone(),
+            nickname: self.nickname.clone(),
+            is_enabled: self.is_enabled,
+            renter_id: self.renter_id,
+            last_used_date_time: self.last_used_date_time.clone(),
+        }
+    }
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Eq)]

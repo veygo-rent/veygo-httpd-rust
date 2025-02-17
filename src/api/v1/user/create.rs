@@ -134,37 +134,9 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                     match _result {
                                                         Ok(Ok(access_token)) => {
                                                             let pub_token = access_token.to_publish_access_token();
+                                                            let pub_renter = renter.to_publish_renter();
                                                             let renter_msg = serde_json::json!({
-                                                                "renter": {
-                                                                    "id": renter.id,
-                                                                    "name": renter.name,
-                                                                    "student_email": renter.student_email,
-                                                                    "student_email_expiration": renter.student_email_expiration,
-                                                                    "phone": renter.phone,
-                                                                    "phone_is_verified": renter.phone_is_verified,
-                                                                    "date_of_birth": renter.date_of_birth,
-                                                                    "profile_picture": renter.profile_picture,
-                                                                    "gender": renter.gender,
-                                                                    "date_of_registration": renter.date_of_registration,
-                                                                    "drivers_license_number": renter.drivers_license_number,
-                                                                    "drivers_license_state_region": renter.drivers_license_state_region,
-                                                                    "drivers_license_image": renter.drivers_license_image,
-                                                                    "drivers_license_image_secondary": renter.drivers_license_image_secondary,
-                                                                    "drivers_license_expiration": renter.drivers_license_expiration,
-                                                                    "insurance_id_image": renter.insurance_id_image,
-                                                                    "insurance_id_expiration": renter.insurance_id_expiration,
-                                                                    "lease_agreement_image": renter.lease_agreement_image,
-                                                                    "apartment_id": renter.apartment_id,
-                                                                    "lease_agreement_expiration": renter.lease_agreement_expiration,
-                                                                    "billing_address": renter.billing_address,
-                                                                    "signature_image": renter.signature_image,
-                                                                    "signature_datetime": renter.signature_datetime,
-                                                                    "plan_tier": renter.plan_tier,
-                                                                    "plan_renewal_day": renter.plan_renewal_day,
-                                                                    "plan_expire_month_year": renter.plan_expire_month_year,
-                                                                    "plan_available_duration": renter.plan_available_duration,
-                                                                    "is_plan_annual": renter.is_plan_annual
-                                                                },
+                                                                "renter": pub_renter,
                                                                 "access_token": pub_token,
                                                             });
                                                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::CREATED),))
