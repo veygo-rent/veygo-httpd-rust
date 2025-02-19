@@ -1,11 +1,10 @@
-use std::ops::Add;
 use crate::db;
-use crate::model::{AccessToken, NewAccessToken, Renter};
+use crate::model::{AccessToken, Renter};
 use crate::model::{Apartment, NewRenter};
 use crate::schema::access_tokens::dsl::access_tokens;
 use crate::schema::apartments::dsl::apartments;
 use bcrypt::{hash, DEFAULT_COST};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl, QueryResult,
     RunQueryDsl,
@@ -112,19 +111,8 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                             }).await; //Awaiting a JoinHandle, not diesel query.
                                             match _result {
                                                 Ok(Ok(renter)) => {
-                                                    let _token = crate::gen_token::generate_unique_token().await;
                                                     let _user_id = renter.id;
-                                                    let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
-                                                    if let Some(client_type) = client_type {
-                                                        if client_type == "veygo-app" {
-                                                            _exp = Utc::now().add(chrono::Duration::days(28));
-                                                        }
-                                                    }
-                                                    let new_access_token = NewAccessToken {
-                                                        user_id: _user_id,
-                                                        token: _token,
-                                                        exp: _exp,
-                                                    };
+                                                    let new_access_token = crate::methods::tokens::gen_token_object(_user_id, client_type).await;
                                                     let _result: Result<QueryResult<AccessToken>, tokio::task::JoinError> = task::spawn_blocking(move || {
                                                         // Diesel operations are synchronous, so we use spawn_blocking
                                                         diesel::insert_into(access_tokens)

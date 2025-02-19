@@ -35,7 +35,7 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
                     Ok(Ok(renter)) => {
                         if verify(&input_password, &renter.password).unwrap_or(false) {
                             let _user_id = renter.id;
-                            let new_access_token = crate::gen_token::gen_token_object(_user_id, client_type).await;
+                            let new_access_token = crate::methods::tokens::gen_token_object(_user_id, client_type).await;
                             let _result: Result<QueryResult<AccessToken>, tokio::task::JoinError> = task::spawn_blocking(move || {
                                 // Diesel operations are synchronous, so we use spawn_blocking
                                 diesel::insert_into(access_tokens)

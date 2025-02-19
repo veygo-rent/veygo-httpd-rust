@@ -6,7 +6,7 @@ use tokio::task;
 use crate::db;
 use crate::model::NewAccessToken;
 
-pub async fn generate_unique_token() -> Vec<u8> {
+async fn generate_unique_token() -> Vec<u8> {
     loop {
         // Generate a secure random 32-byte token
         let token_vec = Secret::<[u8; 32]>::random(|s| s.to_vec());

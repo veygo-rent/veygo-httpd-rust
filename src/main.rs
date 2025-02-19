@@ -2,7 +2,8 @@ mod api;
 mod model;
 mod schema;
 mod db;
-mod gen_token;
+mod methods;
+mod integration;
 
 use warp::Filter;
 

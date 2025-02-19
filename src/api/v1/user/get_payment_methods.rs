@@ -56,7 +56,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                         if token_exp >= Utc::now() {
                             // valid token
                             // generate new token
-                            let new_token = crate::gen_token::gen_token_object(user_id_clone, client_type).await;
+                            let new_token = crate::methods::tokens::gen_token_object(user_id_clone, client_type).await;
                             diesel::delete(access_tokens.filter(id.eq(token_in_db.id))).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap();
                             let new_token_query_result = diesel::insert_into(access_tokens).values(new_token).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap());
                             match new_token_query_result {
