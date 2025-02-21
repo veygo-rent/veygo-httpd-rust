@@ -1,8 +1,8 @@
 use chrono::{Utc};
-use diesel::{prelude::*, ExpressionMethods, QueryResult, RunQueryDsl};
+use diesel::{prelude::*, ExpressionMethods, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
 use warp::Filter;
-use tokio::task::{spawn_blocking, JoinError};
+use tokio::task::{spawn_blocking};
 use warp::http::StatusCode;
 use crate::db;
 use crate::model::{AccessToken, PaymentMethod, PublishPaymentMethod};
@@ -27,7 +27,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                 let mut _token: Vec<u8>;
                 match _token_try_decode {
                     Err(_) => {
-                        let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token not in hex format. "});
+                        let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token not in hex format"});
                         return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
                     }
                     Ok(token_u8) => {
@@ -37,7 +37,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
 
                 // get access_token object
                 let user_id_clone = request_body.user_id.clone();
-                let token_in_db_result: Result<QueryResult<AccessToken>, JoinError> = spawn_blocking(move || {
+                let token_in_db_result = spawn_blocking(move || {
                     access_tokens.filter(user_id.eq(user_id_clone)).filter(token.eq(_token)).first::<AccessToken>(&mut db::get_connection_pool().get().unwrap())
                 }).await;
 
@@ -48,7 +48,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                         Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),))
                     }
                     Ok(Err(_)) => {
-                        let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token invalid. "});
+                        let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token invalid"});
                         Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                     }
                     Ok(Ok(token_in_db)) => {
@@ -92,7 +92,7 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                             }
                         } else {
                             // expired token
-                            let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token invalid. "});
+                            let error_msg = serde_json::json!({"token": &request_body.token, "error": "Token invalid"});
                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                         }
                     }

@@ -113,7 +113,7 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                 Ok(Ok(renter)) => {
                                                     let _user_id = renter.id;
                                                     let new_access_token = crate::methods::tokens::gen_token_object(_user_id, client_type).await;
-                                                    let _result: Result<QueryResult<AccessToken>, tokio::task::JoinError> = task::spawn_blocking(move || {
+                                                    let _result = task::spawn_blocking(move || {
                                                         // Diesel operations are synchronous, so we use spawn_blocking
                                                         diesel::insert_into(access_tokens)
                                                             .values(&new_access_token)
@@ -141,7 +141,7 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                 }
                                             }
                                         } else {
-                                            let error_msg = serde_json::json!({"email": &renter_create.student_email, "accepted domain": &apartment.accepted_school_email_domain});
+                                            let error_msg = serde_json::json!({"email": &renter_create.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
                                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                                         }
                                     }

@@ -58,12 +58,12 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
                                 }
                             }
                         } else {
-                            let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid. "});
+                            let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                         }
                     }
                     Ok(Err(_)) => {
-                        let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid. "});
+                        let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
                         Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                     }
                     Err(_) => {
