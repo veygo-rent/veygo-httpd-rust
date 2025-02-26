@@ -6,6 +6,7 @@ use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError};
 
 pub async fn create_new_payment_method(
     pm_id: &str,
+    md5: String,
     cardholder_name: String,  // Required as Stripe does not return full name
     renter_id: i32,           // Must be provided
     nickname: Option<String>, // Optional user-defined alias
@@ -32,6 +33,7 @@ pub async fn create_new_payment_method(
                 network,
                 expiration,
                 token: pm_id.to_string(),
+                md5,
                 nickname,
                 is_enabled: true,
                 renter_id,

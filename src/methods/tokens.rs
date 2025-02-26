@@ -1,10 +1,13 @@
 use std::ops::Add;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
+use hex::FromHexError;
 use secrets::Secret;
 use tokio::task;
+use tokio::task::spawn_blocking;
 use crate::db;
-use crate::model::NewAccessToken;
+use crate::model::{AccessToken, NewAccessToken};
+use crate::schema::access_tokens::dsl::*;
 
 async fn generate_unique_token() -> Vec<u8> {
     loop {
@@ -14,7 +17,7 @@ async fn generate_unique_token() -> Vec<u8> {
         let token_to_return = token_vec.clone();
 
         // Wrap in a block for error handling.
-        let token_exists_result: Result<QueryResult<bool>, task::JoinError> = task::spawn_blocking(move || {
+        let token_exists_result = task::spawn_blocking(move || {
             //get connection.
             let conn = &mut db::get_connection_pool().get().unwrap();
             // Perform the Diesel query *synchronously* within the closure.
@@ -55,7 +58,7 @@ async fn generate_unique_token() -> Vec<u8> {
 }
 
 pub async fn gen_token_object(
-    user_id: i32,
+    _user_id: i32,
     client_type: Option<String>,
 ) -> NewAccessToken {
     let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
@@ -65,8 +68,44 @@ pub async fn gen_token_object(
         }
     }
     NewAccessToken {
-        user_id,
+        user_id: _user_id,
         token: generate_unique_token().await,
         exp: _exp,
     }
+}
+
+pub async fn verify_user_token(
+    _user_id: i32,
+    token_data: String,
+) -> Result<bool, FromHexError> {
+    let binary_token = hex::decode(token_data);
+    match binary_token {
+        Err(error) => {
+            Err(error)
+        }
+        Ok(binary_token) => {
+            let token_clone = binary_token.clone();
+            let token_clone_again = binary_token.clone();
+            let token_in_db = spawn_blocking(move || {
+                diesel::select(diesel::dsl::exists(access_tokens.filter(token.eq(token_clone)).filter(user_id.eq(_user_id)))).get_result::<bool>(&mut db::get_connection_pool().get().unwrap())
+            }).await.unwrap().unwrap();
+            if token_in_db {
+                let token_in_db_result = spawn_blocking(move || {
+                    access_tokens.filter(user_id.eq(_user_id)).filter(token.eq(token_clone_again)).first::<AccessToken>(&mut db::get_connection_pool().get().unwrap())
+                }).await.unwrap().unwrap();
+                let token_exp = token_in_db_result.exp;
+                if token_exp >= Utc::now() {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            } else {Ok(false)}
+        }
+    }
+}
+
+pub async fn rm_token_by_binary(
+    token_bit: Vec<u8>
+) -> AccessToken {
+    diesel::delete(access_tokens.filter(token.eq(token_bit))).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap()
 }
