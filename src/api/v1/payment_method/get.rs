@@ -14,7 +14,7 @@ pub struct GetPaymentMethodsRequestBody {
 }
 
 pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("get-payment-methods")
+    warp::path!("get")
         .and(warp::post())
         .and(warp::body::json())
         .and(warp::header::optional::<String>("x-client-type"))

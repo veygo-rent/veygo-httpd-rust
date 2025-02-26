@@ -52,7 +52,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
 
 pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
 {
-    warp::path!("create-user")
+    warp::path!("create")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())

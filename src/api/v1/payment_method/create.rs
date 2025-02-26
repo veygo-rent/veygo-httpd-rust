@@ -23,7 +23,7 @@ pub struct CreatePaymentMethodsRequestBody {
 }
 
 pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("create-payment-method")
+    warp::path!("create")
         .and(warp::post())
         .and(warp::body::json())
         .and(warp::header::optional::<String>("x-client-type"))
