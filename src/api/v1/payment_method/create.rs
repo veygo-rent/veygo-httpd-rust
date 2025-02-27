@@ -58,7 +58,8 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                         // attach payment method to customer
                                         let user_id_clone = request_body.user_id.clone();
                                         let current_renter = task::spawn_blocking(move || {
-                                            renters.filter(id.eq(user_id_clone)).first::<Renter>(&mut db::get_connection_pool().get().unwrap())
+                                            use crate::schema::renters::dsl::*;
+                                            renters.filter(id.eq(user_id_clone)).get_result::<Renter>(&mut db::get_connection_pool().get().unwrap())
                                         }).await.unwrap().unwrap();
                                         let stripe_customer_id = current_renter.stripe_id.clone().unwrap();
                                         let payment_method_id = new_pm.token.clone();
