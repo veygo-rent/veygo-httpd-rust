@@ -13,6 +13,7 @@ use regex::Regex;
 use tokio::task;
 use warp::http::StatusCode;
 use warp::Filter;
+use crate::integration::stripe;
 
 fn email_belongs_to_domain(email: &str, domain: &str) -> bool {
     email.ends_with(&format!("@{}", domain))
@@ -110,7 +111,24 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                     .get_result::<Renter>(&mut db::get_connection_pool().get().unwrap()) // Get the inserted Renter
                                             }).await; //Awaiting a JoinHandle, not diesel query.
                                             match _result {
-                                                Ok(Ok(renter)) => {
+                                                Ok(Ok(mut renter)) => {
+                                                    let stripe_name = renter.name.clone();
+                                                    let stripe_phone = renter.phone.clone();
+                                                    let stripe_email = renter.student_email.clone();
+                                                    let stripe_result = stripe::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
+                                                    match stripe_result {
+                                                        Ok(stripe_customer) => {
+                                                            let stripe_customer_id = stripe_customer.id.to_string();
+                                                            let renter_id_to_add_stripe = renter.id.clone();
+                                                            use crate::schema::renters::dsl::*;
+                                                            let new_renter = diesel::update(renters.find(renter_id_to_add_stripe)).set(stripe_id.eq(stripe_customer_id)).get_result::<Renter>(&mut db::get_connection_pool().get().unwrap()).unwrap();
+                                                            renter = new_renter;
+                                                        }
+                                                        Err(_) => {
+                                                            let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});
+                                                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),));
+                                                        }
+                                                    }
                                                     let _user_id = renter.id;
                                                     let new_access_token = crate::methods::tokens::gen_token_object(_user_id, client_type).await;
                                                     let _result = task::spawn_blocking(move || {

@@ -2,7 +2,7 @@ use crate::model::NewPaymentMethod;
 use dotenv::dotenv;
 use std::env;
 use std::str::FromStr;
-use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError};
+use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, CreateCustomer};
 
 pub async fn create_new_payment_method(
     pm_id: &str,
@@ -44,4 +44,28 @@ pub async fn create_new_payment_method(
             Err(error)
         }
     }
+}
+
+pub async fn create_stripe_customer(
+    name_data: String,
+    phone_data: String,
+    email_data: String
+) -> Result<Customer, StripeError> {
+    dotenv().ok();
+    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
+    let client = Client::new(stripe_secret_key);
+    Customer::create(
+        &client,
+        CreateCustomer {
+            name: Some(name_data.as_str()),
+            email: Some(email_data.as_str()),
+            phone: Some(phone_data.as_str()),
+            metadata: Some(std::collections::HashMap::from([(
+                String::from("async-stripe"),
+                String::from("true"),
+            )])),
+
+            ..Default::default()
+        },
+    ).await
 }

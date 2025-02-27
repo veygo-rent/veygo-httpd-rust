@@ -7,6 +7,7 @@ CREATE TABLE renters
 (
     id                              SERIAL PRIMARY KEY,
     name                            VARCHAR                  NOT NULL,
+    stripe_id                       VARCHAR,
     student_email                   VARCHAR                  NOT NULL UNIQUE,
     student_email_expiration        DATE,
     password                        VARCHAR                  NOT NULL,

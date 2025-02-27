@@ -176,6 +176,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 pub struct Renter {
     pub id: i32,
     pub name: String,
+    pub stripe_id: Option<String>,
     pub student_email: String,
     pub student_email_expiration: Option<NaiveDate>,
     pub password: String, // Hashed!
@@ -791,4 +792,10 @@ pub struct NewDoNotRentList {
     pub email: Option<String>,
     pub note: String,
     pub exp: Option<NaiveDate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct RequestBodyToken {
+    pub user_id: i32,
+    pub token: String,
 }

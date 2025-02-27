@@ -178,6 +178,7 @@ diesel::table! {
     renters (id) {
         id -> Int4,
         name -> Varchar,
+        stripe_id -> Nullable<Varchar>,
         student_email -> Varchar,
         student_email_expiration -> Nullable<Date>,
         password -> Varchar,
