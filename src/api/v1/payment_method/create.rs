@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use warp::Filter;
 use warp::http::StatusCode;
 use crate::db;
-use crate::model::{AccessToken, PaymentMethod};
+use crate::model::{AccessToken, PaymentMethod, Renter};
 use diesel::prelude::*;
 use tokio::task;
 use crate::schema::access_tokens::dsl::*;
@@ -11,6 +11,7 @@ use crate::schema::payment_methods::dsl::*;
 use crate::methods::tokens;
 
 use crate::integration::stripe;
+use crate::schema::renters::dsl::renters;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreatePaymentMethodsRequestBody {
@@ -54,6 +55,14 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                         let inserted_pm_card = task::spawn_blocking(move || {
                                             diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut db::get_connection_pool().get().unwrap()).unwrap()
                                         }).await.unwrap().to_public_payment_method();
+                                        // attach payment method to customer
+                                        let user_id_clone = request_body.user_id.clone();
+                                        let current_renter = task::spawn_blocking(move || {
+                                            renters.filter(id.eq(user_id_clone)).first::<Renter>(&mut db::get_connection_pool().get().unwrap())
+                                        }).await.unwrap().unwrap();
+                                        let stripe_customer_id = current_renter.stripe_id.clone().unwrap();
+                                        let payment_method_id = new_pm.token.clone();
+                                        let _attach_result = stripe::attach_payment_method_to_stripe_customer(stripe_customer_id, payment_method_id).await;
                                         let new_token = tokens::gen_token_object(request_body.user_id.clone(), client_type).await;
                                         let inserted_token = task::spawn_blocking(move || {
                                             diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap()
