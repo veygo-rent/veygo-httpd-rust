@@ -13,7 +13,7 @@ use regex::Regex;
 use tokio::task;
 use warp::http::StatusCode;
 use warp::Filter;
-use crate::integration::stripe;
+use crate::integration::stripe_veygo;
 
 fn email_belongs_to_domain(email: &str, domain: &str) -> bool {
     email.ends_with(&format!("@{}", domain))
@@ -115,7 +115,7 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                     let stripe_name = renter.name.clone();
                                                     let stripe_phone = renter.phone.clone();
                                                     let stripe_email = renter.student_email.clone();
-                                                    let stripe_result = stripe::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
+                                                    let stripe_result = stripe_veygo::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
                                                     match stripe_result {
                                                         Ok(stripe_customer) => {
                                                             let stripe_customer_id = stripe_customer.id.to_string();

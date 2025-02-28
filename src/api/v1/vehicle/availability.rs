@@ -88,7 +88,6 @@ pub fn vehicle_availability(
                             use crate::schema::access_tokens::dsl::*;
                             let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap().to_publish_access_token();
 
-
                             let msg = serde_json::json!({"access_token": new_token_in_db_publish, "available_vehicles": available_vehicle_list_publish});
                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),))
                         }

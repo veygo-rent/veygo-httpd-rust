@@ -2,6 +2,7 @@ mod user;
 mod payment_method;
 mod apartment;
 mod vehicle;
+mod agreement;
 
 use warp::Filter;
 
