@@ -30,10 +30,13 @@ pub enum EmployeeTier {
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::PaymentTypeEnum)]
 pub enum PaymentType {
-    Cash,
-    ACH,
-    CC,
-    BadDebt,
+    Canceled,
+    Processing,
+    RequiresAction,
+    RequiresCapture,
+    RequiresConfirmation,
+    RequiresPaymentMethod,
+    Succeeded,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
@@ -102,10 +105,13 @@ impl FromSql<sql_types::EmployeeTierEnum, Pg> for EmployeeTier {
 impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
-            PaymentType::Cash => out.write_all(b"Cash")?,
-            PaymentType::ACH => out.write_all(b"ACH")?,
-            PaymentType::CC => out.write_all(b"CC")?,
-            PaymentType::BadDebt => out.write_all(b"BadDebt")?,
+            PaymentType::Canceled => out.write_all(b"canceled")?,
+            PaymentType::Processing => out.write_all(b"processing")?,
+            PaymentType::RequiresAction => out.write_all(b"requires_action")?,
+            PaymentType::RequiresCapture => out.write_all(b"requires_capture")?,
+            PaymentType::RequiresConfirmation => out.write_all(b"requires_confirmation")?,
+            PaymentType::RequiresPaymentMethod => out.write_all(b"requires_payment_method")?,
+            PaymentType::Succeeded => out.write_all(b"succeeded")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -114,10 +120,13 @@ impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
 impl FromSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         match bytes.as_bytes() {
-            b"Cash" => Ok(PaymentType::Cash),
-            b"ACH" => Ok(PaymentType::ACH),
-            b"CC" => Ok(PaymentType::CC),
-            b"BadDebt" => Ok(PaymentType::BadDebt),
+            b"canceled" => Ok(PaymentType::Canceled),
+            b"processing" => Ok(PaymentType::Processing),
+            b"requires_action" => Ok(PaymentType::RequiresAction),
+            b"requires_capture" => Ok(PaymentType::RequiresCapture),
+            b"requires_confirmation" => Ok(PaymentType::RequiresConfirmation),
+            b"requires_payment_method" => Ok(PaymentType::RequiresPaymentMethod),
+            b"succeeded" => Ok(PaymentType::Succeeded),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -521,6 +530,45 @@ pub struct Vehicle {
     pub fourth_transponder_number: Option<String>,
     pub fourth_transponder_company_id: Option<i32>,
     pub apartment_id: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublishVehicle {
+    pub id: i32,
+    pub vin: String,
+    pub name: String,
+    pub license_number: String,
+    pub license_state: String,
+    pub year: String,
+    pub make: String,
+    pub model: String,
+    pub msrp_factor: f64,
+    pub image_link: Option<String>,
+    pub odometer: i32,
+    pub tank_size: f64,
+    pub tank_level_percentage: i32,
+    pub apartment_id: i32,
+}
+
+impl Vehicle {
+    pub fn to_publish_vehicle(&self) -> PublishVehicle {
+        PublishVehicle {
+            id: self.id,
+            vin: self.vin.clone(),
+            name: self.name.clone(),
+            license_number: self.license_number.clone(),
+            license_state: self.license_state.clone(),
+            year: self.year.clone(),
+            make: self.make.clone(),
+            model: self.model.clone(),
+            msrp_factor: self.msrp_factor,
+            image_link: self.image_link.clone(),
+            odometer: self.odometer,
+            tank_size: self.tank_size,
+            tank_level_percentage: self.tank_level_percentage,
+            apartment_id: self.apartment_id,
+        }
+    }
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]

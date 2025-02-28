@@ -11,7 +11,6 @@ use crate::schema::payment_methods::dsl::*;
 use crate::methods::tokens;
 
 use crate::integration::stripe;
-use crate::schema::renters::dsl::renters;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreatePaymentMethodsRequestBody {
