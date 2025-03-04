@@ -1,7 +1,7 @@
 use std::collections::HashSet;
-use crate::methods::tokens;
+use crate::methods::{tokens, user};
 use crate::model::{AccessToken, Vehicle};
-use crate::{db, model};
+use crate::{model, POOL};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
@@ -30,21 +30,17 @@ pub fn vehicle_availability(
                 match if_token_valid {
                     Ok(token_bool) => {
                         if !token_bool {
-                            let error_msg = serde_json::json!({"token": &body.access_token.token, "error": "Token not valid"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                            tokens::token_invalid_warp_return(&body.access_token.token)
                         } else {
-                            // Token is validated
+                            // Token is validated -> user_id is valid
                             let user_id_clone = body.access_token.user_id.clone();
-                            let user = spawn_blocking(move || {
-                                use crate::schema::renters::dsl::*;
-                                use crate::model::Renter;
-                                renters.filter(id.eq(user_id_clone)).get_result::<Renter>(&mut db::get_connection_pool().get().unwrap()).unwrap()
-                            }).await.unwrap();
+                            let user = user::get_user_by_id(user_id_clone).await.unwrap();
                             let apartment_id_clone = user.apartment_id.clone();
+                            let mut pool = POOL.clone().get().unwrap();
                             let vehicle_list = spawn_blocking(move || {
                                 use crate::schema::vehicles::dsl::*;
                                 use crate::model::Vehicle;
-                                vehicles.filter(apartment_id.eq(apartment_id_clone)).filter(available.eq(true)).load::<Vehicle>(&mut db::get_connection_pool().get().unwrap()).unwrap()
+                                vehicles.filter(apartment_id.eq(apartment_id_clone)).filter(available.eq(true)).load::<Vehicle>(&mut pool).unwrap()
                             }).await.unwrap();
 
                             let apt_id = user.apartment_id;
@@ -55,6 +51,7 @@ pub fn vehicle_availability(
                             let start_time_buffered = start_time - Duration::minutes(30);
                             let end_time_buffered   = end_time   + Duration::minutes(30);
 
+                            let mut pool = POOL.clone().get().unwrap();
                             let conflicting_vehicle_ids = spawn_blocking({
                                 move || {
                                     use crate::schema::agreements::dsl::*;
@@ -65,13 +62,17 @@ pub fn vehicle_availability(
                                         .filter(
                                             // We chain .sql() and .bind() to handle multiple placeholders
                                             sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                                .bind::<Timestamptz, _>(end_time_buffered)
+                                                .bind::<Timestamptz, _>(start_time_buffered)
                                                 .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
                                                 .bind::<Timestamptz, _>(start_time_buffered)
+                                                .sql(" OR COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
+                                                .bind::<Timestamptz, _>(end_time_buffered)
+                                                .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
+                                                .bind::<Timestamptz, _>(end_time_buffered)
                                         )
                                         .select(vehicle_id)
                                         .distinct()
-                                        .load::<i32>(&mut db::get_connection_pool().get().unwrap())
+                                        .load::<i32>(&mut pool)
                                 }
                             }).await.unwrap().unwrap();
 
@@ -86,15 +87,15 @@ pub fn vehicle_availability(
                             tokens::rm_token_by_binary(hex::decode(body.access_token.token).unwrap()).await;
                             let new_token = tokens::gen_token_object(body.access_token.user_id.clone(), client_type.clone()).await;
                             use crate::schema::access_tokens::dsl::*;
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap().to_publish_access_token();
+                            let mut pool = POOL.clone().get().unwrap();
+                            let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
 
                             let msg = serde_json::json!({"access_token": new_token_in_db_publish, "available_vehicles": available_vehicle_list_publish});
                             Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),))
                         }
                     }
                     Err(_msg) => {
-                        let error_msg = serde_json::json!({"token": &body.access_token.token, "error": "Token not in hex format"});
-                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                        tokens::token_not_hex_warp_return(&body.access_token.token)
                     }
                 }
             }

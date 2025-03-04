@@ -5,7 +5,10 @@ use hex::FromHexError;
 use secrets::Secret;
 use tokio::task;
 use tokio::task::spawn_blocking;
-use crate::db;
+use warp::http::StatusCode;
+use warp::Rejection;
+use warp::reply::{Json, WithStatus};
+use crate::{POOL};
 use crate::model::{AccessToken, NewAccessToken};
 use crate::schema::access_tokens::dsl::*;
 
@@ -19,13 +22,13 @@ async fn generate_unique_token() -> Vec<u8> {
         // Wrap in a block for error handling.
         let token_exists_result = task::spawn_blocking(move || {
             //get connection.
-            let conn = &mut db::get_connection_pool().get().unwrap();
+            let mut pool = POOL.clone().get().unwrap();
             // Perform the Diesel query *synchronously* within the closure.
             // Use the token_vec.expose_secret() here.
             diesel::select(diesel::dsl::exists(
                 crate::schema::access_tokens::table.filter(crate::schema::access_tokens::token.eq(token_vec))
             ))
-                .get_result::<bool>(conn)
+                .get_result::<bool>(&mut pool)
 
         }).await;
 
@@ -86,12 +89,14 @@ pub async fn verify_user_token(
         Ok(binary_token) => {
             let token_clone = binary_token.clone();
             let token_clone_again = binary_token.clone();
+            let mut pool = POOL.clone().get().unwrap();
             let token_in_db = spawn_blocking(move || {
-                diesel::select(diesel::dsl::exists(access_tokens.filter(token.eq(token_clone)).filter(user_id.eq(_user_id)))).get_result::<bool>(&mut db::get_connection_pool().get().unwrap())
+                diesel::select(diesel::dsl::exists(access_tokens.filter(token.eq(token_clone)).filter(user_id.eq(_user_id)))).get_result::<bool>(&mut pool)
             }).await.unwrap().unwrap();
             if token_in_db {
+                let mut pool = POOL.clone().get().unwrap();
                 let token_in_db_result = spawn_blocking(move || {
-                    access_tokens.filter(user_id.eq(_user_id)).filter(token.eq(token_clone_again)).first::<AccessToken>(&mut db::get_connection_pool().get().unwrap())
+                    access_tokens.filter(user_id.eq(_user_id)).filter(token.eq(token_clone_again)).first::<AccessToken>(&mut pool)
                 }).await.unwrap().unwrap();
                 let token_exp = token_in_db_result.exp;
                 if token_exp >= Utc::now() {
@@ -107,5 +112,20 @@ pub async fn verify_user_token(
 pub async fn rm_token_by_binary(
     token_bit: Vec<u8>
 ) -> AccessToken {
-    diesel::delete(access_tokens.filter(token.eq(token_bit))).get_result::<AccessToken>(&mut db::get_connection_pool().get().unwrap()).unwrap()
+    let mut pool = POOL.clone().get().unwrap();
+    diesel::delete(access_tokens.filter(token.eq(token_bit))).get_result::<AccessToken>(&mut pool).unwrap()
+}
+
+pub fn token_not_hex_warp_return(
+    token_data: &String
+) -> Result<(WithStatus<Json>,), Rejection> {
+    let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
+    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
+}
+
+pub fn token_invalid_warp_return(
+    token_data: &String
+) -> Result<(WithStatus<Json>,), Rejection> {
+    let error_msg = serde_json::json!({"token": &token_data, "error": "Token not valid"});
+    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
 }
