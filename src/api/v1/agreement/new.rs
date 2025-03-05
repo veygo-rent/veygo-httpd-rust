@@ -8,7 +8,7 @@ use crate::{methods, integration};
 use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
-use stripe::PaymentIntentStatus;
+use stripe::{ErrorCode, StripeError};
 use tokio::task::spawn_blocking;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -131,18 +131,35 @@ pub fn new_agreement(
                                                             new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 500
                                                         ).await;
                                                         match fifty_dollar_auth {
-                                                            Err(_) => {
+                                                            Err(error) => {
+                                                                match error {
+                                                                    StripeError::Stripe(request_error) => {
+                                                                        eprintln!("Stripe API error: {:?}", request_error);
+                                                                        if request_error.code == Some(ErrorCode::CardDeclined) {
+                                                                            return methods::standard_replys::card_declined(&new_token_in_db_publish);
+                                                                        }
+                                                                    }
+                                                                    StripeError::QueryStringSerialize(ser_err) => {
+                                                                        eprintln!("Query string serialization error: {:?}", ser_err);
+                                                                    }
+                                                                    StripeError::JSONSerialize(json_err) => {
+                                                                        eprintln!("JSON serialization error: {}", json_err.to_string());
+                                                                    }
+                                                                    StripeError::UnsupportedVersion => {
+                                                                        eprintln!("Unsupported Stripe API version");
+                                                                    }
+                                                                    StripeError::ClientError(msg) => {
+                                                                        eprintln!("Client error: {}", msg);
+                                                                    }
+                                                                    StripeError::Timeout => {
+                                                                        eprintln!("Stripe request timed out");
+                                                                    }
+                                                                }
                                                                 methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
                                                             }
-                                                            Ok(fifty_dollar_auth) => {
-                                                                if fifty_dollar_auth.status == PaymentIntentStatus::RequiresCapture {
-                                                                    // rsvp auth hold succeeded
-                                                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
-                                                                    Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
-                                                                } else {
-                                                                    // auth declined
-                                                                    methods::standard_replys::card_declined(&new_token_in_db_publish)
-                                                                }
+                                                            Ok(_) => {
+                                                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
+                                                                Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                             }
                                                         }
                                                     }

@@ -2,7 +2,18 @@ use crate::model::NewPaymentMethod;
 use dotenv::dotenv;
 use std::env;
 use std::str::FromStr;
-use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, PaymentIntentCaptureMethod, CreateCustomer, CustomerId, SetupIntent, CreateSetupIntent, PaymentIntent, Currency, CreatePaymentIntent, PaymentIntentOffSession, CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CreatePaymentIntentAutomaticPaymentMethods, CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects};
+use stripe::{
+    Client, CreateCustomer, CreatePaymentIntent, CreatePaymentIntentAutomaticPaymentMethods,
+    CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects,
+    CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
+    CreateSetupIntentAutomaticPaymentMethods,
+    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, Currency, Customer, CustomerId,
+    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, PaymentMethod,
+    PaymentMethodId, SetupIntent, StripeError,
+};
 
 pub async fn create_new_payment_method(
     pm_id: &str,
@@ -39,16 +50,14 @@ pub async fn create_new_payment_method(
                 last_used_date_time: None,
             })
         }
-        Err(error) => {
-            Err(error)
-        }
+        Err(error) => Err(error),
     }
 }
 
 pub async fn create_stripe_customer(
     name_data: String,
     phone_data: String,
-    email_data: String
+    email_data: String,
 ) -> Result<Customer, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -62,12 +71,13 @@ pub async fn create_stripe_customer(
 
             ..Default::default()
         },
-    ).await
+    )
+    .await
 }
 
 pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: String,
-    pm_id: String
+    pm_id: String,
 ) -> Result<SetupIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -78,8 +88,10 @@ pub async fn attach_payment_method_to_stripe_customer(
         &client,
         CreateSetupIntent {
             attach_to_self: Some(false),
-            automatic_payment_methods: Some(CreateSetupIntentAutomaticPaymentMethods{
-                allow_redirects: Some(CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never),
+            automatic_payment_methods: Some(CreateSetupIntentAutomaticPaymentMethods {
+                allow_redirects: Some(
+                    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never,
+                ),
                 enabled: true,
             }),
             confirm: Some(true),
@@ -98,11 +110,12 @@ pub async fn attach_payment_method_to_stripe_customer(
             return_url: None,
             single_use: None,
             use_stripe_sdk: None,
-        }
-    ).await
+        },
+    )
+    .await
 }
 
-pub async fn create_payment_intent (
+pub async fn create_payment_intent(
     agreement_id_data: String,
     customer_id_data: String,
     payment_id_data: String,
@@ -129,7 +142,7 @@ pub async fn create_payment_intent (
             customer: Some(customer_id),
             description: Some(agreement_id_data.as_str()),
             error_on_requires_action: None,
-            expand: &["latest_charge"],
+            expand: &[],
             mandate: None,
             mandate_data: None,
             metadata: None,
