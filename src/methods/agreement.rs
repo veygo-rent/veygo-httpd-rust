@@ -7,7 +7,7 @@ pub fn generate_unique_agreement_confirmation() -> String {
     // Define the allowed characters: digits 0-9 and uppercase A-Z.
     let mut charset: Vec<u8> = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec(); // Convert to Vec<u8>
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Shuffle the character set
     charset.shuffle(&mut rng);
@@ -16,7 +16,7 @@ pub fn generate_unique_agreement_confirmation() -> String {
         // Generate a random 8-character string.
         let confirmation: String = (0..8)
             .map(|_| {
-                let idx = rng.gen_range(0, charset.len());
+                let idx = rng.random_range(0..charset.len());
                 charset[idx] as char
             })
             .collect();
