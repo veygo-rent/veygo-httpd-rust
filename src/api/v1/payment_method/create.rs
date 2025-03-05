@@ -5,7 +5,7 @@ use warp::http::StatusCode;
 use crate::{model, POOL, methods};
 use crate::model::{AccessToken, PaymentMethod};
 use diesel::prelude::*;
-use stripe::SetupIntentStatus;
+use stripe::{SetupIntent, SetupIntentStatus};
 use tokio::task;
 use crate::schema::payment_methods::dsl::*;
 
@@ -62,7 +62,7 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                         let current_renter = methods::user::get_user_by_id(user_id_clone).await.unwrap();
                                         let stripe_customer_id = current_renter.stripe_id.clone().unwrap();
                                         let payment_method_id = new_pm.token.clone();
-                                        let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(stripe_customer_id, payment_method_id).await.unwrap();
+                                        let attach_result: SetupIntent = stripe_veygo::attach_payment_method_to_stripe_customer(stripe_customer_id, payment_method_id).await.unwrap();
                                         if attach_result.status != SetupIntentStatus::Succeeded {
                                             let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods declined"});
                                             return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));

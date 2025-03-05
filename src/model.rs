@@ -16,6 +16,7 @@ use std::io::Write;
 pub enum AgreementStatus {
     Rental,
     Void,
+    Canceled,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
@@ -63,6 +64,7 @@ impl ToSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
         match *self {
             AgreementStatus::Rental => out.write_all(b"Rental")?,
             AgreementStatus::Void => out.write_all(b"Void")?,
+            AgreementStatus::Canceled => out.write_all(b"Canceled")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -73,6 +75,7 @@ impl FromSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
         match bytes.as_bytes() {
             b"Rental" => Ok(AgreementStatus::Rental),
             b"Void" => Ok(AgreementStatus::Void),
+            b"Canceled" => Ok(AgreementStatus::Canceled),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -674,8 +677,6 @@ pub struct Agreement {
     pub drop_off_level: Option<i32>,
     pub tax_rate: f64,
     pub msrp_factor: f64,
-    pub plan_duration: f64,
-    pub pay_as_you_go_duration: f64,
     pub duration_rate: f64,
     pub apartment_id: i32,
     pub vehicle_id: i32,
@@ -705,16 +706,8 @@ pub struct NewAgreement {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub actual_pickup_time: Option<DateTime<Utc>>,
-    pub pickup_odometer: Option<i32>,
-    pub pickup_level: Option<i32>,
-    pub actual_drop_off_time: Option<DateTime<Utc>>,
-    pub drop_off_odometer: Option<i32>,
-    pub drop_off_level: Option<i32>,
     pub tax_rate: f64,
     pub msrp_factor: f64,
-    pub plan_duration: f64,
-    pub pay_as_you_go_duration: f64,
     pub duration_rate: f64,
     pub apartment_id: i32,
     pub vehicle_id: i32,

@@ -3,7 +3,7 @@
 -- changes will be added to existing projects as new migrations.
 
 
-
+SET TIMEZONE = 'UTC';
 
 -- Sets up a trigger for the given table to automatically set a column called
 -- `updated_at` whenever the row is modified (unless `updated_at` was included

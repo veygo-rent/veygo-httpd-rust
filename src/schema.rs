@@ -59,8 +59,6 @@ diesel::table! {
         drop_off_level -> Nullable<Int4>,
         tax_rate -> Float8,
         msrp_factor -> Float8,
-        plan_duration -> Float8,
-        pay_as_you_go_duration -> Float8,
         duration_rate -> Float8,
         apartment_id -> Int4,
         vehicle_id -> Int4,

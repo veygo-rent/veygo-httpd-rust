@@ -6,7 +6,7 @@ use tokio::task::{spawn_blocking};
 use warp::http::StatusCode;
 
 pub fn get_apartments() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("apartments")
+    warp::path!("get")
         .and(warp::get())
         .and(warp::path::end())
         .and_then(move || {

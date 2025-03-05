@@ -2,7 +2,7 @@ use crate::model::NewPaymentMethod;
 use dotenv::dotenv;
 use std::env;
 use std::str::FromStr;
-use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, CreateCustomer, CustomerId, SetupIntent, CreateSetupIntent};
+use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, PaymentIntentCaptureMethod, CreateCustomer, CustomerId, SetupIntent, CreateSetupIntent, PaymentIntent, Currency, CreatePaymentIntent, PaymentIntentOffSession, CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects};
 
 pub async fn create_new_payment_method(
     pm_id: &str,
@@ -60,10 +60,6 @@ pub async fn create_stripe_customer(
             name: Some(name_data.as_str()),
             email: Some(email_data.as_str()),
             phone: Some(phone_data.as_str()),
-            metadata: Some(std::collections::HashMap::from([(
-                String::from("async-stripe"),
-                String::from("true"),
-            )])),
 
             ..Default::default()
         },
@@ -83,7 +79,10 @@ pub async fn attach_payment_method_to_stripe_customer(
         &client,
         CreateSetupIntent {
             attach_to_self: Some(false),
-            automatic_payment_methods: None,
+            automatic_payment_methods: Some(CreateSetupIntentAutomaticPaymentMethods{
+                allow_redirects: Some(CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never),
+                enabled: true,
+            }),
             confirm: Some(true),
             customer: Some(customer_id),
             description: None,
@@ -99,6 +98,108 @@ pub async fn attach_payment_method_to_stripe_customer(
             payment_method_types: None,
             return_url: None,
             single_use: None,
+            use_stripe_sdk: None,
+        }
+    ).await
+}
+
+pub async fn create_payment_intent (
+    agreement_id_data: String,
+    customer_id_data: String,
+    payment_id_data: String,
+    amount: i64,
+) -> Result<PaymentIntent, StripeError> {
+    dotenv().ok();
+    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
+    let client = Client::new(stripe_secret_key);
+    let customer_id = CustomerId::from_str(customer_id_data.as_str()).unwrap();
+    let payment_method_id = PaymentMethodId::from_str(payment_id_data.as_str()).unwrap();
+    PaymentIntent::create(
+        &client,
+        CreatePaymentIntent {
+            amount,
+            application_fee_amount: None,
+            automatic_payment_methods: None,
+            capture_method: Some(PaymentIntentCaptureMethod::Manual),
+            confirm: Some(true),
+            confirmation_method: None,
+            currency: Currency::USD,
+            customer: Some(customer_id),
+            description: Some(agreement_id_data.as_str()),
+            error_on_requires_action: None,
+            expand: &[],
+            mandate: None,
+            mandate_data: None,
+            metadata: None,
+            off_session: Some(PaymentIntentOffSession::Exists(true)),
+            on_behalf_of: None,
+            payment_method: Some(payment_method_id),
+            payment_method_configuration: None,
+            payment_method_data: None,
+            payment_method_options: Some(CreatePaymentIntentPaymentMethodOptions{
+                acss_debit: None,
+                affirm: None,
+                afterpay_clearpay: None,
+                alipay: None,
+                au_becs_debit: None,
+                bacs_debit: None,
+                bancontact: None,
+                blik: None,
+                boleto: None,
+                card: Some(CreatePaymentIntentPaymentMethodOptionsCard{
+                    capture_method: None,
+                    cvc_token: None,
+                    installments: None,
+                    mandate_options: None,
+                    moto: None,
+                    network: None,
+                    request_extended_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable),
+                    request_incremental_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization::IfAvailable),
+                    request_multicapture: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture::IfAvailable),
+                    request_overcapture: None,
+                    request_three_d_secure: None,
+                    require_cvc_recollection: None,
+                    setup_future_usage: None,
+                    statement_descriptor_suffix_kana: None,
+                    statement_descriptor_suffix_kanji: None,
+                    three_d_secure: None,
+                }),
+                card_present: None,
+                cashapp: None,
+                customer_balance: None,
+                eps: None,
+                fpx: None,
+                giropay: None,
+                grabpay: None,
+                ideal: None,
+                interac_present: None,
+                klarna: None,
+                konbini: None,
+                link: None,
+                oxxo: None,
+                p24: None,
+                paynow: None,
+                paypal: None,
+                pix: None,
+                promptpay: None,
+                revolut_pay: None,
+                sepa_debit: None,
+                sofort: None,
+                swish: None,
+                us_bank_account: None,
+                wechat_pay: None,
+                zip: None,
+            }),
+            payment_method_types: None,
+            radar_options: None,
+            receipt_email: None,
+            return_url: None,
+            setup_future_usage: None,
+            shipping: None,
+            statement_descriptor: None,
+            statement_descriptor_suffix: None,
+            transfer_data: None,
+            transfer_group: None,
             use_stripe_sdk: None,
         }
     ).await

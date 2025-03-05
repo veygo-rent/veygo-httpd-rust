@@ -53,12 +53,12 @@ pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::
 
                         } else {
                             let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),))
+                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
                         }
                     }
                     Err(_) => {
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),))
+                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
                     }
                 }
             }

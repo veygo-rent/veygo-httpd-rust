@@ -1,20 +1,17 @@
+use crate::integration::stripe_veygo;
 use crate::model::{AccessToken, Renter};
 use crate::model::{Apartment, NewRenter};
 use crate::schema::access_tokens::dsl::access_tokens;
 use crate::schema::apartments::dsl::apartments;
+use crate::{methods, POOL};
 use bcrypt::{hash, DEFAULT_COST};
 use chrono::{Datelike, NaiveDate, Utc};
-use diesel::{
-    BoolExpressionMethods, ExpressionMethods, QueryDsl,
-    RunQueryDsl,
-};
+use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use tokio::task;
 use warp::http::StatusCode;
 use warp::Filter;
-use crate::integration::stripe_veygo;
-use crate::POOL;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct CreateUserData {
@@ -34,10 +31,13 @@ fn is_at_least_18(dob: &NaiveDate) -> bool {
     let today = Utc::now().date_naive();
 
     // Try to compute the 18th birthday by replacing the year
-    let eighteenth_birthday = dob.with_year(dob.year() + 18)
+    let eighteenth_birthday = dob
+        .with_year(dob.year() + 18)
         // If dob is Feb 29 and the target year isn't a leap year, fallback to Feb 28.
-        .unwrap_or_else(|| NaiveDate::from_ymd_opt(dob.year() + 18, 2, 28)
-            .expect("Feb 28 should always be a valid date"));
+        .unwrap_or_else(|| {
+            NaiveDate::from_ymd_opt(dob.year() + 18, 2, 28)
+                .expect("Feb 28 should always be a valid date")
+        });
 
     today >= eighteenth_birthday
 }
@@ -144,68 +144,53 @@ pub fn create_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                                                 plan_available_duration: apartment.free_tier_hours,
                                             };
                                             let mut pool = POOL.clone().get().unwrap();
-                                            let renter_result = task::spawn_blocking(move || {
+                                            let mut renter = task::spawn_blocking(move || {
                                                 diesel::insert_into(renters)
                                                     .values(&to_be_inserted)
                                                     .get_result::<Renter>(&mut pool) // Get the inserted Renter
-                                            }).await.unwrap(); //Awaiting a JoinHandle, not diesel query.
-                                            match renter_result {
-                                                Ok(mut renter) => {
-                                                    let stripe_name = renter.name.clone();
-                                                    let stripe_phone = renter.phone.clone();
-                                                    let stripe_email = renter.student_email.clone();
-                                                    let stripe_result = stripe_veygo::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
-                                                    match stripe_result {
-                                                        Ok(stripe_customer) => {
-                                                            let stripe_customer_id = stripe_customer.id.to_string();
-                                                            let renter_id_to_add_stripe = renter.id.clone();
-                                                            let mut pool = POOL.clone().get().unwrap();
-                                                            let new_renter = diesel::update(renters.find(renter_id_to_add_stripe)).set(stripe_id.eq(stripe_customer_id)).get_result::<Renter>(&mut pool).unwrap();
-                                                            renter = new_renter;
-                                                        }
-                                                        Err(_) => {
-                                                            let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});
-                                                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),));
-                                                        }
-                                                    }
-                                                    let _user_id = renter.id;
-                                                    let new_access_token = crate::methods::tokens::gen_token_object(_user_id, client_type).await;
+                                            }).await.unwrap().unwrap(); //Awaiting a JoinHandle, not diesel query.
+
+                                            let stripe_name = renter.name.clone();
+                                            let stripe_phone = renter.phone.clone();
+                                            let stripe_email = renter.student_email.clone();
+                                            let stripe_result = stripe_veygo::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
+                                            match stripe_result {
+                                                Ok(stripe_customer) => {
+                                                    let stripe_customer_id = stripe_customer.id.to_string();
+                                                    let renter_id_to_add_stripe = renter.id.clone();
                                                     let mut pool = POOL.clone().get().unwrap();
-                                                    let _result = task::spawn_blocking(move || {
-                                                        diesel::insert_into(access_tokens)
-                                                            .values(&new_access_token)
-                                                            .get_result::<AccessToken>(&mut pool) // Get the inserted Renter
-                                                    }).await;
-                                                    match _result {
-                                                        Ok(Ok(access_token)) => {
-                                                            let pub_token = access_token.to_publish_access_token();
-                                                            let pub_renter = renter.to_publish_renter();
-                                                            let renter_msg = serde_json::json!({
+                                                    let new_renter = diesel::update(renters.find(renter_id_to_add_stripe)).set(stripe_id.eq(stripe_customer_id)).get_result::<Renter>(&mut pool).unwrap();
+                                                    renter = new_renter;
+                                                }
+                                                Err(_) => {
+                                                    return methods::standard_replys::internal_server_error_response_without_access_token();
+                                                }
+                                            }
+                                            let user_id_data = renter.id;
+                                            let new_access_token = crate::methods::tokens::gen_token_object(user_id_data, client_type).await;
+                                            let mut pool = POOL.clone().get().unwrap();
+                                            let insert_token_result = task::spawn_blocking(move || {
+                                                diesel::insert_into(access_tokens)
+                                                    .values(&new_access_token)
+                                                    .get_result::<AccessToken>(&mut pool) // Get the inserted Renter
+                                            }).await.unwrap().unwrap();
+
+                                            let pub_token = insert_token_result.to_publish_access_token();
+                                            let pub_renter = renter.to_publish_renter();
+                                            let renter_msg = serde_json::json!({
                                                                 "renter": pub_renter,
                                                                 "access_token": pub_token,
                                                             });
-                                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::CREATED),))
-                                                        }
-                                                        _ => {
-                                                            let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});
-                                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),))
-                                                        }
-                                                    }
-                                                }
-                                                _ => {
-                                                    let error_msg = serde_json::json!({"status": "error", "message": "Internal server error"});
-                                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::INTERNAL_SERVER_ERROR),))
-                                                }
-                                            }
+                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::CREATED),))
                                         } else {
                                             let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
-                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
                                         }
                                     }
                                     Err(_) => {
                                         // Wrong apartment ID
                                         let error_msg = serde_json::json!({"apartment": &renter_create_data.apartment_id, "msg": "Wrong apartment ID"});
-                                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
                                     }
                                 }
                             }
