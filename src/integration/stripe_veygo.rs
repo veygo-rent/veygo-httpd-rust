@@ -2,11 +2,10 @@ use crate::model::NewPaymentMethod;
 use dotenv::dotenv;
 use std::env;
 use std::str::FromStr;
-use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, PaymentIntentCaptureMethod, CreateCustomer, CustomerId, SetupIntent, CreateSetupIntent, PaymentIntent, Currency, CreatePaymentIntent, PaymentIntentOffSession, CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects};
+use stripe::{Client, PaymentMethod, PaymentMethodId, StripeError, Customer, PaymentIntentCaptureMethod, CreateCustomer, CustomerId, SetupIntent, CreateSetupIntent, PaymentIntent, Currency, CreatePaymentIntent, PaymentIntentOffSession, CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CreatePaymentIntentAutomaticPaymentMethods, CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects};
 
 pub async fn create_new_payment_method(
     pm_id: &str,
-    md5: String,
     cardholder_name: String,  // Required as Stripe does not return full name
     renter_id: i32,           // Must be provided
     nickname: Option<String>, // Optional user-defined alias
@@ -33,7 +32,7 @@ pub async fn create_new_payment_method(
                 network,
                 expiration,
                 token: pm_id.to_string(),
-                md5,
+                md5: card.fingerprint.unwrap(),
                 nickname,
                 is_enabled: true,
                 renter_id,
@@ -119,7 +118,10 @@ pub async fn create_payment_intent (
         CreatePaymentIntent {
             amount,
             application_fee_amount: None,
-            automatic_payment_methods: None,
+            automatic_payment_methods: Some(CreatePaymentIntentAutomaticPaymentMethods{
+                allow_redirects: Some(CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects::Never),
+                enabled: true,
+            }),
             capture_method: Some(PaymentIntentCaptureMethod::Manual),
             confirm: Some(true),
             confirmation_method: None,
@@ -127,7 +129,7 @@ pub async fn create_payment_intent (
             customer: Some(customer_id),
             description: Some(agreement_id_data.as_str()),
             error_on_requires_action: None,
-            expand: &[],
+            expand: &["latest_charge"],
             mandate: None,
             mandate_data: None,
             metadata: None,

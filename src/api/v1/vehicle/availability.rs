@@ -19,7 +19,7 @@ struct AvailabilityData {
 
 pub fn vehicle_availability(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("availability")
+    warp::path("availability")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())

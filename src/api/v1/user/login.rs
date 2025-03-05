@@ -15,7 +15,7 @@ struct LoginData {
 }
 
 pub fn user_login() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("login")
+    warp::path("login")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())

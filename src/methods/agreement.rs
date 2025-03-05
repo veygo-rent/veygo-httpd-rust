@@ -1,11 +1,16 @@
+use rand::seq::SliceRandom;
 use rand::Rng;
 use diesel::prelude::*;
 use crate::POOL;
 
 pub fn generate_unique_agreement_confirmation() -> String {
     // Define the allowed characters: digits 0-9 and uppercase A-Z.
-    let charset: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let mut charset: Vec<u8> = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec(); // Convert to Vec<u8>
+
     let mut rng = rand::thread_rng();
+
+    // Shuffle the character set
+    charset.shuffle(&mut rng);
 
     loop {
         // Generate a random 8-character string.
@@ -39,6 +44,5 @@ pub fn generate_unique_agreement_confirmation() -> String {
         if !exists {
             return confirmation;
         }
-        // Otherwise, loop again and generate a new one.
     }
 }

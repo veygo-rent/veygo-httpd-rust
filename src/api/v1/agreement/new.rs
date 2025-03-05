@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc, Duration};
 use diesel::RunQueryDsl;
 use serde_derive::{Deserialize, Serialize};
-use warp::Filter;
+use warp::{Filter, Rejection};
 use warp::http::StatusCode;
 use crate::{model, POOL};
 use crate::{methods, integration};
@@ -27,7 +27,7 @@ struct NewAgreementRequestBodyData {
 
 pub fn new_agreement(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("new")
+    warp::path("new")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
@@ -110,7 +110,7 @@ pub fn new_agreement(
                                                             user_date_of_birth: renter_clone.date_of_birth.clone(),
                                                             user_email: renter_clone.student_email.clone(),
                                                             user_phone: renter_clone.phone.clone(),
-                                                            user_billing_address: renter_clone.billing_address.unwrap().clone(),
+                                                            user_billing_address: "2101 Cumberland Ave".to_string(),
                                                             rsvp_pickup_time: body.start_time,
                                                             rsvp_drop_off_time: body.end_time,
                                                             liability_protection_rate: if body.liability { apt.liability_protection_rate } else { 0.00 },
@@ -128,7 +128,7 @@ pub fn new_agreement(
                                                         };
                                                         // TODO: auth deposit
                                                         let fifty_dollar_auth = integration::stripe_veygo::create_payment_intent(
-                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 5000
+                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 500
                                                         ).await;
                                                         match fifty_dollar_auth {
                                                             Err(_) => {
@@ -137,7 +137,8 @@ pub fn new_agreement(
                                                             Ok(fifty_dollar_auth) => {
                                                                 if fifty_dollar_auth.status == PaymentIntentStatus::RequiresCapture {
                                                                     // rsvp auth hold succeeded
-                                                                    methods::standard_replys::card_declined(&new_token_in_db_publish)
+                                                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
+                                                                    Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                                 } else {
                                                                     // auth declined
                                                                     methods::standard_replys::card_declined(&new_token_in_db_publish)
