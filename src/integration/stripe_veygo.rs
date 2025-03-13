@@ -126,6 +126,7 @@ pub async fn create_payment_intent(
     let client = Client::new(stripe_secret_key);
     let customer_id = CustomerId::from_str(customer_id_data.as_str()).unwrap();
     let payment_method_id = PaymentMethodId::from_str(payment_id_data.as_str()).unwrap();
+    let description_data = "Veygo Reservation #".to_owned() + &*agreement_id_data;
     PaymentIntent::create(
         &client,
         CreatePaymentIntent {
@@ -140,7 +141,7 @@ pub async fn create_payment_intent(
             confirmation_method: None,
             currency: Currency::USD,
             customer: Some(customer_id),
-            description: Some(agreement_id_data.as_str()),
+            description: Some(description_data.as_str()),
             error_on_requires_action: None,
             expand: &[],
             mandate: None,

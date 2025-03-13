@@ -14,7 +14,7 @@ pub fn generate_unique_agreement_confirmation() -> String {
 
     loop {
         // Generate a random 8-character string.
-        let confirmation: String = (0..8)
+        let confirmation: String = (0..6)
             .map(|_| {
                 let idx = rng.random_range(0..charset.len());
                 charset[idx] as char
