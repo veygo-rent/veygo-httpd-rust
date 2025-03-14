@@ -86,6 +86,39 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                 warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
                             ));
                         }
+                        // Check if liability is covered (liability & collision)
+                        // liability
+                        // TODO: Add apartment liability availability check
+                        if user_in_request.insurance_liability_expiration.is_none() && !body.liability {
+                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Liability coverage required"});
+                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                        }
+                        let user_liability_expiration = user_in_request.insurance_liability_expiration.unwrap();
+                        if user_liability_expiration < return_date && !body.liability {
+                            let error_msg = serde_json::json!({
+                                "access_token": &new_token_in_db_publish,
+                                "error": "Liability coverage expired before return"
+                            });
+                            return Ok::<_, Rejection>((
+                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                            ));
+                        }
+                        // collision
+                        // TODO: Add credit card collision verification
+                        if user_in_request.insurance_collision_expiration.is_none() && !body.pcdw {
+                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Collision coverage required"});
+                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                        }
+                        let user_collision_expiration = user_in_request.insurance_collision_expiration.unwrap();
+                        if user_collision_expiration < return_date && !body.pcdw {
+                            let error_msg = serde_json::json!({
+                                "access_token": &new_token_in_db_publish,
+                                "error": "Collision coverage expired before return"
+                            });
+                            return Ok::<_, Rejection>((
+                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                            ));
+                        }
                         // Check if renter in DNR
                         let if_in_dnr = methods::user::check_if_on_do_not_rent(&user_in_request).await;
                         if !if_in_dnr {
