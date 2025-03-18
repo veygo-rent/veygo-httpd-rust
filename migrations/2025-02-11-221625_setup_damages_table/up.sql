@@ -11,7 +11,7 @@ CREATE TABLE damages
     first_image                        VARCHAR,
     second_image                       VARCHAR,
     third_image                        VARCHAR,
-    fourth_image                       VARCHAR,                           -- Consider renaming to "fourth_image"
+    fourth_image                       VARCHAR,
     fixed_date                         TIMESTAMP WITH TIME ZONE,
     fixed_amount                       DOUBLE PRECISION,
     agreement_id                       INTEGER REFERENCES agreements (id) -- Allow NULL (Option<i32>)

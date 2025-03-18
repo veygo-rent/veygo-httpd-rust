@@ -20,6 +20,10 @@ pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "plan_tier_enum"))]
     pub struct PlanTierEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "transaction_type_enum"))]
+    pub struct TransactionTypeEnum;
 }
 
 diesel::table! {
@@ -54,9 +58,17 @@ diesel::table! {
         actual_pickup_time -> Nullable<Timestamptz>,
         pickup_odometer -> Nullable<Int4>,
         pickup_level -> Nullable<Int4>,
+        pickup_front_image -> Nullable<Varchar>,
+        pickup_back_image -> Nullable<Varchar>,
+        pickup_left_image -> Nullable<Varchar>,
+        pickup_right_image -> Nullable<Varchar>,
         actual_drop_off_time -> Nullable<Timestamptz>,
         drop_off_odometer -> Nullable<Int4>,
         drop_off_level -> Nullable<Int4>,
+        drop_off_front_image -> Nullable<Varchar>,
+        drop_off_back_image -> Nullable<Varchar>,
+        drop_off_left_image -> Nullable<Varchar>,
+        drop_off_right_image -> Nullable<Varchar>,
         tax_rate -> Float8,
         msrp_factor -> Float8,
         duration_rate -> Float8,
@@ -103,6 +115,19 @@ diesel::table! {
         amount -> Float8,
         note -> Nullable<Varchar>,
         agreement_id -> Int4,
+    }
+}
+
+diesel::table! {
+    damage_submissions (id) {
+        id -> Int4,
+        reported_by -> Int4,
+        first_image -> Varchar,
+        second_image -> Varchar,
+        third_image -> Nullable<Varchar>,
+        fourth_image -> Nullable<Varchar>,
+        description -> Varchar,
+        processed -> Bool,
     }
 }
 
@@ -164,6 +189,19 @@ diesel::table! {
         reference_number -> Nullable<Varchar>,
         agreement_id -> Int4,
         payment_method_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TransactionTypeEnum;
+
+    rental_transactions (id) {
+        id -> Int4,
+        agreement_id -> Int4,
+        transaction_type -> TransactionTypeEnum,
+        duration -> Float8,
+        transaction_time -> Timestamptz,
     }
 }
 
@@ -255,10 +293,12 @@ diesel::joinable!(agreements -> payment_methods (payment_method_id));
 diesel::joinable!(agreements -> renters (renter_id));
 diesel::joinable!(agreements -> vehicles (vehicle_id));
 diesel::joinable!(charges -> agreements (agreement_id));
+diesel::joinable!(damage_submissions -> agreements (reported_by));
 diesel::joinable!(damages -> agreements (agreement_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
 diesel::joinable!(payments -> agreements (agreement_id));
 diesel::joinable!(payments -> payment_methods (payment_method_id));
+diesel::joinable!(rental_transactions -> agreements (agreement_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(vehicles -> apartments (apartment_id));
 
@@ -267,10 +307,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     agreements,
     apartments,
     charges,
+    damage_submissions,
     damages,
     do_not_rent_lists,
     payment_methods,
     payments,
+    rental_transactions,
     renters,
     transponder_companies,
     vehicles,

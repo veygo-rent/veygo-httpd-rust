@@ -196,11 +196,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                             renter_id: renter_clone.id,
                                                             payment_method_id: body.payment_id,
                                                         };
-                                                        // TODO: auth deposit
-                                                        let fifty_dollar_auth = integration::stripe_veygo::create_payment_intent(
-                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 500
+                                                        let stripe_auth = integration::stripe_veygo::create_payment_intent(
+                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 2000
                                                         ).await;
-                                                        match fifty_dollar_auth {
+                                                        match stripe_auth {
                                                             Err(error) => {
                                                                 match error {
                                                                     StripeError::Stripe(request_error) => {
@@ -228,6 +227,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
                                                             }
                                                             Ok(_) => {
+                                                                // TODO: Save reservation
                                                                 let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
                                                                 Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                             }

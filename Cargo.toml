@@ -8,7 +8,7 @@ tokio = { version = "1.43.0", features = ["full"] }
 warp = { version = "0.3.7", features = ["tls"] }
 csv = "1.3.1"
 bcrypt = "0.17.0"
-diesel = { version = "2.2.7", features = ["numeric", "chrono", "postgres", "r2d2"] }
+diesel = { version = "2.2.7", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 dotenv = "0.15.0"
 serde_derive = "1.0.217"
 regex = "1.11.1"

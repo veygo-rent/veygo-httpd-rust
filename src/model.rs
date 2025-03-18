@@ -221,7 +221,7 @@ pub struct Renter {
 }
 
 impl Renter {
-    pub fn to_publish_renter(&self) -> PublishRenter{
+    pub fn to_publish_renter(&self) -> PublishRenter {
         PublishRenter {
             id: self.id,
             name: self.name.clone(),
@@ -607,6 +607,34 @@ pub struct NewVehicle {
 }
 
 #[derive(
+    Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
+#[diesel(table_name = damage_submissions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct DamageSubmission {
+    pub id: i32,
+    pub reported_by: i32,
+    pub first_image: String,
+    pub second_image: String,
+    pub third_image: Option<String>,
+    pub fourth_image: Option<String>,
+    pub description: String,
+    pub processed: bool,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = damage_submissions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewDamageSubmission {
+    pub reported_by: i32,
+    pub first_image: String,
+    pub second_image: String,
+    pub third_image: Option<String>,
+    pub fourth_image: Option<String>,
+    pub description: String,
+}
+
+#[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Agreement))]
@@ -675,9 +703,17 @@ pub struct Agreement {
     pub actual_pickup_time: Option<DateTime<Utc>>,
     pub pickup_odometer: Option<i32>,
     pub pickup_level: Option<i32>,
+    pub pickup_front_image: Option<String>,
+    pub pickup_back_image: Option<String>,
+    pub pickup_left_image: Option<String>,
+    pub pickup_right_image: Option<String>,
     pub actual_drop_off_time: Option<DateTime<Utc>>,
     pub drop_off_odometer: Option<i32>,
     pub drop_off_level: Option<i32>,
+    pub drop_off_front_image: Option<String>,
+    pub drop_off_back_image: Option<String>,
+    pub drop_off_left_image: Option<String>,
+    pub drop_off_right_image: Option<String>,
     pub tax_rate: f64,
     pub msrp_factor: f64,
     pub duration_rate: f64,
