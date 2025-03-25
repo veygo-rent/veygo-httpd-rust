@@ -1,7 +1,7 @@
 -- Your SQL goes here
 -- up.sql
 
-CREATE TYPE agreement_status_enum AS ENUM ('Rental', 'Void');
+CREATE TYPE agreement_status_enum AS ENUM ('Rental', 'Void', 'Canceled');
 
 CREATE TABLE agreements
 (
@@ -23,13 +23,19 @@ CREATE TABLE agreements
     actual_pickup_time        TIMESTAMP WITH TIME ZONE,
     pickup_odometer           INTEGER,
     pickup_level              INTEGER,
+    pickup_front_image        VARCHAR,
+    pickup_back_image         VARCHAR,
+    pickup_left_image         VARCHAR,
+    pickup_right_image        VARCHAR,
     actual_drop_off_time      TIMESTAMP WITH TIME ZONE,
     drop_off_odometer         INTEGER,
     drop_off_level            INTEGER,
-    tax_rate               DOUBLE PRECISION         NOT NULL,
+    drop_off_front_image      VARCHAR,
+    drop_off_back_image       VARCHAR,
+    drop_off_left_image       VARCHAR,
+    drop_off_right_image      VARCHAR,
+    tax_rate                  DOUBLE PRECISION         NOT NULL,
     msrp_factor               DOUBLE PRECISION         NOT NULL,
-    plan_duration             DOUBLE PRECISION         NOT NULL,
-    pay_as_you_go_duration    DOUBLE PRECISION         NOT NULL,
     duration_rate             DOUBLE PRECISION         NOT NULL,
     apartment_id              INTEGER                  NOT NULL REFERENCES apartments (id),
     vehicle_id                INTEGER                  NOT NULL REFERENCES vehicles (id),

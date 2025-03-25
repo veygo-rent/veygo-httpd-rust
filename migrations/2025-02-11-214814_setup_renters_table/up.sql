@@ -7,6 +7,7 @@ CREATE TABLE renters
 (
     id                              SERIAL PRIMARY KEY,
     name                            VARCHAR                  NOT NULL,
+    stripe_id                       VARCHAR,
     student_email                   VARCHAR                  NOT NULL UNIQUE,
     student_email_expiration        DATE,
     password                        VARCHAR                  NOT NULL,
@@ -22,7 +23,8 @@ CREATE TABLE renters
     drivers_license_image_secondary VARCHAR,
     drivers_license_expiration      DATE,
     insurance_id_image              VARCHAR,
-    insurance_id_expiration         DATE,
+    insurance_liability_expiration  DATE,
+    insurance_collision_expiration  DATE,
     lease_agreement_image           VARCHAR,
     apartment_id                    INTEGER                  NOT NULL REFERENCES apartments (id), -- FOREIGN KEY!
     lease_agreement_expiration      DATE,

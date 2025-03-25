@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.43.0", features = ["full"] }
-warp = "0.3.7"
+warp = { version = "0.3.7", features = ["tls"] }
 csv = "1.3.1"
 bcrypt = "0.17.0"
-diesel = { version = "2.2.7", features = ["numeric", "chrono", "postgres", "r2d2"] }
+diesel = { version = "2.2.7", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 dotenv = "0.15.0"
 serde_derive = "1.0.217"
 regex = "1.11.1"
@@ -18,3 +18,6 @@ serde_json = "1.0.138"
 lazy_static = "1.5.0"
 secrets = "1.2.0"
 hex = "0.4.3"
+async-stripe = { version = "0.40.0", features = ["runtime-tokio-hyper"] }
+once_cell = "1.20.3"
+rand = "0.9.0"

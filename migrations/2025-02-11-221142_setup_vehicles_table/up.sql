@@ -22,7 +22,7 @@ CREATE TABLE vehicles
     second_transponder_company_id INTEGER,
     third_transponder_number      VARCHAR,
     third_transponder_company_id  INTEGER,
-    fourth_transponder_number      VARCHAR,                   -- "forth" -> "fourth"
-    fourth_transponder_company_id  INTEGER,
+    fourth_transponder_number     VARCHAR,                   -- "forth" -> "fourth"
+    fourth_transponder_company_id INTEGER,
     apartment_id                  INTEGER          NOT NULL REFERENCES apartments (id)
 );
