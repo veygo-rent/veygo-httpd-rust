@@ -806,7 +806,6 @@ pub struct Payment {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPayment {
     pub payment_type: PaymentType,
-    pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
     pub reference_number: Option<String>,

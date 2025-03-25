@@ -1,4 +1,4 @@
-use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle};
+use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle, NewPayment, PaymentType};
 use crate::{integration, methods};
 use crate::{model, POOL};
 use chrono::{DateTime, Duration, Utc};
@@ -196,8 +196,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                             renter_id: renter_clone.id,
                                                             payment_method_id: body.payment_id,
                                                         };
+                                                        let deposit_amount = 10.00 * (1.00 + apt.sales_tax_rate);
+                                                        let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), 2000
+                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int
                                                         ).await;
                                                         match stripe_auth {
                                                             Err(error) => {
@@ -226,8 +228,16 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 }
                                                                 methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
                                                             }
-                                                            Ok(_) => {
+                                                            Ok(pmi) => {
                                                                 // TODO: Save reservation
+                                                                let new_payment = NewPayment {
+                                                                    payment_type: PaymentType::RequiresCapture,
+                                                                    amount: deposit_amount,
+                                                                    note: Some("Non refundable deposit".to_string()),
+                                                                    reference_number: Some(pmi.id.to_string()),
+                                                                    agreement_id: 0,
+                                                                    payment_method_id: Some(pm.id),
+                                                                };
                                                                 let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
                                                                 Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                             }

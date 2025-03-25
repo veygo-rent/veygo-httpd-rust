@@ -6,7 +6,7 @@ CREATE TABLE payments
 (
     id                SERIAL PRIMARY KEY,
     payment_type      payment_type_enum        NOT NULL,
-    time              TIMESTAMP WITH TIME ZONE NOT NULL,
+    time              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     amount            DOUBLE PRECISION         NOT NULL,
     note              VARCHAR,
     reference_number  VARCHAR UNIQUE,
