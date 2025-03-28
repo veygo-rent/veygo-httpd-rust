@@ -40,5 +40,5 @@ async fn main() {
         .tls()
         .cert_path("/app/cert/veygo.rent.pem")
         .key_path("/app/cert/veygo.rent.key")
-        .run(([127, 0, 0, 1], port)).await;
+        .run(([0, 0, 0, 0], port)).await;
 }
