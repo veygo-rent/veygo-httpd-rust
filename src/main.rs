@@ -31,11 +31,14 @@ static POOL: Lazy<PgPool> = Lazy::new(|| {
 async fn main() {
     // routing for the server
     let httpd = api::api().and(warp::path::end());
-    // TODO: tls
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(8080);
     println!("Starting server on port {}", port);
-    warp::serve(httpd).run(([127, 0, 0, 1], port)).await;
+    warp::serve(httpd)
+        .tls()
+        .cert_path("/app/cert/veygo.rent.pem")
+        .key_path("/app/cert/veygo.rent.key")
+        .run(([127, 0, 0, 1], port)).await;
 }
