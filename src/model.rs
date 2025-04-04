@@ -55,7 +55,14 @@ pub enum Gender {
     Male,
     Female,
     Other,
-    PNTS, // prefer not to say
+    PNTS,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::TransactionTypeEnum)]
+pub enum TransactionType {
+    Credit,
+    Cash,
 }
 
 //This is for postgres. For other databases the type might be different.
@@ -76,6 +83,25 @@ impl FromSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
             b"Rental" => Ok(AgreementStatus::Rental),
             b"Void" => Ok(AgreementStatus::Void),
             b"Canceled" => Ok(AgreementStatus::Canceled),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+impl ToSql<sql_types::TransactionTypeEnum, Pg> for TransactionType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            TransactionType::Credit => out.write_all(b"Credit")?,
+            TransactionType::Cash => out.write_all(b"Cash")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::TransactionTypeEnum, Pg> for TransactionType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Credit" => Ok(TransactionType::Credit),
+            b"Cash" => Ok(TransactionType::Cash),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -179,6 +205,18 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
             _ => Err("Unrecognized enum variant".into()),
         }
     }
+}
+
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(belongs_to(Agreement))]
+#[diesel(table_name = rental_transactions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct RentalTransaction {
+    pub id: i32,
+    pub agreement_id: i32,
+    pub transaction_type: TransactionType,
+    pub duration: f64,
+    pub transaction_time: DateTime<Utc>,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
