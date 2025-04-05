@@ -219,7 +219,7 @@ pub struct RentalTransaction {
     pub transaction_time: DateTime<Utc>,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

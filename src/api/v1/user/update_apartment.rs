@@ -91,11 +91,19 @@ pub fn update() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reje
                                     let mut pool = POOL.clone().get().unwrap();
                                     use crate::schema::renters::dsl::*;
                                     let clone_of_user_id = body.access_token.user_id.clone();
+                                    let mut user_update = methods::user::get_user_by_id(clone_of_user_id).await.unwrap();
+                                    user_update.student_email = body.student_email.clone();
+                                    user_update.apartment_id = body.apartment_id.clone();
+                                    user_update.lease_agreement_image = None;
+                                    user_update.lease_agreement_expiration = None;
+                                    user_update.student_email_expiration = None;
+                                    user_update.drivers_license_number = None;
+                                    user_update.drivers_license_state_region = None;
+                                    user_update.drivers_license_image = None;
+                                    user_update.drivers_license_image_secondary = None;
+                                    user_update.drivers_license_expiration = None;
                                     let renter_updated = diesel::update(renters.find(clone_of_user_id))
-                                        .set((
-                                            student_email.eq(body.student_email.clone()),
-                                            apartment_id.eq(body.apartment_id.clone()),
-                                        )).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
+                                        .set(&user_update).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
                                     let renter_msg = serde_json::json!({
                                         "renter": renter_updated,
                                         "access_token": new_token_in_db_publish,
