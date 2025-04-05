@@ -48,8 +48,8 @@ pub fn vehicle_availability(
                             let start_time: DateTime<Utc> = body.start_time;
                             let end_time: DateTime<Utc>   = body.end_time;
 
-                            let start_time_buffered = start_time - Duration::minutes(30);
-                            let end_time_buffered   = end_time   + Duration::minutes(30);
+                            let start_time_buffered = start_time - Duration::minutes(15);
+                            let end_time_buffered   = end_time   + Duration::minutes(15);
 
                             let mut pool = POOL.clone().get().unwrap();
                             let conflicting_vehicle_ids = spawn_blocking({

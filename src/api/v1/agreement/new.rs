@@ -1,4 +1,4 @@
-use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle, NewPayment, PaymentType};
+use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle, NewPayment, PaymentType, Agreement, Payment};
 use crate::{integration, methods};
 use crate::{model, POOL};
 use chrono::{DateTime, Duration, Utc};
@@ -153,7 +153,9 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                     use crate::schema::agreements::dsl::*;
                                                     use diesel::dsl::sql;
                                                     let if_conflict = diesel::select(diesel::dsl::exists(
-                                                        agreements.filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
+                                                        agreements
+                                                            .filter(vehicle_id.eq(&body.vehicle_id))
+                                                            .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
                                                             .bind::<Timestamptz, _>(start_time_buffered)
                                                             .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
                                                             .bind::<Timestamptz, _>(start_time_buffered)
@@ -184,19 +186,19 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                             rsvp_pickup_time: body.start_time,
                                                             rsvp_drop_off_time: body.end_time,
                                                             liability_protection_rate: if body.liability { apt.liability_protection_rate } else { 0.00 },
-                                                            pcdw_protection_rate: if body.pcdw { apt.pcdw_protection_rate } else { 0.00 },
-                                                            pcdw_ext_protection_rate: if body.pcdw_ext { apt.pcdw_ext_protection_rate } else { 0.00 },
+                                                            pcdw_protection_rate: if body.pcdw { apt.pcdw_protection_rate * vehicle.msrp_factor } else { 0.00 },
+                                                            pcdw_ext_protection_rate: if body.pcdw_ext { apt.pcdw_ext_protection_rate * vehicle.msrp_factor } else { 0.00 },
                                                             rsa_protection_rate: if body.rsa { apt.rsa_protection_rate } else { 0.00 },
                                                             pai_protection_rate: if body.pai { apt.pai_protection_rate } else { 0.00 },
                                                             tax_rate: apt.sales_tax_rate,
                                                             msrp_factor: vehicle.msrp_factor,
-                                                            duration_rate: apt.duration_rate,
+                                                            duration_rate: apt.duration_rate * vehicle.msrp_factor,
                                                             apartment_id: vehicle.apartment_id,
                                                             vehicle_id: vehicle.id,
                                                             renter_id: renter_clone.id,
                                                             payment_method_id: body.payment_id,
                                                         };
-                                                        let deposit_amount = 10.00 * (1.00 + apt.sales_tax_rate);
+                                                        let deposit_amount = new_agreement.clone().duration_rate * (1.00 + apt.sales_tax_rate);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
                                                             new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int
@@ -229,7 +231,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
                                                             }
                                                             Ok(pmi) => {
-                                                                // TODO: Save reservation
+                                                                use crate::schema::agreements::dsl::*;
+                                                                let mut pool = POOL.clone().get().unwrap();
+                                                                let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<Agreement>(&mut pool).unwrap();
+                                                                
                                                                 let new_payment = NewPayment {
                                                                     payment_type: PaymentType::RequiresCapture,
                                                                     amount: deposit_amount,
@@ -238,7 +243,9 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                     agreement_id: 0,
                                                                     payment_method_id: Some(pm.id),
                                                                 };
-                                                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Credit card declined"});
+                                                                use crate::schema::payments::dsl::*;
+                                                                let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<Payment>(&mut pool).unwrap();
+                                                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "agreement": &new_publish_agreement});
                                                                 Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                             }
                                                         }
