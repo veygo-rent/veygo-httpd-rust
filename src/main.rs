@@ -11,6 +11,9 @@ use dotenv::dotenv;
 use once_cell::sync::Lazy;
 use warp::Filter;
 
+use std::net::IpAddr;
+use std::str::FromStr;
+
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
 fn get_connection_pool() -> PgPool {
@@ -36,9 +39,10 @@ async fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(8080);
     println!("Starting server on port {}", port);
+    let addr = IpAddr::from_str("::0").unwrap();
     warp::serve(httpd)
         .tls()
         .cert_path("/app/cert/veygo.rent.pem")
         .key_path("/app/cert/veygo.rent.key")
-        .run(([0, 0, 0, 0], port)).await;
+        .run((addr, port)).await;
 }
