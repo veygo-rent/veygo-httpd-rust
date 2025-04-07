@@ -129,6 +129,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                                             // Format plan_expire_month_year as MMYYYY.
                                             let plan_expire_month_year_string = format!("{:02}{}", next_month, next_year);
+                                            
+                                            let emp_tier: model::EmployeeTier;
+                                            if &apartment.accepted_school_email_domain == "veygo.rent" {
+                                                emp_tier = model::EmployeeTier::Admin;
+                                            } else {
+                                                emp_tier = model::EmployeeTier::User;
+                                            }
 
                                             let to_be_inserted = model::NewRenter {
                                                 name: renter_create_data.name,
@@ -140,6 +147,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 plan_renewal_day: plan_renewal_day_string,
                                                 plan_expire_month_year: plan_expire_month_year_string,
                                                 plan_available_duration: apartment.free_tier_hours,
+                                                employee_tier: emp_tier,
                                             };
                                             let mut pool = POOL.clone().get().unwrap();
                                             let mut renter = task::spawn_blocking(move || {

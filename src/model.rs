@@ -343,6 +343,7 @@ pub struct NewRenter {
     pub plan_renewal_day: String,
     pub plan_expire_month_year: String,
     pub plan_available_duration: f64,
+    pub employee_tier: EmployeeTier,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset)]
