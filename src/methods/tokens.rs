@@ -120,7 +120,7 @@ pub fn token_not_hex_warp_return(
     token_data: &String
 ) -> Result<(WithStatus<Json>,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
-    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
+    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
 }
 
 pub fn token_invalid_warp_return(
