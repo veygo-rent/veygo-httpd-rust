@@ -8,9 +8,9 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
 {
     warp::path("user")
         .and(
-            login::user_login()
-            .or(create::create_user())
-                .or(update_apartment::update())
+            login::main()
+                .or(create::main())
+                .or(update_apartment::main()),
         )
         .and(warp::path::end())
 }

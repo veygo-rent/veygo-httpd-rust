@@ -345,7 +345,7 @@ pub struct NewRenter {
     pub plan_available_duration: f64,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
