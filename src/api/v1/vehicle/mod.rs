@@ -6,7 +6,7 @@ pub fn api_v1_vehicle() -> impl Filter<Extract = (impl warp::Reply,), Error = wa
 {
     warp::path("vehicle")
         .and(
-            availability::vehicle_availability()
+            availability::main()
         )
         .and(warp::path::end())
 }

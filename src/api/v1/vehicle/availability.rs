@@ -17,7 +17,7 @@ struct AvailabilityData {
     end_time: DateTime<Utc>,
 }
 
-pub fn vehicle_availability(
+pub fn main(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("availability")
         .and(warp::path::end())

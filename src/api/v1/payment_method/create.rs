@@ -1,14 +1,13 @@
-use diesel::{RunQueryDsl};
-use serde_derive::{Deserialize, Serialize};
-use warp::Filter;
-use warp::http::StatusCode;
-use crate::{model, POOL, methods};
 use crate::model::{AccessToken, PaymentMethod};
+use crate::{methods, model, POOL};
 use diesel::prelude::*;
-use stripe::{ErrorCode, StripeError};
+use diesel::RunQueryDsl;
+use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
+use stripe::{ErrorCode, StripeError};
 use tokio::task;
-use crate::schema::payment_methods::dsl::*;
+use warp::http::StatusCode;
+use warp::Filter;
 
 use crate::integration::stripe_veygo;
 
@@ -20,7 +19,7 @@ pub struct CreatePaymentMethodsRequestBody {
     nickname: Option<String>,
 }
 
-pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("create")
         .and(warp::post())
         .and(warp::body::json())
@@ -48,11 +47,12 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                     let md5_clone = new_pm.md5.clone();
                                     let mut pool = POOL.clone().get().unwrap();
                                     let card_in_db = task::spawn_blocking(move || {
-                                        diesel::select(diesel::dsl::exists(payment_methods.filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
+                                        use crate::schema::payment_methods::dsl::*;
+                                        diesel::select(diesel::dsl::exists(payment_methods.filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
                                     }).await.unwrap().unwrap();
                                     if card_in_db {
                                         let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods existed"});
-                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
                                     }
                                     let new_pm_clone = new_pm.clone();
                                     // attach payment method to customer
@@ -65,6 +65,7 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                         Ok(_) => {
                                             let mut pool = POOL.clone().get().unwrap();
                                             let inserted_pm_card = task::spawn_blocking(move || {
+                                                use crate::schema::payment_methods::dsl::*;
                                                 diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap()
                                             }).await.unwrap().to_public_payment_method();
                                             let msg = serde_json::json!({"access_token": &new_token_in_db_publish, "payment_method": inserted_pm_card});
@@ -79,7 +80,7 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                                         return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
                                                     } else if request_error.error_type == InvalidRequest {
                                                         let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods token invalid"});
-                                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
                                                     }
                                                 }
                                                 StripeError::QueryStringSerialize(ser_err) => {
@@ -105,7 +106,7 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                                 }
                                 Err(_) => {
                                     let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods token invalid"});
-                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),))
+                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
                                 }
                             }
                         } else {
