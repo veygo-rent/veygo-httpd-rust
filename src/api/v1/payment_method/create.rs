@@ -35,7 +35,6 @@ pub fn create_payment_method() -> impl Filter<Extract = (impl warp::Reply,), Err
                     }
                     Ok(token_bool) => {
                         if token_bool {
-
                             // gen new token
                             methods::tokens::rm_token_by_binary(hex::decode(request_body.access_token.token).unwrap()).await;
                             let new_token = methods::tokens::gen_token_object(request_body.access_token.user_id.clone(), client_type.clone()).await;
