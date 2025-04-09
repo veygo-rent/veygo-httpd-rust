@@ -11,6 +11,7 @@ use dotenv::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
 use warp::Filter;
+use tokio::spawn;
 
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -37,19 +38,9 @@ async fn main() {
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
     println!("Starting server on port {}", port);
     let addr = IpAddr::from_str("::0").unwrap();
-    integration::sendgrid_veygo::send_email(
-        integration::sendgrid_veygo::make_email_obj("info@veygo.rent", Option::from("Server")),
-        integration::sendgrid_veygo::make_email_obj(
-            "szhou@veygo.rent",
-            Option::from("Shenghong Zhou"),
-        ),
-        "Server Started",
-        "Server Started",
-        None,
-        None,
-    )
-    .await
-    .unwrap_or_else(|_| println!("Danny is stupid"));
+    // add routines
+    spawn(scheduled_tasks::run_every_midnight());
+    // starting the server
     warp::serve(httpd)
         .tls()
         .cert_path("/app/cert/veygo.rent.pem")

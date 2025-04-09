@@ -10,6 +10,7 @@ CREATE TABLE payments
     amount            DOUBLE PRECISION         NOT NULL,
     note              VARCHAR,
     reference_number  VARCHAR UNIQUE,
-    agreement_id      INTEGER                  NOT NULL REFERENCES agreements (id),
-    payment_method_id INTEGER REFERENCES payment_methods (id)
+    agreement_id      INTEGER REFERENCES agreements (id),
+    renter_id         INTEGER                  NOT NULL REFERENCES renters (id),
+    payment_method_id INTEGER                  NOT NULL REFERENCES payment_methods (id)
 );
