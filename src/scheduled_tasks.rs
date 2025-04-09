@@ -12,7 +12,7 @@ pub async fn nightly_task() {
             .succ_opt()
             .unwrap()
             .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-        let duration_until_midnight = (midnight - now.naive_local())
+        let duration_until_midnight = (midnight - now.naive_utc())
             .to_std()
             .unwrap_or_else(|_| Duration::from_secs(1));
 
