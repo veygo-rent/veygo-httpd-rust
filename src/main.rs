@@ -44,12 +44,12 @@ async fn main() {
             Option::from("Shenghong Zhou"),
         ),
         "Server Started",
-        "",
+        "Server Started",
         None,
         None,
     )
     .await
-    .unwrap();
+    .unwrap_or_else(|_| println!("Danny is stupid"));
     warp::serve(httpd)
         .tls()
         .cert_path("/app/cert/veygo.rent.pem")
