@@ -245,6 +245,7 @@ diesel::table! {
         plan_available_duration -> Float8,
         is_plan_annual -> Bool,
         employee_tier -> EmployeeTierEnum,
+        subscription_payment_method_id -> Nullable<Int4>,
     }
 }
 

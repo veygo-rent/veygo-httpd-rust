@@ -256,6 +256,7 @@ pub struct Renter {
     pub plan_available_duration: f64,
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
+    pub subscription_payment_method_id: Option<i32>,
 }
 
 impl Renter {
@@ -291,6 +292,7 @@ impl Renter {
             plan_available_duration: self.plan_available_duration,
             is_plan_annual: self.is_plan_annual,
             employee_tier: self.employee_tier.clone(),
+            subscription_payment_method_id: self.subscription_payment_method_id,
         }
     }
 }
@@ -327,6 +329,7 @@ pub struct PublishRenter {
     pub plan_available_duration: f64,
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
+    pub subscription_payment_method_id: Option<i32>,
 }
 
 #[derive(Insertable, Debug, Clone, Deserialize, Serialize)]
@@ -346,7 +349,9 @@ pub struct NewRenter {
     pub employee_tier: EmployeeTier,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset)]
+#[derive(
+    Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset,
+)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -645,9 +650,7 @@ pub struct NewVehicle {
     pub apartment_id: i32,
 }
 
-#[derive(
-    Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize,
-)]
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = damage_submissions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct DamageSubmission {
