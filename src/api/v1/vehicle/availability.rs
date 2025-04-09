@@ -17,7 +17,7 @@ struct AvailabilityData {
     end_time: DateTime<Utc>,
 }
 
-pub fn vehicle_availability(
+pub fn main(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("availability")
         .and(warp::path::end())
@@ -59,6 +59,7 @@ pub fn vehicle_availability(
 
                                     agreements
                                         .filter(apartment_id.eq(apt_id))
+                                        .filter(status.eq(model::AgreementStatus::Rental))
                                         .filter(
                                             // We chain .sql() and .bind() to handle multiple placeholders
                                             sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")

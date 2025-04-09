@@ -1,6 +1,4 @@
-use crate::model::{AccessToken, Apartment, NewAgreement, PaymentMethod, Vehicle, NewPayment, PaymentType, Agreement, Payment};
-use crate::{integration, methods};
-use crate::{model, POOL};
+use crate::{integration, methods, model, POOL};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
@@ -9,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use stripe::{ErrorCode, StripeError};
 use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
-use warp::{Filter, Rejection};
+use warp::Filter;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
@@ -47,7 +45,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                         let new_token = methods::tokens::gen_token_object(body.access_token.user_id.clone(), client_type.clone()).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
+                        let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
                         let user_in_request = methods::user::get_user_by_id(body.access_token.user_id).await.unwrap();
                         // Check if Renter has an address
                         if user_in_request.billing_address.is_none() {
@@ -91,7 +89,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                         // TODO: Add apartment liability availability check
                         if user_in_request.insurance_liability_expiration.is_none() && !body.liability {
                             let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Liability coverage required"});
-                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
                         }
                         let user_liability_expiration = user_in_request.insurance_liability_expiration.unwrap();
                         if user_liability_expiration < return_date && !body.liability {
@@ -99,7 +97,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                 "access_token": &new_token_in_db_publish,
                                 "error": "Liability coverage expired before return"
                             });
-                            return Ok::<_, Rejection>((
+                            return Ok::<_, warp::Rejection>((
                                 warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
                             ));
                         }
@@ -107,7 +105,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                         // TODO: Add credit card collision verification
                         if user_in_request.insurance_collision_expiration.is_none() && !body.pcdw {
                             let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Collision coverage required"});
-                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
                         }
                         let user_collision_expiration = user_in_request.insurance_collision_expiration.unwrap();
                         if user_collision_expiration < return_date && !body.pcdw {
@@ -115,7 +113,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                 "access_token": &new_token_in_db_publish,
                                 "error": "Collision coverage expired before return"
                             });
-                            return Ok::<_, Rejection>((
+                            return Ok::<_, warp::Rejection>((
                                 warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
                             ));
                         }
@@ -131,7 +129,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                             let renter_clone = user_in_request.clone();
                             let mut pool = POOL.clone().get().unwrap();
                             let vehicle_result = spawn_blocking(move || {
-                                vehicles.filter(id.eq(&body.vehicle_id)).get_result::<Vehicle>(&mut pool)
+                                vehicles.filter(id.eq(&body.vehicle_id)).get_result::<crate::model::Vehicle>(&mut pool)
                             }).await.unwrap();
                             match vehicle_result {
                                 Ok(vehicle) => {
@@ -140,29 +138,30 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                         use crate::schema::payment_methods::dsl::*;
                                         let mut pool = POOL.clone().get().unwrap();
                                         let pm_result = spawn_blocking(move || {
-                                            payment_methods.filter(id.eq(&body.payment_id)).get_result::<PaymentMethod>(&mut pool)
+                                            payment_methods.filter(id.eq(&body.payment_id)).get_result::<crate::model::PaymentMethod>(&mut pool)
                                         }).await.unwrap();
                                         match pm_result {
                                             Ok(pm) => {
                                                 if pm.is_enabled && pm.renter_id == user_in_request.id {
                                                     // vehicle and payment method are valid, check if time has any conflicts
                                                     let start_time_buffered = body.start_time - Duration::minutes(15);
-                                                    let end_time_buffered   = body.end_time   + Duration::minutes(15);
+                                                    let end_time_buffered = body.end_time + Duration::minutes(15);
 
                                                     let mut pool = POOL.clone().get().unwrap();
                                                     use crate::schema::agreements::dsl::*;
                                                     use diesel::dsl::sql;
                                                     let if_conflict = diesel::select(diesel::dsl::exists(
                                                         agreements
+                                                            .filter(status.eq(crate::model::AgreementStatus::Rental))
                                                             .filter(vehicle_id.eq(&body.vehicle_id))
                                                             .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                                            .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                                            .sql(" OR COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                                            .bind::<Timestamptz, _>(end_time_buffered)
-                                                            .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                                            .bind::<Timestamptz, _>(end_time_buffered))
+                                                                .bind::<Timestamptz, _>(start_time_buffered)
+                                                                .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
+                                                                .bind::<Timestamptz, _>(start_time_buffered)
+                                                                .sql(" OR COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
+                                                                .bind::<Timestamptz, _>(end_time_buffered)
+                                                                .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
+                                                                .bind::<Timestamptz, _>(end_time_buffered))
                                                     )).get_result::<bool>(&mut pool).unwrap();
                                                     if if_conflict {
                                                         let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Vehicle unavailable for the requested time"});
@@ -172,10 +171,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                         let apartment_id_clone = vehicle.apartment_id.clone();
                                                         let apt = spawn_blocking(move || {
                                                             use crate::schema::apartments::dsl::*;
-                                                            apartments.filter(id.eq(apartment_id_clone)).get_result::<Apartment>(&mut pool)
+                                                            apartments.filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool)
                                                         }).await.unwrap().unwrap();
                                                         let conf_id = methods::agreement::generate_unique_agreement_confirmation();
-                                                        let new_agreement = NewAgreement {
+                                                        let new_agreement = crate::model::NewAgreement {
                                                             confirmation: conf_id,
                                                             status: crate::model::AgreementStatus::Rental,
                                                             user_name: renter_clone.name.clone(),
@@ -201,7 +200,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                         let deposit_amount = new_agreement.clone().duration_rate * (1.00 + apt.sales_tax_rate);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int
+                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int,
                                                         ).await;
                                                         match stripe_auth {
                                                             Err(error) => {
@@ -233,10 +232,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                             Ok(pmi) => {
                                                                 use crate::schema::agreements::dsl::*;
                                                                 let mut pool = POOL.clone().get().unwrap();
-                                                                let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<Agreement>(&mut pool).unwrap();
-                                                                
-                                                                let new_payment = NewPayment {
-                                                                    payment_type: PaymentType::RequiresCapture,
+                                                                let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<crate::model::Agreement>(&mut pool).unwrap();
+
+                                                                let new_payment = crate::model::NewPayment {
+                                                                    payment_type: crate::model::PaymentType::RequiresCapture,
                                                                     amount: deposit_amount,
                                                                     note: Some("Non refundable deposit".to_string()),
                                                                     reference_number: Some(pmi.id.to_string()),
@@ -244,9 +243,9 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                     payment_method_id: Some(pm.id),
                                                                 };
                                                                 use crate::schema::payments::dsl::*;
-                                                                let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<Payment>(&mut pool).unwrap();
+                                                                let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<crate::model::Payment>(&mut pool).unwrap();
                                                                 let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "agreement": &new_publish_agreement});
-                                                                Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
+                                                                Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
                                                             }
                                                         }
                                                     }

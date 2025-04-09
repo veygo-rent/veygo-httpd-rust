@@ -1,17 +1,16 @@
-use diesel::{prelude::*};
+use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use warp::Filter;
 use tokio::task::{spawn_blocking};
 use warp::http::StatusCode;
 use crate::{model, POOL, methods};
-use crate::model::{AccessToken, PaymentMethod, PublishPaymentMethod};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GetPaymentMethodsRequestBody {
     access_token: model::RequestBodyToken,
 }
 
-pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("get")
         .and(warp::post())
         .and(warp::body::json())
@@ -33,15 +32,15 @@ pub fn get_payment_methods() -> impl Filter<Extract = (impl warp::Reply,), Error
                             let new_token = methods::tokens::gen_token_object(request_body.access_token.user_id.clone(), client_type.clone()).await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
+                            let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
 
                             let id_clone = request_body.access_token.user_id.clone();
                             let mut pool = POOL.clone().get().unwrap();
                             let payment_method_query_result = spawn_blocking(move || {
                                 use crate::schema::payment_methods::dsl::*;
-                                payment_methods.filter(renter_id.eq(id_clone)).load::<PaymentMethod>(&mut pool)
+                                payment_methods.filter(renter_id.eq(id_clone)).load::<model::PaymentMethod>(&mut pool)
                             }).await.unwrap().unwrap();
-                            let publish_payment_methods: Vec<PublishPaymentMethod> = payment_method_query_result.iter().map(|x| x.to_public_payment_method().clone()).collect();
+                            let publish_payment_methods: Vec<model::PublishPaymentMethod> = payment_method_query_result.iter().map(|x| x.to_public_payment_method().clone()).collect();
                             let msg = serde_json::json!({
                                                 "access_token": new_token_in_db_publish,
                                                 "payment_methods": publish_payment_methods,
