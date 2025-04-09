@@ -34,4 +34,5 @@ VALUES ('Veygo HQ',
         0.0,
         0.0,
         TRUE,
-        TRUE);
+        TRUE)
+    ON CONFLICT (name) DO NOTHING;

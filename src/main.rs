@@ -39,7 +39,7 @@ async fn main() {
     println!("Starting server on port {}", port);
     let addr = IpAddr::from_str("::0").unwrap();
     // add routines
-    spawn(scheduled_tasks::run_every_midnight());
+    spawn(scheduled_tasks::nightly_task());
     // starting the server
     warp::serve(httpd)
         .tls()

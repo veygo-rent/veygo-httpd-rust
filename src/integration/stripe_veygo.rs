@@ -116,17 +116,18 @@ pub async fn attach_payment_method_to_stripe_customer(
 }
 
 pub async fn create_payment_intent(
-    agreement_id_data: String,
+    description: String,
     customer_id_data: String,
     payment_id_data: String,
     amount: i64,
+    capture_method: PaymentIntentCaptureMethod,
 ) -> Result<PaymentIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     let customer_id = CustomerId::from_str(customer_id_data.as_str()).unwrap();
     let payment_method_id = PaymentMethodId::from_str(payment_id_data.as_str()).unwrap();
-    let description_data = "Veygo Reservation #".to_owned() + &*agreement_id_data;
+    let description_data = description;
     PaymentIntent::create(
         &client,
         CreatePaymentIntent {
@@ -136,7 +137,7 @@ pub async fn create_payment_intent(
                 allow_redirects: Some(CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects::Never),
                 enabled: true,
             }),
-            capture_method: Some(PaymentIntentCaptureMethod::Manual),
+            capture_method: Some(capture_method),
             confirm: Some(true),
             confirmation_method: None,
             currency: Currency::USD,

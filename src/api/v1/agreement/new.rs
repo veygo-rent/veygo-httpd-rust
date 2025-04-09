@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use diesel::RunQueryDsl;
 use serde_derive::{Deserialize, Serialize};
-use stripe::{ErrorCode, StripeError};
+use stripe::{ErrorCode, StripeError, PaymentIntentCaptureMethod};
 use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
 use warp::Filter;
@@ -197,10 +197,10 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                             renter_id: renter_clone.id,
                                                             payment_method_id: body.payment_id,
                                                         };
-                                                        let deposit_amount = new_agreement.clone().duration_rate * (1.00 + apt.sales_tax_rate);
+                                                        let deposit_amount = new_agreement.duration_rate * (1.00 + apt.sales_tax_rate);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                                                            new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int,
+                                                            "Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int, PaymentIntentCaptureMethod::Manual
                                                         ).await;
                                                         match stripe_auth {
                                                             Err(error) => {
