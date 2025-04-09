@@ -1,14 +1,15 @@
 mod api;
-mod model;
-mod schema;
-mod methods;
 mod integration;
+mod methods;
+mod model;
+mod scheduled_tasks;
+mod schema;
 
-use std::env;
-use diesel::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::PgConnection;
 use dotenv::dotenv;
 use once_cell::sync::Lazy;
+use std::env;
 use warp::Filter;
 
 use std::net::IpAddr;
@@ -26,23 +27,33 @@ fn get_connection_pool() -> PgPool {
 }
 
 // Global pool initialized once at first access
-static POOL: Lazy<PgPool> = Lazy::new(|| {
-    get_connection_pool()
-});
+static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 
 #[tokio::main]
 async fn main() {
     // routing for the server
     let httpd = api::api().and(warp::path::end());
     let args: Vec<String> = env::args().collect();
-    let port: u16 = args.get(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(8080);
+    let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
     println!("Starting server on port {}", port);
     let addr = IpAddr::from_str("::0").unwrap();
+    integration::sendgrid_veygo::send_email(
+        integration::sendgrid_veygo::make_email_obj("info@veygo.rent", Option::from("Server")),
+        integration::sendgrid_veygo::make_email_obj(
+            "szhou@veygo.rent",
+            Option::from("Shenghong Zhou"),
+        ),
+        "Server Started",
+        "",
+        None,
+        None,
+    )
+    .await
+    .unwrap();
     warp::serve(httpd)
         .tls()
         .cert_path("/app/cert/veygo.rent.pem")
         .key_path("/app/cert/veygo.rent.key")
-        .run((addr, port)).await;
+        .run((addr, port))
+        .await;
 }
