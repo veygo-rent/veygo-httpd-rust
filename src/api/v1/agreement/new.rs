@@ -239,8 +239,9 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                     amount: deposit_amount,
                                                                     note: Some("Non refundable deposit".to_string()),
                                                                     reference_number: Some(pmi.id.to_string()),
-                                                                    agreement_id: 0,
-                                                                    payment_method_id: Some(pm.id),
+                                                                    agreement_id: Some(new_publish_agreement.id.clone()),
+                                                                    renter_id: new_publish_agreement.renter_id,
+                                                                    payment_method_id: pm.id,
                                                                 };
                                                                 use crate::schema::payments::dsl::*;
                                                                 let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<crate::model::Payment>(&mut pool).unwrap();

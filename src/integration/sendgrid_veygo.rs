@@ -12,7 +12,7 @@ pub async fn send_email(
     attachment: Option<Attachment>
 ) -> Result<(), SendgridError> {
     dotenv().ok();
-    let sg_api_key = env::var("SENDGRID_API_KEY").expect("SG_API_KEY must be set");
+    let sg_api_key = env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");
     let p = Personalization::new(to);
 
     let mut m = Message::new(from)

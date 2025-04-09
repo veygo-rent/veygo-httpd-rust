@@ -825,6 +825,7 @@ pub struct NewCharge {
 )]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
+#[diesel(belongs_to(Renter))]
 #[diesel(table_name = payments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Payment {
@@ -834,13 +835,15 @@ pub struct Payment {
     pub amount: f64,
     pub note: Option<String>,
     pub reference_number: Option<String>,
-    pub agreement_id: i32,
-    pub payment_method_id: Option<i32>,
+    pub agreement_id: Option<i32>,
+    pub renter_id: i32,
+    pub payment_method_id: i32,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
+#[diesel(belongs_to(Renter))]
 #[diesel(table_name = payments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPayment {
@@ -848,8 +851,9 @@ pub struct NewPayment {
     pub amount: f64,
     pub note: Option<String>,
     pub reference_number: Option<String>,
-    pub agreement_id: i32,
-    pub payment_method_id: Option<i32>,
+    pub agreement_id: Option<i32>,
+    pub renter_id: i32,
+    pub payment_method_id: i32,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
