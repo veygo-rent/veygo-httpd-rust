@@ -59,6 +59,7 @@ pub fn main(
 
                                     agreements
                                         .filter(apartment_id.eq(apt_id))
+                                        .filter(status.eq(model::AgreementStatus::Rental))
                                         .filter(
                                             // We chain .sql() and .bind() to handle multiple placeholders
                                             sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
