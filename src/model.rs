@@ -920,7 +920,7 @@ pub struct NewDoNotRentList {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct RequestBodyToken {
+pub struct RequestToken {
     pub user_id: i32,
     pub token: String,
 }

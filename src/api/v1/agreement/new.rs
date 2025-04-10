@@ -11,7 +11,6 @@ use warp::Filter;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
-    access_token: model::RequestBodyToken, // contains 'user_id' and 'token'
     vehicle_id: i32,
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
@@ -29,24 +28,30 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
+        .and(warp::header::<String>("token"))
+        .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(move |body: NewAgreementRequestBodyData, client_type: Option<String>| async move {
-            let if_token_valid = methods::tokens::verify_user_token(body.access_token.user_id.clone(), body.access_token.token.clone()).await;
+        .and_then(move |body: NewAgreementRequestBodyData, token: String, user_id: i32, client_type: Option<String>| async move {
+            let access_token = model::RequestToken{
+                user_id,
+                token,
+            };
+            let if_token_valid = methods::tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
             match if_token_valid {
                 Err(_) => {
-                    methods::tokens::token_not_hex_warp_return(&body.access_token.token)
+                    methods::tokens::token_not_hex_warp_return(&access_token.token)
                 }
                 Ok(token_bool) => {
                     if !token_bool {
-                        methods::tokens::token_invalid_warp_return(&body.access_token.token)
+                        methods::tokens::token_invalid_warp_return(&access_token.token)
                     } else {
                         // Token is valid, generate new publish token, user_id valid
-                        methods::tokens::rm_token_by_binary(hex::decode(body.access_token.token).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(body.access_token.user_id.clone(), client_type.clone()).await;
+                        methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
+                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), client_type.clone()).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
-                        let user_in_request = methods::user::get_user_by_id(body.access_token.user_id).await.unwrap();
+                        let user_in_request = methods::user::get_user_by_id(access_token.user_id).await.unwrap();
                         // Check if Renter has an address
                         if user_in_request.billing_address.is_none() {
                             let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Unknown billing address"});

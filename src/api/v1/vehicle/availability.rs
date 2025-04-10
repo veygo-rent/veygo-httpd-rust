@@ -12,7 +12,6 @@ use warp::Filter;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {
-    access_token: model::RequestBodyToken, // contains 'user_id' and 'token'
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
 }
@@ -23,17 +22,23 @@ pub fn main(
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
+        .and(warp::header::<String>("token"))
+        .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(move |body: AvailabilityData, client_type: Option<String>| {
+        .and_then(move |body: AvailabilityData, token: String, user_id: i32, client_type: Option<String>| {
             async move {
-                let if_token_valid = tokens::verify_user_token(body.access_token.user_id.clone(), body.access_token.token.clone()).await;
+                let access_token = model::RequestToken {
+                    user_id,
+                    token,
+                };
+                let if_token_valid = tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
                 match if_token_valid {
                     Ok(token_bool) => {
                         if !token_bool {
-                            tokens::token_invalid_warp_return(&body.access_token.token)
+                            tokens::token_invalid_warp_return(&access_token.token)
                         } else {
                             // Token is validated -> user_id is valid
-                            let user_id_clone = body.access_token.user_id.clone();
+                            let user_id_clone = access_token.user_id.clone();
                             let user = user::get_user_by_id(user_id_clone).await.unwrap();
                             let apartment_id_clone = user.apartment_id.clone();
                             let mut pool = POOL.clone().get().unwrap();
@@ -85,8 +90,8 @@ pub fn main(
                             use crate::model::PublishVehicle;
                             let available_vehicle_list_publish: Vec<PublishVehicle> = available_vehicle_list.iter().map(|x| x.to_publish_vehicle().clone()).collect();
 
-                            tokens::rm_token_by_binary(hex::decode(body.access_token.token).unwrap()).await;
-                            let new_token = tokens::gen_token_object(body.access_token.user_id.clone(), client_type.clone()).await;
+                            tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
+                            let new_token = tokens::gen_token_object(access_token.user_id.clone(), client_type.clone()).await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
@@ -96,7 +101,7 @@ pub fn main(
                         }
                     }
                     Err(_msg) => {
-                        tokens::token_not_hex_warp_return(&body.access_token.token)
+                        tokens::token_not_hex_warp_return(&access_token.token)
                     }
                 }
             }

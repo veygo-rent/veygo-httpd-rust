@@ -8,7 +8,6 @@ use warp::{Filter, Rejection};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreatePaymentMethodsRequestBody {
-    access_token: model::RequestBodyToken,
     card_id: i32,
 }
 
@@ -16,21 +15,27 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
     warp::path("delete")
         .and(warp::post())
         .and(warp::body::json())
+        .and(warp::header::<String>("token"))
+        .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and(warp::path::end())
-        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, client_type: Option<String>| {
-            let if_token_valid = methods::tokens::verify_user_token(request_body.access_token.user_id.clone(), request_body.access_token.token.clone()).await;
+        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, token: String, user_id: i32, client_type: Option<String>| {
+            let access_token = model::RequestToken{
+                user_id,
+                token,
+            };
+            let if_token_valid = methods::tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
             return match if_token_valid {
                 Err(_) => {
-                    methods::tokens::token_not_hex_warp_return(&request_body.access_token.token)
+                    methods::tokens::token_not_hex_warp_return(&access_token.token)
                 }
                 Ok(token_bool) => {
                     if !token_bool {
-                        methods::tokens::token_invalid_warp_return(&request_body.access_token.token)
+                        methods::tokens::token_invalid_warp_return(&access_token.token)
                     } else {
                         // gen new token
-                        methods::tokens::rm_token_by_binary(hex::decode(request_body.access_token.token.clone()).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(request_body.access_token.user_id.clone(), client_type.clone()).await;
+                        methods::tokens::rm_token_by_binary(hex::decode(access_token.token.clone()).unwrap()).await;
+                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), client_type.clone()).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
@@ -52,7 +57,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             let mut pool = POOL.clone().get().unwrap();
                             payment_methods.filter(id.eq(pmt_id_clone)).get_result::<model::PaymentMethod>(&mut pool)
                         }).await.unwrap().unwrap();
-                        if pm.renter_id != request_body.access_token.user_id {
+                        if pm.renter_id != access_token.user_id {
                             let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Invalid Payment Method"});
                             return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
                         }

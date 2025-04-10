@@ -9,7 +9,6 @@ use warp::Filter;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct CreatePaymentMethodsRequestBody {
-    access_token: model::RequestBodyToken,
     student_email: String,
     apartment_id: i32,
 }
@@ -36,28 +35,34 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
+        .and(warp::header::<String>("token"))
+        .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and_then(
-            async move |body: CreatePaymentMethodsRequestBody, client_type: Option<String>| {
+            async move |body: CreatePaymentMethodsRequestBody, token: String, user_id: i32, client_type: Option<String>| {
+                let access_token = model::RequestToken {
+                    user_id,
+                    token,
+                };
                 let if_token_valid = methods::tokens::verify_user_token(
-                    body.access_token.user_id.clone(),
-                    body.access_token.token.clone(),
+                    access_token.user_id.clone(),
+                    access_token.token.clone(),
                 )
                 .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(&body.access_token.token),
+                    Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
                         if !token_bool {
-                            methods::tokens::token_invalid_warp_return(&body.access_token.token)
+                            methods::tokens::token_invalid_warp_return(&access_token.token)
                         } else {
                             // gen new token
-                            let body_clone = body.clone();
+                            let token_clone = access_token.clone();
                             methods::tokens::rm_token_by_binary(
-                                hex::decode(body_clone.access_token.token).unwrap(),
+                                hex::decode(token_clone.token).unwrap(),
                             )
                             .await;
                             let new_token = methods::tokens::gen_token_object(
-                                body.access_token.user_id.clone(),
+                                access_token.user_id.clone(),
                                 client_type.clone(),
                             )
                             .await;
@@ -90,7 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     }
                                     let mut pool = POOL.clone().get().unwrap();
                                     use crate::schema::renters::dsl::*;
-                                    let clone_of_user_id = body.access_token.user_id.clone();
+                                    let clone_of_user_id = access_token.user_id.clone();
                                     let mut user_update = methods::user::get_user_by_id(clone_of_user_id).await.unwrap();
                                     user_update.student_email = body.student_email.clone();
                                     user_update.apartment_id = body.apartment_id.clone();
