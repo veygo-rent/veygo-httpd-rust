@@ -70,8 +70,7 @@ pub async fn nightly_task() {
                 if renter.is_plan_annual {
                     rent = rent * 10.0;
                 }
-                let sender = integration::sendgrid_veygo::make_email_obj("no-reply@veygo.rent", Option::from("Veygo No-Reply"));
-                let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, Option::from(renter.name.as_str()));
+                let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, renter.name.as_str());
                 if rent != 0.0 {
                     // Get Payment Method
                     use crate::schema::payment_methods::dsl::*;
@@ -90,7 +89,7 @@ pub async fn nightly_task() {
                                         renter.plan_tier = model::PlanTier::Free;
 
                                         // Downgrade email
-                                        integration::sendgrid_veygo::send_email(sender, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
                                     }
                                 }
                                 StripeError::QueryStringSerialize(ser_err) => {
@@ -125,12 +124,12 @@ pub async fn nightly_task() {
                             use crate::schema::payments::dsl::*;
                             diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut POOL.clone().get().unwrap()).unwrap();
                             // Paid Tier renewal email
-                            integration::sendgrid_veygo::send_email(sender, renter_email, "Your plan has been renewed", "Your payment has been processed and your plan has been renewed. ", None, None).await.unwrap();
+                            integration::sendgrid_veygo::send_email(None, renter_email, "Your plan has been renewed", "Your payment has been processed and your plan has been renewed. ", None, None).await.unwrap();
                         }
                     }
                 } else {
                     // Free Tier renewal email
-                    integration::sendgrid_veygo::send_email(sender, renter_email, "Your plan has been renewed", "Your plan has been renewed. \nEnjoy your free plan! ", None, None).await.unwrap();
+                    integration::sendgrid_veygo::send_email(None, renter_email, "Your plan has been renewed", "Your plan has been renewed. \nEnjoy your free plan! ", None, None).await.unwrap();
                 }
                 // Update renter exp
                 if renter.is_plan_annual {
@@ -147,8 +146,8 @@ pub async fn nightly_task() {
             .map_err(|e| format!("Task panicked: {e}"))
         {
             integration::sendgrid_veygo::send_email(
-                integration::sendgrid_veygo::make_email_obj("no-reply@veygo.rent", Option::from("Veygo Server")),
-                integration::sendgrid_veygo::make_email_obj("dev@veygo.rent", Option::from("Veygo Dev Team")),
+                Option::from("Veygo Server"),
+                integration::sendgrid_veygo::make_email_obj("dev@veygo.rent", "Veygo Dev Team"),
                 "Midnight daily task has failed",
                 e.as_str(),
                 None,
