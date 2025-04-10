@@ -1,6 +1,8 @@
+use std::collections::HashMap;
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use warp::http::header::{HeaderMap, HeaderValue};
 
 // Diesel requires us to define a custom mapping between the Rust enum
 // and the database type, if we are not using string.
@@ -538,7 +540,7 @@ pub struct TransponderCompany {
     pub corresponding_key_for_transaction_amount: String,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[diesel(table_name = transponder_companies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewTransponderCompany {
@@ -887,6 +889,14 @@ impl AccessToken {
             token: token_string,
             exp: self.exp,
         }
+    }
+    pub fn to_header_map(&self) -> HeaderMap {
+        let mut header_map = HeaderMap::new();
+        let token_string = hex::encode(self.token.clone());
+        let exp_string = self.exp.to_string();
+        header_map.insert("token", HeaderValue::from_str(token_string.as_str()).unwrap());
+        header_map.insert("exp", HeaderValue::from_str(exp_string.as_str()).unwrap());
+        header_map
     }
 }
 

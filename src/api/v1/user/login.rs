@@ -5,7 +5,8 @@ use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
 use tokio::task;
 use warp::http::StatusCode;
-use warp::Filter;
+use warp::{Filter, Reply};
+use warp::reply::{ with_header, with_status };
 
 #[derive(Deserialize, Serialize, Clone)]
 struct LoginData {
@@ -47,18 +48,19 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             let pub_renter = renter.to_publish_renter();
                             let renter_msg = serde_json::json!({
                                         "renter": pub_renter,
-                                        "access_token": pub_token,
                                     });
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::OK),))
+                            let reply = with_header(with_status(warp::reply::json(&renter_msg), StatusCode::OK), "token", pub_token.token);
+                            let reply = with_header(reply, "exp", pub_token.exp.to_string().as_str());
+                            Ok::<_, warp::Rejection>((reply.into_response(),))
 
                         } else {
                             let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
+                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
                         }
                     }
                     Err(_) => {
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
+                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
                     }
                 }
             }
