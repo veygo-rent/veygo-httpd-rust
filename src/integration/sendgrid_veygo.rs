@@ -4,7 +4,7 @@ use sendgrid::v3::*;
 use std::env;
 
 pub async fn send_email(
-    from: Email,
+    from_name: Option<&str>,
     to: Email,
     subject: &str,
     text: &str,
@@ -15,6 +15,7 @@ pub async fn send_email(
     let sg_api_key = env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");
     let p = Personalization::new(to);
 
+    let from = make_email_obj("no-reply@veygo.rent", from_name.unwrap_or("Team Veygo"));
     let mut m = Message::new(from)
         .set_subject(subject)
         .add_content(Content::new().set_content_type("text/html").set_value(text))
@@ -28,15 +29,15 @@ pub async fn send_email(
 
     let sender = Sender::new(sg_api_key, None);
     let resp = sender.send(&m).await?;
-    println!("status: {}", resp.status());
+    if !resp.status().is_success() {
+        println!("status: {}", resp.status());
+    }
 
     Ok(())
 }
 
-pub fn make_email_obj(addr: &str, name: Option<&str>) -> Email {
+pub fn make_email_obj(addr: &str, name: &str) -> Email {
     let mut email = Email::new(addr);
-    if let Some(name) = name {
-        email = email.set_name(name);
-    }
+    email = email.set_name(name);
     email
 }
