@@ -208,7 +208,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                     StripeError::Stripe(request_error) => {
                                                                         eprintln!("Stripe API error: {:?}", request_error);
                                                                         if request_error.code == Some(ErrorCode::CardDeclined) {
-                                                                            return methods::standard_replys::card_declined(&new_token_in_db_publish);
+                                                                            return methods::standard_replies::card_declined(&new_token_in_db_publish);
                                                                         }
                                                                     }
                                                                     StripeError::QueryStringSerialize(ser_err) => {
@@ -227,7 +227,7 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                         eprintln!("Stripe request timed out");
                                                                     }
                                                                 }
-                                                                methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
+                                                                methods::standard_replies::internal_server_error_response(&new_token_in_db_publish)
                                                             }
                                                             Ok(pmi) => {
                                                                 use crate::schema::agreements::dsl::*;

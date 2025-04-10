@@ -172,7 +172,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                     use crate::schema::renters::dsl::*;
                                                     let mut pool = POOL.clone().get().unwrap();
                                                     diesel::delete(renters.filter(id.eq(renter.id))).execute(&mut pool).unwrap();
-                                                    return methods::standard_replys::internal_server_error_response_without_access_token();
+                                                    return methods::standard_replies::internal_server_error_response_without_access_token();
                                                 }
                                             }
                                             let user_id_data = renter.id;

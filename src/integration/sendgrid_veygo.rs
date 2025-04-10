@@ -9,7 +9,7 @@ pub async fn send_email(
     subject: &str,
     text: &str,
     reply_to: Option<Email>,
-    attachment: Option<Attachment>
+    attachment: Option<Attachment>,
 ) -> Result<(), SendgridError> {
     dotenv().ok();
     let sg_api_key = env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");

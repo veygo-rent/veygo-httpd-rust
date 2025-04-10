@@ -99,7 +99,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                     eprintln!("Stripe request timed out");
                                                 }
                                             }
-                                            methods::standard_replys::internal_server_error_response(&new_token_in_db_publish)
+                                            methods::standard_replies::internal_server_error_response(&new_token_in_db_publish)
                                         }
                                     }
 

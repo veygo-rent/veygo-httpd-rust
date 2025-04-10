@@ -144,9 +144,8 @@ pub async fn nightly_task() {
             use crate::schema::access_tokens::dsl::*;
             let now = Utc::now();
             diesel::delete(
-                access_tokens.filter(exp.le(now))
-            )
-                .execute(&mut POOL.clone().get().unwrap()).unwrap();
+                access_tokens.filter(exp.lt(now))
+            ).execute(&mut POOL.clone().get().unwrap()).unwrap();
             println!("===== Daily Tasks Completed =====");
         })
             .await
