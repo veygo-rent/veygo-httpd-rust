@@ -42,3 +42,12 @@ pub async fn check_if_on_do_not_rent(renter: &Renter) -> bool {
     .unwrap()
     .unwrap()
 }
+
+pub fn user_with_admin_access(user: &Renter) -> bool {
+    if let Some(email_expiration) = user.student_email_expiration {
+        let today = Utc::now().date_naive();
+        user.apartment_id == 1 && email_expiration > today
+    } else {
+        false
+    }
+}

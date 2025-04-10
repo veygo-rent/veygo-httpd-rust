@@ -19,3 +19,8 @@ pub fn card_declined (
     let error_msg = serde_json::json!({"access_token": &token_data, "error": "Credit card declined"});
     Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED),))
 }
+
+pub fn not_implemented () -> Result<(WithStatus<Json>,), Rejection> {
+    let error_msg = serde_json::json!({"error": "Not Implemented"});
+    Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_IMPLEMENTED),))
+}
