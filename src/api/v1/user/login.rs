@@ -50,17 +50,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         "renter": pub_renter,
                                     });
                             let reply = with_header(with_status(warp::reply::json(&renter_msg), StatusCode::OK), "token", pub_token.token);
-                            let reply = with_header(reply, "exp", pub_token.exp.to_string().as_str());
+                            let reply = with_header(reply, "exp", pub_token.exp.timestamp());
                             Ok::<_, warp::Rejection>((reply.into_response(),))
 
                         } else {
                             let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
                         }
                     }
                     Err(_) => {
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
                     }
                 }
             }
