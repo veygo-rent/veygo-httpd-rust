@@ -35,17 +35,14 @@ async fn generate_unique_token() -> Vec<u8> {
 
         let token_exists = match token_exists_result {
             Ok(result) => {
-                match result {
-                    Ok(v) => v,
-                    Err(e) => {
-                        // Handle database query errors.  In a real application, you'd probably
-                        // want to log this error and possibly retry.  For this example,
-                        // we'll just treat any database error as if the token *does* exist,
-                        // to force a retry. This avoids leaking information about internal errors.
-                        eprintln!("Database error: {:?}", e);
-                        true // Treat a DB error as if the token exists, to force a retry.
-                    }
-                }
+                result.unwrap_or_else(|e| {
+                    // Handle database query errors.  In a real application, you'd probably
+                    // want to log this error and possibly retry.  For this example,
+                    // we'll just treat any database error as if the token *does* exist,
+                    // to force a retry. This avoids leaking information about internal errors.
+                    eprintln!("Database error: {:?}", e);
+                    true // Treat a DB error as if the token exists, to force a retry.
+                })
             }
             Err(join_err) => {
                 //For any tokio error.
