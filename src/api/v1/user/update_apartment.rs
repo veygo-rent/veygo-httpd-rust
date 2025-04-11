@@ -9,7 +9,7 @@ use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct CreatePaymentMethodsRequestBody {
+struct UpdateApartmentBody {
     student_email: String,
     apartment_id: i32,
 }
@@ -40,7 +40,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and_then(
-            async move |body: CreatePaymentMethodsRequestBody, token: String, user_id: i32, client_type: Option<String>| {
+            async move |body: UpdateApartmentBody, token: String, user_id: i32, client_type: Option<String>| {
                 let access_token = model::RequestToken {
                     user_id,
                     token,
@@ -60,13 +60,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let token_clone = access_token.clone();
                             methods::tokens::rm_token_by_binary(
                                 hex::decode(token_clone.token).unwrap(),
-                            )
-                            .await;
+                            ).await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
                                 client_type.clone(),
-                            )
-                            .await;
+                            ).await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
