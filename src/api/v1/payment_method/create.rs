@@ -74,7 +74,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap()
                                             }).await.unwrap().to_public_payment_method();
                                             let msg = serde_json::json!({"payment_method": inserted_pm_card});
-                                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK)),))
+                                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
                                         }
                                         Err(error) => {
                                             if let StripeError::Stripe(request_error) = error {

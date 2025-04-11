@@ -101,7 +101,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         new_token_in_db_publish,
                                         warp::reply::with_status(
                                             warp::reply::json(&error_msg),
-                                            StatusCode::NOT_ACCEPTABLE,
+                                            StatusCode::FORBIDDEN,
                                         ),
                                     ),
                                 ));
