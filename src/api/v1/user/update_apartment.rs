@@ -82,17 +82,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match apartment_result {
                                 Err(_) => {
                                     // Wrong apartment ID
-                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "apartment": &body.apartment_id, "error": "Wrong apartment ID"});
-                                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
+                                    let error_msg = serde_json::json!({"apartment": &body.apartment_id, "error": "Wrong apartment ID"});
+                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
                                 }
                                 Ok(apartment) => {
                                     if !is_valid_email(&body.student_email) {
-                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "email": &body.student_email});
-                                        return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                                        let error_msg = serde_json::json!({"email": &body.student_email, "error": "Email is invalid"});
+                                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST)),))
                                     }
                                     if !email_belongs_to_domain(&body.student_email, &apartment.accepted_school_email_domain) {
-                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "email": &body.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
-                                        return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),));
+                                        let error_msg = serde_json::json!({"email": &body.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
+                                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                     }
                                     let mut pool = POOL.clone().get().unwrap();
                                     use crate::schema::renters::dsl::*;

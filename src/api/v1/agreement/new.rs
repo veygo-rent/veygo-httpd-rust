@@ -67,7 +67,6 @@ pub fn new_agreement() -> impl Filter<Extract = (impl Reply,), Error = warp::Rej
                         let return_date = body.end_time.naive_utc().date();
                         if user_dl_expiration < return_date {
                             let error_msg = serde_json::json!({
-                                "access_token": &new_token_in_db_publish,
                                 "error": "Drivers license expired before return"
                             });
                             return Ok::<_, warp::Rejection>((
