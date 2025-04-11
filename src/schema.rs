@@ -24,6 +24,10 @@ pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "transaction_type_enum"))]
     pub struct TransactionTypeEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "verification_type_enum"))]
+    pub struct VerificationTypeEnum;
 }
 
 diesel::table! {
@@ -289,6 +293,19 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::VerificationTypeEnum;
+
+    verifications (id) {
+        id -> Int4,
+        verification_method -> VerificationTypeEnum,
+        renter_id -> Int4,
+        expires_at -> Timestamptz,
+        code -> Varchar,
+    }
+}
+
 diesel::joinable!(access_tokens -> renters (user_id));
 diesel::joinable!(agreements -> apartments (apartment_id));
 diesel::joinable!(agreements -> payment_methods (payment_method_id));
@@ -304,6 +321,7 @@ diesel::joinable!(payments -> renters (renter_id));
 diesel::joinable!(rental_transactions -> agreements (agreement_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(vehicles -> apartments (apartment_id));
+diesel::joinable!(verifications -> renters (renter_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     access_tokens,
@@ -319,4 +337,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     renters,
     transponder_companies,
     vehicles,
+    verifications,
 );

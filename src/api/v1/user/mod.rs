@@ -11,7 +11,8 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
         .and(
             login::main()
                 .or(create::main())
-                .or(update_apartment::main()),
+                .or(update_apartment::main())
+                .or(update_phone::main()),
         )
         .and(warp::path::end())
 }

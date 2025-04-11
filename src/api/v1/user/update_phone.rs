@@ -23,7 +23,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
 }
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("update-apartment")
+    warp::path("update-phone")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
@@ -36,7 +36,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         user_id: i32,
                         client_type: Option<String>| {
                 let access_token = model::RequestToken { user_id, token };
-                if !is_valid_phone_number(body.phone_number.as_str()) {
+                if !is_valid_phone_number(&body.phone_number) {
                     // invalid email or phone number format
                     let error_msg = serde_json::json!({"phone": &body.phone_number, "error": "Please check your phone number format"});
                     return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),));

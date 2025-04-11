@@ -13,7 +13,14 @@ use diesel::{AsExpression, FromSqlRow};
 use std::io::Write;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = sql_types::AgreementStatusEnum)] //lets us map the enum to TEXT in PostgresSQL
+#[diesel(sql_type = sql_types::VerificationTypeEnum)]
+pub enum VerificationType {
+    Email,
+    Phone,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::AgreementStatusEnum)]
 pub enum AgreementStatus {
     Rental,
     Void,
@@ -103,6 +110,25 @@ impl FromSql<sql_types::TransactionTypeEnum, Pg> for TransactionType {
         match bytes.as_bytes() {
             b"Credit" => Ok(TransactionType::Credit),
             b"Cash" => Ok(TransactionType::Cash),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+impl ToSql<sql_types::VerificationTypeEnum, Pg> for VerificationType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            VerificationType::Phone => out.write_all(b"phone")?,
+            VerificationType::Email => out.write_all(b"email")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::VerificationTypeEnum, Pg> for VerificationType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"phone" => Ok(VerificationType::Phone),
+            b"email" => Ok(VerificationType::Email),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -935,4 +961,26 @@ pub struct NewDoNotRentList {
 pub struct RequestToken {
     pub user_id: i32,
     pub token: String,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq, Eq, AsChangeset)]
+#[diesel(table_name = verifications)]
+#[diesel(belongs_to(Renter))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Verification {
+    pub id: i32,
+    pub verification_method: VerificationType,
+    pub renter_id: i32,
+    pub expires_at: DateTime<Utc>,
+    pub code: String,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq, Eq)]
+#[diesel(table_name = verifications)]
+#[diesel(belongs_to(Renter))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewVerification {
+    pub verification_method: VerificationType,
+    pub renter_id: i32,
+    pub code: String,
 }
