@@ -56,8 +56,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         diesel::select(diesel::dsl::exists(payment_methods.filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
                                     }).await.unwrap().unwrap();
                                     if card_in_db {
-                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods existed"});
-                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                                        let error_msg = serde_json::json!({"error": "PaymentMethods existed"});
+                                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                     }
                                     let new_pm_clone = new_pm.clone();
                                     // attach payment method to customer
@@ -73,28 +73,27 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 use crate::schema::payment_methods::dsl::*;
                                                 diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap()
                                             }).await.unwrap().to_public_payment_method();
-                                            let msg = serde_json::json!({"access_token": &new_token_in_db_publish, "payment_method": inserted_pm_card});
-                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),))
+                                            let msg = serde_json::json!({"payment_method": inserted_pm_card});
+                                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK)),))
                                         }
                                         Err(error) => {
                                             if let StripeError::Stripe(request_error) = error {
                                                 eprintln!("Stripe API error: {:?}", request_error);
                                                 if request_error.code == Some(ErrorCode::CardDeclined) {
-                                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods declined"});
-                                                    return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                                                    return methods::standard_replies::card_declined(new_token_in_db_publish);
                                                 } else if request_error.error_type == InvalidRequest {
-                                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods token invalid"});
-                                                    return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                                                    let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
+                                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                                 }
                                             }
-                                            methods::standard_replies::internal_server_error_response_without_access_token()
+                                            methods::standard_replies::internal_server_error_response()
                                         }
                                     }
 
                                 }
                                 Err(_) => {
-                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods token invalid"});
-                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                    let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
+                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
                                 }
                             }
                         } else {

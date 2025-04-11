@@ -1,7 +1,8 @@
 use diesel::prelude::*;
-use warp::Filter;
+use warp::{Filter, Reply};
 use tokio::task::{spawn_blocking};
 use warp::http::StatusCode;
+use warp::reply::{with_header, with_status};
 use crate::{model, POOL, methods};
 
 
@@ -42,10 +43,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }).await.unwrap().unwrap();
                             let publish_payment_methods: Vec<model::PublishPaymentMethod> = payment_method_query_result.iter().map(|x| x.to_public_payment_method().clone()).collect();
                             let msg = serde_json::json!({
-                                                "access_token": new_token_in_db_publish,
                                                 "payment_methods": publish_payment_methods,
                                             });
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),))
+                            let reply = with_header(with_status(warp::reply::json(&msg), StatusCode::CREATED), "token", new_token_in_db_publish.token);
+                            let reply = with_header(reply, "exp", new_token_in_db_publish.exp.timestamp());
+                            Ok::<_, warp::Rejection>((reply.into_response(),))
                         }
                     }
                 }

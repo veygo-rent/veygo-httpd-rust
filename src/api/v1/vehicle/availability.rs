@@ -1,14 +1,15 @@
-use std::collections::HashSet;
 use crate::methods::{tokens, user};
 use crate::model::{AccessToken, Vehicle};
-use crate::{model, POOL};
+use crate::{POOL, model};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashSet;
 use tokio::task::spawn_blocking;
+use warp::{Filter, Reply};
 use warp::http::StatusCode;
-use warp::Filter;
+use warp::reply::{with_header, with_status};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {
@@ -16,8 +17,7 @@ struct AvailabilityData {
     end_time: DateTime<Utc>,
 }
 
-pub fn main(
-) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("availability")
         .and(warp::path::end())
         .and(warp::post())
@@ -97,7 +97,9 @@ pub fn main(
                             let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
 
                             let msg = serde_json::json!({"access_token": new_token_in_db_publish, "available_vehicles": available_vehicle_list_publish});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),))
+                            let reply = with_header(with_status(warp::reply::json(&msg), StatusCode::OK), "token", new_token.token);
+                            let reply = with_header(reply, "exp", new_token.exp.timestamp());
+                            Ok::<_, warp::Rejection>((reply.into_response(),))
                         }
                     }
                     Err(_msg) => {

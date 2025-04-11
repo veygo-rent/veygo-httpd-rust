@@ -5,11 +5,11 @@ use hex::FromHexError;
 use secrets::Secret;
 use tokio::task;
 use tokio::task::spawn_blocking;
-use warp::http::StatusCode;
-use warp::Rejection;
-use warp::reply::{Json, WithStatus};
+use warp::http::{StatusCode};
+use warp::{Rejection, Reply};
+use warp::reply::{Json, with_header, WithStatus};
 use crate::{POOL};
-use crate::model::{AccessToken, NewAccessToken};
+use crate::model::{AccessToken, NewAccessToken, PublishAccessToken};
 use crate::schema::access_tokens::dsl::*;
 
 async fn generate_unique_token() -> Vec<u8> {
@@ -118,14 +118,23 @@ pub async fn rm_token_by_binary(
 
 pub fn token_not_hex_warp_return(
     token_data: &String
-) -> Result<(WithStatus<Json>,), Rejection> {
+) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
-    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
+    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
 }
 
 pub fn token_invalid_warp_return(
     token_data: &String
-) -> Result<(WithStatus<Json>,), Rejection> {
+) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not valid"});
-    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED),))
+    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+}
+
+pub fn wrap_json_reply_with_token(
+    token_data: PublishAccessToken,
+    reply: WithStatus<Json>,
+) -> warp::reply::Response {
+    let reply = with_header(reply, "token", token_data.token);
+    let reply = with_header(reply, "exp", token_data.exp.timestamp());
+    reply.into_response()
 }

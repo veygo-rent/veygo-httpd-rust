@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};

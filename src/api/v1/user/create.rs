@@ -6,9 +6,10 @@ use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
+use warp::reply::{with_status};
 use tokio::task;
 use warp::http::StatusCode;
-use warp::Filter;
+use warp::{Filter, Reply};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct CreateUserData {
@@ -61,7 +62,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
     PHONE_REGEX.is_match(phone)
 }
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
+pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone
 {
     warp::path("create")
         .and(warp::path::end())
@@ -81,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 if !is_valid_email(&renter_create_data.student_email) || !is_valid_phone_number(&renter_create_data.phone) {
                     // invalid email or phone number format
                     let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "phone": &renter_create_data.phone, "error": "Please check your email and phone number format"});
-                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
+                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
                 } else {
                     // valid email
                     let result = task::spawn_blocking(move || {
@@ -92,14 +93,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         Ok(_user) => {
                             // credential existed
                             let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "phone": &renter_create_data.phone, "error": "Invalid email or phone number"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
                         }
                         Err(_) => {
                             // new customer
                             if !is_at_least_18(&renter_create_data.date_of_birth) {
                                 // Renter is NOT old enough
                                 let error_msg = serde_json::json!({"date_of_birth": &renter_create_data.date_of_birth, "error": "Please make sure you are at least 18 years old"});
-                                Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
                             } else {
                                 // Renter is old enough
                                 let mut pool = POOL.clone().get().unwrap();
@@ -126,10 +127,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             } else {
                                                 (today.month() + 1, today.year())
                                             };
-
                                             // Format plan_expire_month_year as MMYYYY.
                                             let plan_expire_month_year_string = format!("{:02}{}", next_month, next_year);
-                                            
+
                                             let emp_tier: model::EmployeeTier;
                                             if &apartment.accepted_school_email_domain == "veygo.rent" {
                                                 emp_tier = model::EmployeeTier::Admin;
@@ -172,7 +172,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                     use crate::schema::renters::dsl::*;
                                                     let mut pool = POOL.clone().get().unwrap();
                                                     diesel::delete(renters.filter(id.eq(renter.id))).execute(&mut pool).unwrap();
-                                                    return methods::standard_replies::internal_server_error_response_without_access_token();
+                                                    return methods::standard_replies::internal_server_error_response();
                                                 }
                                             }
                                             let user_id_data = renter.id;
@@ -189,18 +189,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             let pub_renter = renter.to_publish_renter();
                                             let renter_msg = serde_json::json!({
                                                                 "renter": pub_renter,
-                                                                "access_token": pub_token,
                                                             });
-                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&renter_msg), StatusCode::CREATED),))
+                                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::CREATED)),))
                                         } else {
                                             let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "accepted_domain": &apartment.accepted_school_email_domain, "error": "Email not accepted"});
-                                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
                                         }
                                     }
                                     Err(_) => {
                                         // Wrong apartment ID
                                         let error_msg = serde_json::json!({"apartment": &renter_create_data.apartment_id, "error": "Wrong apartment ID"});
-                                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),))
+                                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
                                     }
                                 }
                             }

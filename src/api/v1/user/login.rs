@@ -1,12 +1,12 @@
+use crate::{POOL, methods};
 use crate::model::{AccessToken, Renter};
-use crate::POOL;
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
 use tokio::task;
 use warp::http::StatusCode;
+use warp::reply::{with_status};
 use warp::{Filter, Reply};
-use warp::reply::{ with_header, with_status };
 
 #[derive(Deserialize, Serialize, Clone)]
 struct LoginData {
@@ -49,9 +49,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             let renter_msg = serde_json::json!({
                                         "renter": pub_renter,
                                     });
-                            let reply = with_header(with_status(warp::reply::json(&renter_msg), StatusCode::OK), "token", pub_token.token);
-                            let reply = with_header(reply, "exp", pub_token.exp.timestamp());
-                            Ok::<_, warp::Rejection>((reply.into_response(),))
+                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
 
                         } else {
                             let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});

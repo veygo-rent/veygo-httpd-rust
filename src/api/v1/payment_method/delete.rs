@@ -47,8 +47,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             diesel::select(diesel::dsl::exists(payment_methods.filter(id.eq(pmt_id_clone)).filter(is_enabled.eq(true)))).get_result::<bool>(&mut pool)
                         }).await.unwrap().unwrap();
                         if !if_pm_in_question_exists {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Invalid Payment Method"});
-                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                            let error_msg = serde_json::json!({"error": "Invalid Payment Method"});
+                            return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                         }
                         // check if pm match user id
                         let pmt_id_clone = request_body.card_id.clone();
@@ -58,15 +58,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             payment_methods.filter(id.eq(pmt_id_clone)).get_result::<model::PaymentMethod>(&mut pool)
                         }).await.unwrap().unwrap();
                         if pm.renter_id != access_token.user_id {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Invalid Payment Method"});
-                            return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                            let error_msg = serde_json::json!({"error": "Invalid Payment Method"});
+                            return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                         }
                         pm.is_enabled = false;
                         use crate::schema::payment_methods::dsl::*;
                         let pmt_id_clone = request_body.card_id.clone();
                         diesel::update(payment_methods.find(pmt_id_clone)).set(&pm).execute(&mut pool).unwrap();
-                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish});
-                        return Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),));
+                        let msg = serde_json::json!({});
+                        return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK)),));
                     }
                 }
             }

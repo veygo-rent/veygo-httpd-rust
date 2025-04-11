@@ -1,14 +1,14 @@
-use crate::{integration, methods, model, POOL};
+use crate::{POOL, integration, methods, model};
 use chrono::{DateTime, Duration, Utc};
+use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
-use diesel::RunQueryDsl;
 use serde_derive::{Deserialize, Serialize};
-use stripe::{ErrorCode, StripeError, PaymentIntentCaptureMethod};
 use stripe::ErrorType::InvalidRequest;
+use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
 use tokio::task::spawn_blocking;
-use warp::http::{StatusCode};
-use warp::Filter;
+use warp::http::StatusCode;
+use warp::{Filter, Reply};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
@@ -23,8 +23,7 @@ struct NewAgreementRequestBodyData {
     pai: bool,
 }
 
-pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
-{
+pub fn new_agreement() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("new")
         .and(warp::path::end())
         .and(warp::post())
@@ -55,14 +54,14 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                         let user_in_request = methods::user::get_user_by_id(access_token.user_id).await.unwrap();
                         // Check if Renter has an address
                         if user_in_request.billing_address.is_none() {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Unknown billing address"});
-                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            let error_msg = serde_json::json!({"error": "Unknown billing address"});
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                         }
                         let user_address = user_in_request.billing_address.clone().unwrap();
                         // Check if Renter DL exp
                         if user_in_request.drivers_license_expiration.is_none() {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Drivers license not verified"});
-                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            let error_msg = serde_json::json!({"error": "Drivers license not verified"});
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                         }
                         let user_dl_expiration = user_in_request.drivers_license_expiration.unwrap();
                         let return_date = body.end_time.naive_utc().date();
@@ -72,63 +71,60 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                 "error": "Drivers license expired before return"
                             });
                             return Ok::<_, warp::Rejection>((
-                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN).into_response(),
                             ));
                         }
                         // Check if Renter lease exp
                         if user_in_request.lease_agreement_expiration.is_none() {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Lease agreement not verified"});
-                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            let error_msg = serde_json::json!({"error": "Lease agreement not verified"});
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                         }
                         let user_lease_expiration = user_in_request.lease_agreement_expiration.unwrap();
                         if user_lease_expiration < return_date {
                             let error_msg = serde_json::json!({
-                                "access_token": &new_token_in_db_publish,
                                 "error": "Lease agreement expired before return"
                             });
                             return Ok::<_, warp::Rejection>((
-                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                                                                methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),
                             ));
                         }
                         // Check if liability is covered (liability & collision)
                         // liability
                         // TODO: Add apartment liability availability check
                         if user_in_request.insurance_liability_expiration.is_none() && !body.liability {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Liability coverage required"});
-                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            let error_msg = serde_json::json!({"error": "Liability coverage required"});
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                         }
                         let user_liability_expiration = user_in_request.insurance_liability_expiration.unwrap();
                         if user_liability_expiration < return_date && !body.liability {
                             let error_msg = serde_json::json!({
-                                "access_token": &new_token_in_db_publish,
                                 "error": "Liability coverage expired before return"
                             });
                             return Ok::<_, warp::Rejection>((
-                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                                                                methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),
                             ));
                         }
                         // collision
                         // TODO: Add credit card collision verification
                         if user_in_request.insurance_collision_expiration.is_none() && !body.pcdw {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Collision coverage required"});
-                            return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                            let error_msg = serde_json::json!({"error": "Collision coverage required"});
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                         }
                         let user_collision_expiration = user_in_request.insurance_collision_expiration.unwrap();
                         if user_collision_expiration < return_date && !body.pcdw {
                             let error_msg = serde_json::json!({
-                                "access_token": &new_token_in_db_publish,
                                 "error": "Collision coverage expired before return"
                             });
                             return Ok::<_, warp::Rejection>((
-                                warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+                                                                methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),
                             ));
                         }
                         // Check if renter in DNR
                         let if_in_dnr = methods::user::check_if_on_do_not_rent(&user_in_request).await;
                         if !if_in_dnr {
                             if body.start_time + Duration::hours(1) > body.end_time || body.start_time - Duration::hours(1) < Utc::now() {
-                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Time invalid"});
-                                return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),));
+                                let error_msg = serde_json::json!({"error": "Time invalid"});
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                             }
                             // check vehicle::exist, vehicle.available, vehicle.apt_id == renter.apt_id => invalid_vehicle
                             use crate::schema::vehicles::dsl::*;
@@ -170,8 +166,8 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 .bind::<Timestamptz, _>(end_time_buffered))
                                                     )).get_result::<bool>(&mut pool).unwrap();
                                                     if if_conflict {
-                                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Vehicle unavailable for the requested time"});
-                                                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT),))
+                                                        let error_msg = serde_json::json!({"error": "Vehicle unavailable for the requested time"});
+                                                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),))
                                                     } else {
                                                         let mut pool = POOL.clone().get().unwrap();
                                                         let apartment_id_clone = vehicle.apartment_id.clone();
@@ -213,14 +209,13 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 if let StripeError::Stripe(request_error) = error {
                                                                     eprintln!("Stripe API error: {:?}", request_error);
                                                                     if request_error.code == Some(ErrorCode::CardDeclined) {
-                                                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods declined"});
-                                                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                                                                        return methods::standard_replies::card_declined(new_token_in_db_publish);
                                                                     } else if request_error.error_type == InvalidRequest {
-                                                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "PaymentMethods token invalid"});
-                                                                        return Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),));
+                                                                        let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
+                                                                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                                                     }
                                                                 }
-                                                                methods::standard_replies::internal_server_error_response_without_access_token()
+                                                                methods::standard_replies::internal_server_error_response()
                                                             }
                                                             Ok(pmi) => {
                                                                 use crate::schema::agreements::dsl::*;
@@ -238,34 +233,34 @@ pub fn new_agreement() -> impl Filter<Extract = (impl warp::Reply,), Error = war
                                                                 };
                                                                 use crate::schema::payments::dsl::*;
                                                                 let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<crate::model::Payment>(&mut pool).unwrap();
-                                                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "agreement": &new_publish_agreement});
-                                                                Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK),))
+                                                                let error_msg = serde_json::json!({"agreement": &new_publish_agreement});
+                                                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK)),))
                                                             }
                                                         }
                                                     }
                                                 } else {
-                                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Payment Method unavailable"});
-                                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT),))
+                                                    let error_msg = serde_json::json!({"error": "Payment Method unavailable"});
+                                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),))
                                                 }
                                             }
                                             Err(_) => {
-                                                let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Payment Method invalid"});
-                                                Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
+                                                let error_msg = serde_json::json!({"error": "Payment Method invalid"});
+                                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST)),))
                                             }
                                         }
                                     } else {
-                                        let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Vehicle unavailable"});
-                                        Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT),))
+                                        let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
+                                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),))
                                     }
                                 }
                                 Err(_) => {
-                                    let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "Vehicle invalid"});
-                                    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST),))
+                                    let error_msg = serde_json::json!({"error": "Vehicle invalid"});
+                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST)),))
                                 }
                             }
                         } else {
-                            let error_msg = serde_json::json!({"access_token": &new_token_in_db_publish, "error": "User on do not rent list"});
-                            Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),))
+                            let error_msg = serde_json::json!({"error": "User on do not rent list"});
+                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),))
                         }
                     }
                 }
