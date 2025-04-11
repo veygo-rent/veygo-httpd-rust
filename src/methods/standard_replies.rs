@@ -14,8 +14,7 @@ pub fn internal_server_error_response() -> Result<(warp::reply::Response,), Reje
 pub fn card_declined_wrapped(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg =
-        serde_json::json!({"error": "Credit card declined"});
+    let error_msg = serde_json::json!({"error": "Credit card declined"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
         warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED),
@@ -26,7 +25,10 @@ pub fn user_not_admin_wrapped_return(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "You do not have administrator privileges"});
-    Ok::<_, Rejection>((wrap_json_reply_with_token(token_data, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),))
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+    ),))
 }
 
 #[allow(dead_code)]

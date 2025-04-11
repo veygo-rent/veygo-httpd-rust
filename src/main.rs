@@ -5,13 +5,13 @@ mod model;
 mod scheduled_tasks;
 mod schema;
 
-use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dotenv::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
-use warp::Filter;
 use tokio::spawn;
+use warp::Filter;
 
 use std::net::IpAddr;
 use std::str::FromStr;

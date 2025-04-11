@@ -7,9 +7,9 @@ use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tokio::task::spawn_blocking;
-use warp::{Filter, Reply};
 use warp::http::StatusCode;
-use warp::reply::{with_status};
+use warp::reply::with_status;
+use warp::{Filter, Reply};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {

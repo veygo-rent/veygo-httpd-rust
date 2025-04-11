@@ -1,5 +1,5 @@
-use crate::model::Renter;
 use crate::POOL;
+use crate::model::Renter;
 use chrono::Utc;
 use diesel::prelude::*;
 use tokio::task;

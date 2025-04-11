@@ -1,7 +1,7 @@
-use rand::seq::SliceRandom;
-use rand::Rng;
-use diesel::prelude::*;
 use crate::POOL;
+use diesel::prelude::*;
+use rand::Rng;
+use rand::seq::SliceRandom;
 
 pub fn generate_unique_agreement_confirmation() -> String {
     // Define the allowed characters: digits 0-9 and uppercase A-Z.
@@ -23,21 +23,18 @@ pub fn generate_unique_agreement_confirmation() -> String {
 
         // Check if the generated confirmation already exists in the agreements table, synchronously.
         let exists = {
-            let mut conn = POOL
-                .clone()
-                .get()
-                .expect("Failed to get DB connection");
+            let mut conn = POOL.clone().get().expect("Failed to get DB connection");
 
             // If there's an error performing the query, treat it as "exists = true" so we retry.
             diesel::select(diesel::dsl::exists(
                 crate::schema::agreements::table
-                    .filter(crate::schema::agreements::confirmation.eq(&confirmation))
+                    .filter(crate::schema::agreements::confirmation.eq(&confirmation)),
             ))
-                .get_result::<bool>(&mut conn)
-                .unwrap_or_else(|e| {
-                    eprintln!("Database error checking agreement confirmation: {:?}", e);
-                    true
-                })
+            .get_result::<bool>(&mut conn)
+            .unwrap_or_else(|e| {
+                eprintln!("Database error checking agreement confirmation: {:?}", e);
+                true
+            })
         };
 
         // If the confirmation does not exist, return it.

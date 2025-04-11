@@ -1,13 +1,13 @@
 use crate::model::{AccessToken, PaymentMethod};
-use crate::{methods, model, POOL};
-use diesel::prelude::*;
+use crate::{POOL, methods, model};
 use diesel::RunQueryDsl;
+use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, StripeError};
 use tokio::task;
-use warp::http::StatusCode;
 use warp::Filter;
+use warp::http::StatusCode;
 
 use crate::integration::stripe_veygo;
 

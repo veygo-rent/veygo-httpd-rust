@@ -1,4 +1,4 @@
-use crate::{integration, model, POOL};
+use crate::{POOL, integration, model};
 use chrono::{Datelike, NaiveTime, Utc};
 use diesel::prelude::*;
 use std::time::Duration;

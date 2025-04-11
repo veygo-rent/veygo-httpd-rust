@@ -1,14 +1,14 @@
 use crate::integration::stripe_veygo;
 use crate::model;
-use crate::{methods, POOL};
-use bcrypt::{hash, DEFAULT_COST};
+use crate::{POOL, methods};
+use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
-use warp::reply::{with_status};
 use tokio::task;
 use warp::http::StatusCode;
+use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -62,8 +62,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
     PHONE_REGEX.is_match(phone)
 }
 
-pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone
-{
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("create")
         .and(warp::path::end())
         .and(warp::post())

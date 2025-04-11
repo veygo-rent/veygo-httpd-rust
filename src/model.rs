@@ -893,7 +893,10 @@ impl AccessToken {
         let mut header_map = HeaderMap::new();
         let token_string = hex::encode(self.token.clone());
         let exp_string = self.exp.to_string();
-        header_map.insert("token", HeaderValue::from_str(token_string.as_str()).unwrap());
+        header_map.insert(
+            "token",
+            HeaderValue::from_str(token_string.as_str()).unwrap(),
+        );
         header_map.insert("exp", HeaderValue::from_str(exp_string.as_str()).unwrap());
         header_map
     }
