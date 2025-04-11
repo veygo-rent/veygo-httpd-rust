@@ -123,11 +123,11 @@ pub fn token_not_hex_warp_return(
     Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
 }
 
-pub fn token_invalid_warp_return(
+pub fn token_invalid_wrapped_return(
     token_data: &String
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not valid"});
-    Ok::<_, warp::Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+    Ok::<_, Rejection>((warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
 }
 
 pub fn wrap_json_reply_with_token(

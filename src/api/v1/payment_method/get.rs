@@ -25,7 +25,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
                     Ok(if_token_valid) => {
                         if !if_token_valid {
-                            methods::tokens::token_invalid_warp_return(&access_token.token)
+                            methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             // Token is valid -> user_id trusted
                             // gen new token

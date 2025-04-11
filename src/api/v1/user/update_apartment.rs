@@ -54,7 +54,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
                         if !token_bool {
-                            methods::tokens::token_invalid_warp_return(&access_token.token)
+                            methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             // gen new token
                             let token_clone = access_token.clone();

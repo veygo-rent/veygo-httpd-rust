@@ -31,7 +31,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 }
                 Ok(token_bool) => {
                     if !token_bool {
-                        methods::tokens::token_invalid_warp_return(&access_token.token)
+                        methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
                         // gen new token
                         methods::tokens::rm_token_by_binary(hex::decode(access_token.token.clone()).unwrap()).await;

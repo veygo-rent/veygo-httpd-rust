@@ -35,7 +35,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 match if_token_valid {
                     Ok(token_bool) => {
                         if !token_bool {
-                            tokens::token_invalid_warp_return(&access_token.token)
+                            tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             // Token is validated -> user_id is valid
                             let user_id_clone = access_token.user_id.clone();

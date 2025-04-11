@@ -1,8 +1,11 @@
-use crate::model::Renter;
+use crate::model::{PublishAccessToken, Renter};
 use crate::POOL;
 use chrono::Utc;
 use diesel::prelude::*;
 use tokio::task;
+use warp::http::StatusCode;
+use warp::{Rejection};
+use crate::methods::tokens::wrap_json_reply_with_token;
 
 pub async fn get_user_by_id(user_id: i32) -> QueryResult<Renter> {
     let mut pool = POOL.clone().get().unwrap();
@@ -50,4 +53,11 @@ pub fn user_with_admin_access(user: &Renter) -> bool {
     } else {
         false
     }
+}
+
+pub fn user_not_admin_wrapped_return(
+    token_data: PublishAccessToken,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let error_msg = serde_json::json!({"error": "You do not have administrator privileges"});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(token_data, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED)),))
 }

@@ -80,7 +80,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             if let StripeError::Stripe(request_error) = error {
                                                 eprintln!("Stripe API error: {:?}", request_error);
                                                 if request_error.code == Some(ErrorCode::CardDeclined) {
-                                                    return methods::standard_replies::card_declined(new_token_in_db_publish);
+                                                    return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                                 } else if request_error.error_type == InvalidRequest {
                                                     let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
                                                     return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
@@ -97,7 +97,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                             }
                         } else {
-                            methods::tokens::token_invalid_warp_return(&access_token.token)
+                            methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         }
                     }
                 }
