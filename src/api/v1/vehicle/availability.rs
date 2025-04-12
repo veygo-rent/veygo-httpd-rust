@@ -33,8 +33,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             let if_token_valid = tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
             match if_token_valid {
                 Ok(token_bool) => {
-                    if !token_bool {
-                        return tokens::token_invalid_wrapped_return(&access_token.token);
+                    return if !token_bool {
+                        tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
                         // Token is validated -> user_id is valid
                         let user_id_clone = access_token.user_id.clone();
@@ -50,10 +50,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let apt_id = user.apartment_id;
 
                         let start_time: DateTime<Utc> = body.start_time;
-                        let end_time: DateTime<Utc>   = body.end_time;
+                        let end_time: DateTime<Utc> = body.end_time;
 
                         let start_time_buffered = start_time - Duration::minutes(15);
-                        let end_time_buffered   = end_time   + Duration::minutes(15);
+                        let end_time_buffered = end_time + Duration::minutes(15);
 
                         let mut pool = POOL.clone().get().unwrap();
                         let conflicting_vehicle_ids = spawn_blocking({
@@ -95,7 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
                         let msg = serde_json::json!({"available_vehicles": available_vehicle_list_publish});
-                        return Ok::<_, warp::Rejection>((tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),));
+                        Ok::<_, warp::Rejection>((tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))
                     }
                 }
                 Err(_msg) => {
