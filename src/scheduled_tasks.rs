@@ -146,6 +146,12 @@ pub async fn nightly_task() {
             diesel::delete(
                 access_tokens.filter(exp.lt(now))
             ).execute(&mut POOL.clone().get().unwrap()).unwrap();
+            // Delete expired verifications
+            use crate::schema::verifications::dsl::*;
+            let now = Utc::now();
+            diesel::delete(
+                verifications.filter(expires_at.lt(now))
+            ).execute(&mut POOL.clone().get().unwrap()).unwrap();
             println!("===== Daily Tasks Completed =====");
         })
             .await
