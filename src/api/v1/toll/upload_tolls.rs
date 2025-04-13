@@ -1,12 +1,12 @@
 use crate::{POOL, methods, model};
-use bytes::{BufMut};
+use bytes::BufMut;
 use diesel::prelude::*;
 use futures::TryStreamExt;
 use secrets::traits::AsContiguousBytes;
 use warp::http::StatusCode;
-use warp::multipart::{FormData};
+use warp::multipart::FormData;
 use warp::reply::with_status;
-use warp::{Filter, Reply};
+use warp::{Filter};
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-tolls")
@@ -62,12 +62,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             let field_names: Vec<Vec<u8>> = form
                                 .and_then(|mut field| async move {
                                     let mut bytes: Vec<u8> = Vec::new();
-
                                     // field.data() only returns a piece of the content, you should call over it until it replies None
                                     while let Some(content) = field.data().await {
                                         let content = content.unwrap();
                                         bytes.put(content);
                                     }
+                                    println!("{}", field.filename().unwrap().to_string());
                                     Ok(bytes)
                                 })
                                 .try_collect()
@@ -79,10 +79,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             // Try to get headers from the CSV; if this fails, return a BAD_REQUEST response
                             let headers = match rdr.headers() {
                                 Ok(h) => h.clone(),
-                                Err(e) => return Ok((with_status(
+                                Err(e) => return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                     warp::reply::json(&serde_json::json!({ "error": format!("CSV header error: {}", e) })),
                                     StatusCode::BAD_REQUEST
-                                ).into_response(),))
+                                )),))
                             };
 
                             let mut json_records = Vec::new();
@@ -96,18 +96,18 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         json_records.push(serde_json::Value::Object(map));
                                     },
                                     Err(e) => {
-                                        return Ok((with_status(
-                                            warp::reply::json(&serde_json::json!({ "error": format!("CSV record error: {}", e) })),
+                                        return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
+                                            warp::reply::json(&serde_json::json!({ "message": format!("CSV record error: {}", e) })),
                                             StatusCode::BAD_REQUEST
-                                        ).into_response(),));
+                                        )),));
                                     }
                                 }
                             }
 
-                            return Ok((with_status(
+                            return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                 warp::reply::json(&json_records),
                                 StatusCode::OK
-                            ).into_response(),));
+                            )),));
                         }
                     }
                 };
