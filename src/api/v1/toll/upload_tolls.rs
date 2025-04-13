@@ -1,17 +1,12 @@
 use crate::{POOL, methods, model};
-use bytes::Buf;
+use bytes::{BufMut};
 use diesel::prelude::*;
 use futures::TryStreamExt;
 use secrets::traits::AsContiguousBytes;
 use warp::http::StatusCode;
-use warp::multipart::{FormData, Part};
+use warp::multipart::{FormData};
 use warp::reply::with_status;
 use warp::{Filter, Reply};
-
-#[derive(Debug)]
-struct MultipartError(warp::Error);
-
-impl warp::reject::Reject for MultipartError {}
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-tolls")
@@ -64,39 +59,22 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     token_clone,
                                 );
                             }
-                            let parts: Vec<Part> = form.try_collect().await.unwrap();
-                            let file_count = parts.len() as i32;
-                            if file_count != 1 {
-                                let msg = serde_json::json!({
-                                    "message": "Please upload exactly one file",
-                                });
-                                return Ok::<_, warp::Rejection>((
-                                    methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        with_status(
-                                            warp::reply::json(&msg),
-                                            StatusCode::NOT_ACCEPTABLE,
-                                        ),
-                                    ),
-                                ));
-                            };
-                            let part = parts.into_iter().next().unwrap();
-                            let bytes: Vec<u8> = part
-                                .stream()
-                                .try_fold(Vec::new(), |mut acc, data| async move {
-                                    acc.extend_from_slice(data.chunk());
-                                    Ok(acc)
-                                })
-                                .await
-                                .map_err(|e| {
-                                    // Log the error for debugging and propagate it as a rejection.
-                                    println!("Failed to lock multipart state or read data: {:?}", e);
-                                    warp::reject::custom(MultipartError(e))
-                                })?;
-                            // Wrap the buffer into a Cursor to implement std::io::Read
+                            let field_names: Vec<Vec<u8>> = form
+                                .and_then(|mut field| async move {
+                                    let mut bytes: Vec<u8> = Vec::new();
 
+                                    // field.data() only returns a piece of the content, you should call over it until it replies None
+                                    while let Some(content) = field.data().await {
+                                        let content = content.unwrap();
+                                        bytes.put(content);
+                                    }
+                                    Ok(bytes)
+                                })
+                                .try_collect()
+                                .await
+                                .unwrap();
                             // Parse CSV and convert to a JSON array
-                            let mut rdr = csv::ReaderBuilder::new().has_headers(false).from_reader(bytes.as_bytes());
+                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].as_bytes());
 
                             // Try to get headers from the CSV; if this fails, return a BAD_REQUEST response
                             let headers = match rdr.headers() {
@@ -104,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 Err(e) => return Ok((with_status(
                                     warp::reply::json(&serde_json::json!({ "error": format!("CSV header error: {}", e) })),
                                     StatusCode::BAD_REQUEST
-                                ).into_response(), ))
+                                ).into_response(),))
                             };
 
                             let mut json_records = Vec::new();
