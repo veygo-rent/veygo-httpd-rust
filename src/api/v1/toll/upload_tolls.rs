@@ -3,10 +3,10 @@ use bytes::BufMut;
 use diesel::prelude::*;
 use futures::TryStreamExt;
 use secrets::traits::AsContiguousBytes;
+use warp::Filter;
 use warp::http::StatusCode;
-use warp::multipart::{FormData, Part};
+use warp::multipart::{FormData};
 use warp::reply::with_status;
-use warp::{Filter};
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-tolls")
@@ -59,13 +59,27 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     token_clone,
                                 );
                             }
-                            let parts: Vec<Part> = form.try_collect().await.unwrap();
-                            let file_count = parts.len() as i32;
-                            let mut part = parts.into_iter().next().unwrap();
+                            let field_names: Vec<_> = form
+                                .and_then(|mut field| async move {
+                                    let mut bytes: Vec<u8> = Vec::new();
+
+                                    // field.data() only returns a piece of the content, you should call over it until it replies None
+                                    while let Some(content) = field.data().await {
+                                        let content = content.unwrap();
+                                        bytes.put(content);
+                                    }
+                                    Ok((
+                                        bytes,
+                                    ))
+                                })
+                                .try_collect()
+                                .await
+                                .unwrap();
+                            let file_count = field_names.len() as i32;
                             if file_count != 1 {
                                 let msg = serde_json::json!({
-                                     "message": "Please upload exactly one file",
-                                 });
+                                      "message": "Please upload exactly one file",
+                                  });
                                 return Ok::<_, warp::Rejection>((
                                     methods::tokens::wrap_json_reply_with_token(
                                         new_token_in_db_publish,
@@ -76,11 +90,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     ),
                                 ));
                             };
-                            let content = part.data().await.unwrap().unwrap();
-                            let mut bytes: Vec<u8> = Vec::new();
-                            bytes.put(content);
                             // Parse CSV and convert to a JSON array
-                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(bytes.as_bytes());
+                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_bytes());
 
                             // Try to get headers from the CSV; if this fails, return a BAD_REQUEST response
                             let headers = match rdr.headers() {
