@@ -90,7 +90,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .await
                                 .map_err(|e| {
                                     // Log the error for debugging and propagate it as a rejection.
-                                    eprintln!("Failed to lock multipart state or read data: {:?}", e);
+                                    println!("Failed to lock multipart state or read data: {:?}", e);
                                     warp::reject::custom(MultipartError(e))
                                 })?;
                             // Wrap the buffer into a Cursor to implement std::io::Read
