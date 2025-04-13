@@ -1,11 +1,11 @@
 use crate::{POOL, methods, model};
 use bytes::BufMut;
+use diesel::dsl::exists;
 use diesel::prelude::*;
 use futures::TryStreamExt;
-use secrets::traits::AsContiguousBytes;
 use warp::Filter;
 use warp::http::StatusCode;
-use warp::multipart::{FormData};
+use warp::multipart::FormData;
 use warp::reply::with_status;
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -15,11 +15,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
         .and(warp::header::<String>("token"))
         .and(warp::header::<i32>("user_id"))
+        .and(warp::header::<i32>("toll_id"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and_then(
             async move |form: FormData,
                         token: String,
                         user_id: i32,
+                        toll_id: i32,
                         client_type: Option<String>| {
                 let access_token = model::RequestToken { user_id, token };
                 let if_token_valid = methods::tokens::verify_user_token(
@@ -91,7 +93,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 ));
                             };
                             // Parse CSV and convert to a JSON array
-                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_bytes());
+                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_slice());
 
                             // Try to get headers from the CSV; if this fails, return a BAD_REQUEST response
                             let headers = match rdr.headers() {
@@ -120,7 +122,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     }
                                 }
                             }
-
+                            let toll_company = {
+                                use crate::schema::transponder_companies::dsl::*;
+                                let if_exists = diesel::select(exists(transponder_companies.filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
+                                if !if_exists {
+                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
+                                        warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
+                                        StatusCode::NOT_ACCEPTABLE
+                                    )),));
+                                }
+                                transponder_companies.filter(id.eq(toll_id)).get_result::<model::TransponderCompany>(&mut pool).unwrap()
+                            };
                             return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                 warp::reply::json(&json_records),
                                 StatusCode::OK

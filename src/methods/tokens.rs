@@ -27,7 +27,7 @@ async fn generate_unique_token() -> Vec<u8> {
             // Use the token_vec.expose_secret() here.
             diesel::select(diesel::dsl::exists(
                 crate::schema::access_tokens::table
-                    .filter(crate::schema::access_tokens::token.eq(token_vec)),
+                    .filter(token.eq(token_vec)),
             ))
             .get_result::<bool>(&mut pool)
         })
