@@ -8,6 +8,11 @@ use warp::multipart::{FormData, Part};
 use warp::reply::with_status;
 use warp::{Filter, Reply};
 
+#[derive(Debug)]
+struct MultipartError(warp::Error);
+
+impl warp::reject::Reject for MultipartError {}
+
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-tolls")
         .and(warp::path::end())
@@ -82,7 +87,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     acc.extend_from_slice(data.chunk());
                                     Ok(acc)
                                 })
-                                .await.unwrap();
+                                .await
+                                .map_err(|e| {
+                                    // Log the error for debugging and propagate it as a rejection.
+                                    eprintln!("Failed to lock multipart state or read data: {:?}", e);
+                                    warp::reject::custom(MultipartError(e))
+                                })?;
                             // Wrap the buffer into a Cursor to implement std::io::Read
 
                             // Parse CSV and convert to a JSON array
