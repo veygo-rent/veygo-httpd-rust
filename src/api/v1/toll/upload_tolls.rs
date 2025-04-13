@@ -1,4 +1,5 @@
 use crate::{POOL, methods, model};
+use bytes::Buf;
 use diesel::prelude::*;
 use futures::TryStreamExt;
 use secrets::traits::AsContiguousBytes;
