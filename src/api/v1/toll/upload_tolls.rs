@@ -3,6 +3,7 @@ use bytes::BufMut;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use futures::TryStreamExt;
+use std::collections::HashSet;
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
@@ -133,6 +134,29 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                                 transponder_companies.filter(id.eq(toll_id)).get_result::<model::TransponderCompany>(&mut pool).unwrap()
                             };
+                            let required: HashSet<&str> = [
+                                toll_company.corresponding_key_for_transaction_amount.as_str(),
+                                toll_company.corresponding_key_for_transaction_name.as_str(),
+                                toll_company.corresponding_key_for_transaction_time.as_str(),
+                                toll_company.corresponding_key_for_vehicle_id.as_str(),
+                            ]
+                                .into_iter()
+                                .collect();
+                            let csv_cols: HashSet<&str> = headers.iter().collect();
+                            let missing: Vec<&str> = required
+                                .difference(&csv_cols)
+                                .copied()
+                                .collect();
+                            if !missing.is_empty() {
+                                let msg = serde_json::json!({
+                                    "error": "CSV is missing required columns",
+                                    "missing_columns": missing,
+                                });
+                                return Ok((methods::tokens::wrap_json_reply_with_token(
+                                    new_token_in_db_publish,
+                                    with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE),
+                                ),));
+                            }
                             return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                 warp::reply::json(&json_records),
                                 StatusCode::OK
