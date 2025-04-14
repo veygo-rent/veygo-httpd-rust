@@ -1,6 +1,6 @@
 -- Your SQL goes here
 ALTER TABLE transponder_companies
-    ADD COLUMN timestamp_format VARCHAR NOT NULL,
+    ADD COLUMN timestamp_format VARCHAR NOT NULL DEFAULT '%Y-%m-%dT%H:%M:%SZ',
     ADD COLUMN utc_offset_hours  INTEGER;
 
 -- Slash format, no zone in the string
