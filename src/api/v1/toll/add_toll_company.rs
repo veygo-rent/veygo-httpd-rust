@@ -62,7 +62,16 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::TransponderCompany>(&mut pool);
                             return match insert_result {
                                 Err(_) => {
-                                    methods::standard_replies::internal_server_error_response()
+                                    let msg = serde_json::json!({"error": "Transponder company already exists"});
+                                    Ok::<_, warp::Rejection>((
+                                        methods::tokens::wrap_json_reply_with_token(
+                                            new_token_in_db_publish,
+                                            with_status(
+                                                warp::reply::json(&msg),
+                                                StatusCode::NOT_ACCEPTABLE,
+                                            ),
+                                        ),
+                                    ))
                                 }
                                 Ok(company) => {
                                     let msg = serde_json::json!({"transponder_company": &company});
