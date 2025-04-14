@@ -839,7 +839,7 @@ pub struct Charge {
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
-    pub agreement_id: i32,
+    pub agreement_id: Option<i32>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -851,7 +851,7 @@ pub struct NewCharge {
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
-    pub agreement_id: i32,
+    pub agreement_id: Option<i32>,
 }
 
 #[derive(

@@ -118,7 +118,7 @@ diesel::table! {
         time -> Timestamptz,
         amount -> Float8,
         note -> Nullable<Varchar>,
-        agreement_id -> Int4,
+        agreement_id -> Nullable<Int4>,
     }
 }
 
