@@ -263,7 +263,7 @@ diesel::table! {
         corresponding_key_for_transaction_time -> Varchar,
         corresponding_key_for_transaction_amount -> Varchar,
         timestamp_format -> Varchar,
-        utc_offset_hours -> Nullable<Int4>,
+        timezone -> Nullable<Varchar>,
     }
 }
 

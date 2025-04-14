@@ -564,7 +564,7 @@ pub struct TransponderCompany {
     pub corresponding_key_for_transaction_time: String,
     pub corresponding_key_for_transaction_amount: String,
     pub timestamp_format: String,
-    pub utc_offset_hours: Option<i32>,
+    pub timezone: Option<String>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -578,7 +578,7 @@ pub struct NewTransponderCompany {
     pub corresponding_key_for_transaction_time: String,
     pub corresponding_key_for_transaction_amount: String,
     pub timestamp_format: String,
-    pub utc_offset_hours: Option<i32>,
+    pub timezone: Option<String>,
 }
 
 #[derive(
