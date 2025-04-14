@@ -262,6 +262,8 @@ diesel::table! {
         custom_prefix_for_transaction_name -> Varchar,
         corresponding_key_for_transaction_time -> Varchar,
         corresponding_key_for_transaction_amount -> Varchar,
+        timestamp_format -> Varchar,
+        utc_offset_hours -> Nullable<Int4>,
     }
 }
 
