@@ -119,6 +119,7 @@ diesel::table! {
         amount -> Float8,
         note -> Nullable<Varchar>,
         agreement_id -> Nullable<Int4>,
+        vehicle_id -> Int4,
     }
 }
 
@@ -314,6 +315,7 @@ diesel::joinable!(agreements -> payment_methods (payment_method_id));
 diesel::joinable!(agreements -> renters (renter_id));
 diesel::joinable!(agreements -> vehicles (vehicle_id));
 diesel::joinable!(charges -> agreements (agreement_id));
+diesel::joinable!(charges -> vehicles (vehicle_id));
 diesel::joinable!(damage_submissions -> agreements (reported_by));
 diesel::joinable!(damages -> agreements (agreement_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
