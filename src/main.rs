@@ -43,8 +43,8 @@ async fn main() {
     // starting the server
     warp::serve(httpd)
         .tls()
-        .cert_path("/app/cert/veygo.rent.pem")
-        .key_path("/app/cert/veygo.rent.key")
+        .cert_path("/app/cert/httpd/veygo.rent.pem")
+        .key_path("/app/cert/httpd/veygo.rent.key")
         .run((addr, port))
         .await;
 }
