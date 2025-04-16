@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, integration};
 use bytes::BufMut;
 use diesel::dsl::exists;
 use diesel::prelude::*;
@@ -93,6 +93,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     ),
                                 ));
                             };
+                            // upload csv
+                            integration::gcloud_storage_veygo::upload_file("".to_string(), "001.csv".to_string(), field_names[0].0.to_vec()).await;
                             // Parse CSV and convert to a JSON array
                             let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_slice());
 
