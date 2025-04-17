@@ -39,13 +39,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
         .and(warp::header::<String>("token"))
         .and(warp::header::<i32>("user_id"))
-        .and(warp::header::<UploadedFileType>("content_type"))
+        .and(warp::header::<String>("content_type"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and_then(
             async move |form: FormData,
                         token: String,
                         user_id: i32,
-                        content_type: UploadedFileType,
+                        content_type: String,
                         client_type: Option<String>| {
                 let access_token = model::RequestToken { user_id, token };
                 let if_token_valid = methods::tokens::verify_user_token(
@@ -53,6 +53,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     access_token.token.clone(),
                 )
                 .await;
+                let content_type_parsed_result = UploadedFileType::from_str(&*content_type);
+                if content_type_parsed_result.is_err() {
+                    return methods::standard_replies::internal_server_error_response();
+                }
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_is_valid) => {
@@ -114,7 +118,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 field_names[0].1.clone(),
                             )
                             .await;
-                            match content_type {
+                            match content_type_parsed_result.unwrap() {
                                 UploadedFileType::DriversLicense => {
                                     if let Some(file) = user.drivers_license_image {
                                         integration::gcloud_storage_veygo::delete_object(file).await;
