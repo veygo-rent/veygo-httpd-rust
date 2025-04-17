@@ -1,3 +1,5 @@
+use crate::model::Renter;
+use crate::schema::renters::dsl::renters;
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
@@ -5,8 +7,6 @@ use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};
-use crate::model::Renter;
-use crate::schema::renters::dsl::renters;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct UpdatePhoneBody {
@@ -79,8 +79,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let renter_msg = serde_json::json!({
                                         "renter": renter_updated,
                                     });
-                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),));
-                            }
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),)); 
+                        }
                     }
                 };
             },

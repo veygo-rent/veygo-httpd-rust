@@ -4,6 +4,7 @@ use gcloud_storage::sign;
 use gcloud_storage::sign::SignedURLOptions;
 use std::borrow::Cow;
 use std::path::Path;
+use uuid;
 
 pub async fn get_signed_url(object_path: &str) -> String {
     use gcloud_storage::client::{Client, ClientConfig};
@@ -32,17 +33,19 @@ pub async fn get_signed_url(object_path: &str) -> String {
     url
 }
 
-pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec<u8>) {
+pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec<u8>) -> String {
     let path = Path::new(&file_name);
-    let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap_or("").to_lowercase();
+    let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap_or("").to_uppercase();
     let content_type = match ext.as_str() {
-        "pdf" => Some("application/pdf"),
-        "jpg" => Some("image/jpeg"),
-        "jpeg" => Some("image/jpeg"),
-        "png" => Some("image/png"),
-        "csv" => Some("text/csv"),
+        "PDF" => Some("application/pdf"),
+        "JPG" => Some("image/jpeg"),
+        "JPEG" => Some("image/jpeg"),
+        "PNG" => Some("image/png"),
+        "CSV" => Some("text/csv"),
         _ => None,
     }.unwrap();
+    let u = uuid::Uuid::new_v4().to_string().to_uppercase();
+    let file_name_with_uuid = u + "." + ext.as_str();
     use gcloud_storage::client::{Client, ClientConfig};
     let config = ClientConfig::default()
         .with_credentials(
@@ -55,8 +58,9 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
         .await
         .unwrap();
     let client = Client::new(config);
+    let stored_file_abs_path = format!("{}{}", object_path, file_name_with_uuid);
     let upload_type = UploadType::Simple(Media {
-        name: Cow::from(object_path + file_name.as_str()),
+        name: Cow::from(stored_file_abs_path.clone()),
         content_type: Cow::from(content_type),
         content_length: None,
     });
@@ -70,4 +74,5 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
             &upload_type,
         )
         .await;
+    stored_file_abs_path
 }
