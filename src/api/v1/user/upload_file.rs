@@ -116,12 +116,18 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                             match content_type {
                                 UploadedFileType::DriversLicense => {
+                                    if let Some(file) = user.drivers_license_image {
+                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                    }
                                     user.drivers_license_image = Some(file_path);
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
                                     user.drivers_license_state_region = None;
                                 },
                                 UploadedFileType::DriversLicenseSecondary => {
+                                    if let Some(file) = user.drivers_license_image_secondary {
+                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                    }
                                     user.drivers_license_image_secondary = Some(file_path);
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
@@ -129,10 +135,16 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     user.billing_address = None;
                                 },
                                 UploadedFileType::LeaseAgreement => {
+                                    if let Some(file) = user.lease_agreement_image {
+                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                    }
                                     user.lease_agreement_image = Some(file_path);
                                     user.lease_agreement_expiration = None;
                                 },
                                 UploadedFileType::ProofOfInsurance => {
+                                    if let Some(file) = user.insurance_id_image {
+                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                    }
                                     user.insurance_id_image = Some(file_path);
                                     user.insurance_collision_expiration = None;
                                     user.insurance_liability_expiration = None;

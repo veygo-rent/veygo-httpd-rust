@@ -1,5 +1,6 @@
 use gcloud_storage::client::google_cloud_auth::credentials::CredentialsFile;
 use gcloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
+use gcloud_storage::http::objects::delete::DeleteObjectRequest;
 use gcloud_storage::sign;
 use gcloud_storage::sign::SignedURLOptions;
 use std::borrow::Cow;
@@ -75,4 +76,24 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
         )
         .await;
     stored_file_abs_path
+}
+
+pub async fn delete_object(stored_file_abs_path: String) {
+    use gcloud_storage::client::{Client, ClientConfig};
+    let config = ClientConfig::default()
+        .with_credentials(
+            CredentialsFile::new_from_file(String::from(
+                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
+            ))
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let client = Client::new(config);
+    let _ = client.delete_object(&DeleteObjectRequest {
+        bucket: "veygo-store".to_string(),
+        object: stored_file_abs_path,
+        ..Default::default()
+    }).await;
 }
