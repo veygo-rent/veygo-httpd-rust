@@ -5,8 +5,7 @@ use tokio::task::spawn_blocking;
 use warp::Filter;
 use warp::http::StatusCode;
 
-pub fn main()
--> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("get")
         .and(warp::get())
         .and(warp::path::end())

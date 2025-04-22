@@ -12,7 +12,7 @@ struct BodyData {
     code: String,
 }
 
-pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("verify-token")
         .and(warp::path::end())
         .and(warp::post())

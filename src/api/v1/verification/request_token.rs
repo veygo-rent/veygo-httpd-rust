@@ -71,14 +71,29 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match body.verification_method {
                                 model::VerificationType::Phone => {
                                     let phone = &renter.phone;
-                                    integration::twilio_veygo::send_text(phone, ("Your Verification Code is: ".to_string() + &*otp).as_str()).await.unwrap();
+                                    integration::twilio_veygo::send_text(
+                                        phone,
+                                        ("Your Verification Code is: ".to_string() + &*otp)
+                                            .as_str(),
+                                    )
+                                    .await
+                                    .unwrap();
                                 }
                                 model::VerificationType::Email => {
                                     let email = integration::sendgrid_veygo::make_email_obj(
                                         &renter.student_email,
                                         &renter.name,
                                     );
-                                    integration::sendgrid_veygo::send_email(None, email, "Your Verification Code", &*otp, None, None).await.unwrap();
+                                    integration::sendgrid_veygo::send_email(
+                                        None,
+                                        email,
+                                        "Your Verification Code",
+                                        &*otp,
+                                        None,
+                                        None,
+                                    )
+                                    .await
+                                    .unwrap();
                                 }
                             }
                             let msg = serde_json::json!({});

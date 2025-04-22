@@ -22,7 +22,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
     PHONE_REGEX.is_match(phone)
 }
 
-pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
     warp::path("update-phone")
         .and(warp::path::end())
         .and(warp::post())
@@ -45,7 +45,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     access_token.user_id.clone(),
                     access_token.token.clone(),
                 )
-                .await;
+                    .await;
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
@@ -57,12 +57,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::rm_token_by_binary(
                                 hex::decode(token_clone.token).unwrap(),
                             )
-                            .await;
+                                .await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
                                 client_type.clone(),
                             )
-                            .await;
+                                .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
@@ -79,7 +79,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let renter_msg = serde_json::json!({
                                         "renter": renter_updated,
                                     });
-                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),)); 
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),));
                         }
                     }
                 };

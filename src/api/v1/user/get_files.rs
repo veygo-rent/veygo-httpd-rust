@@ -84,7 +84,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             integration::gcloud_storage_veygo::get_signed_url(
                                                 &file,
                                             )
-                                                .await;
+                                            .await;
                                         msg = serde_json::json!({
                                             "drivers_license": link,
                                         });
@@ -118,7 +118,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             integration::gcloud_storage_veygo::get_signed_url(
                                                 &file,
                                             )
-                                                .await;
+                                            .await;
                                         msg = serde_json::json!({
                                             "drivers_license_secondary": link,
                                         });
@@ -152,7 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             integration::gcloud_storage_veygo::get_signed_url(
                                                 &file,
                                             )
-                                                .await;
+                                            .await;
                                         msg = serde_json::json!({
                                             "lease_agreement": link,
                                         });
@@ -186,7 +186,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             integration::gcloud_storage_veygo::get_signed_url(
                                                 &file,
                                             )
-                                                .await;
+                                            .await;
                                         msg = serde_json::json!({
                                             "insurance_id": link,
                                         });
@@ -214,7 +214,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ))
                                     }
                                 }
-                            }
+                            };
                         }
                     }
                 };

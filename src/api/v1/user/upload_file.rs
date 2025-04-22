@@ -1,3 +1,4 @@
+use crate::model::Renter;
 use crate::{POOL, integration, methods, model};
 use bytes::BufMut;
 use diesel::prelude::*;
@@ -8,7 +9,6 @@ use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
 use warp::reply::with_status;
-use crate::model::Renter;
 
 #[derive(Serialize, Deserialize)]
 enum UploadedFileType {
@@ -121,47 +121,59 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             match content_type_parsed_result.unwrap() {
                                 UploadedFileType::DriversLicense => {
                                     if let Some(file) = user.drivers_license_image {
-                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                        integration::gcloud_storage_veygo::delete_object(file)
+                                            .await;
                                     }
                                     user.drivers_license_image = Some(file_path);
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
                                     user.drivers_license_state_region = None;
-                                },
+                                }
                                 UploadedFileType::DriversLicenseSecondary => {
                                     if let Some(file) = user.drivers_license_image_secondary {
-                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                        integration::gcloud_storage_veygo::delete_object(file)
+                                            .await;
                                     }
                                     user.drivers_license_image_secondary = Some(file_path);
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
                                     user.drivers_license_state_region = None;
                                     user.billing_address = None;
-                                },
+                                }
                                 UploadedFileType::LeaseAgreement => {
                                     if let Some(file) = user.lease_agreement_image {
-                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                        integration::gcloud_storage_veygo::delete_object(file)
+                                            .await;
                                     }
                                     user.lease_agreement_image = Some(file_path);
                                     user.lease_agreement_expiration = None;
-                                },
+                                }
                                 UploadedFileType::ProofOfInsurance => {
                                     if let Some(file) = user.insurance_id_image {
-                                        integration::gcloud_storage_veygo::delete_object(file).await;
+                                        integration::gcloud_storage_veygo::delete_object(file)
+                                            .await;
                                     }
                                     user.insurance_id_image = Some(file_path);
                                     user.insurance_collision_expiration = None;
                                     user.insurance_liability_expiration = None;
-                                },
+                                }
                             }
                             use crate::schema::renters::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
                             let renter_updated = diesel::update(renters.find(access_token.user_id))
-                                .set(&user).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
+                                .set(&user)
+                                .get_result::<Renter>(&mut pool)
+                                .unwrap()
+                                .to_publish_renter();
                             let renter_msg = serde_json::json!({
-                                        "renter": renter_updated,
-                                    });
-                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),));
+                                "renter": renter_updated,
+                            });
+                            return Ok::<_, warp::Rejection>((
+                                methods::tokens::wrap_json_reply_with_token(
+                                    new_token_in_db_publish,
+                                    with_status(warp::reply::json(&renter_msg), StatusCode::OK),
+                                ),
+                            ));
                         }
                     }
                 };
