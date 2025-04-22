@@ -20,7 +20,7 @@ async fn generate_unique_token() -> Vec<u8> {
         let token_to_return = token_vec.clone();
 
         // Wrap in a block for error handling.
-        let token_exists_result = task::spawn_blocking(move || {
+        let token_exists_result = spawn_blocking(move || {
             //get connection.
             let mut pool = POOL.clone().get().unwrap();
             // Perform the Diesel query *synchronously* within the closure.
@@ -127,7 +127,7 @@ pub fn token_not_hex_warp_return(
     token_data: &String,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
-    Ok::<_, warp::Rejection>((warp::reply::with_status(
+    Ok::<_, Rejection>((warp::reply::with_status(
         warp::reply::json(&error_msg),
         StatusCode::BAD_REQUEST,
     )

@@ -4,12 +4,14 @@ use bytes::BufMut;
 use currency_rs::Currency;
 use diesel::dsl::exists;
 use diesel::prelude::*;
+use diesel::sql_types::{Bool, Timestamptz};
 use futures::TryStreamExt;
 use std::collections::HashSet;
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
 use warp::reply::with_status;
+use tokio;
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-tolls")
@@ -160,54 +162,80 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE),
                                 ),));
                             }
-                            // TODO
-                            for record in &json_records {
-                                let toll_company_clone = toll_company.clone();
-                                let toll_company_id = toll_company_clone.id;
-                                let vehicle_identifier_str = record[toll_company_clone.corresponding_key_for_vehicle_id].to_string();
-                                let transaction_time_string = record[toll_company_clone.corresponding_key_for_transaction_time].to_string();
-                                let transaction_amount_string = record[toll_company_clone.corresponding_key_for_transaction_amount].to_string();
-                                let transaction_time = methods::timestamps::to_utc(&transaction_time_string, &toll_company_clone.timestamp_format, toll_company_clone.timezone).unwrap();
-                                let transaction_amount = Currency::new_string(&transaction_amount_string, None).unwrap().value().abs();
-                                let transaction_name = record[toll_company_clone.corresponding_key_for_transaction_name].to_string();
-                                let to_be_hashed = transaction_name.clone() + &transaction_amount.to_string() + &transaction_time.to_string();
-                                let hashed = blake3::hash(to_be_hashed.as_bytes()).to_hex().to_string();
-                                use crate::schema::charges::dsl::*;
-                                let mut pool = POOL.clone().get().unwrap();
-                                let if_exist = diesel::select(diesel::dsl::exists(
-                                    charges
-                                        .filter(checksum.eq(&hashed)),
-                                )).get_result::<bool>(&mut pool).unwrap();
-                                if !if_exist {
-                                    let mut charge_record = crate::model::NewCharge {
-                                        name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
-                                        time: transaction_time,
-                                        amount: transaction_amount,
-                                        note: None,
-                                        agreement_id: None,
-                                        vehicle_id: None,
-                                        checksum: "".to_string(),
-                                        transponder_company_id: Option::from(toll_company_id),
-                                        vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
-                                    };
-                                    use crate::schema::vehicles::dsl::*;
-                                    let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles.filter(
-                                        first_transponder_company_id.eq(toll_company_id).and(first_transponder_number.eq(&vehicle_identifier_str))
-                                            .or(second_transponder_company_id.eq(toll_company_id).and(second_transponder_number.eq(&vehicle_identifier_str)))
-                                            .or(third_transponder_company_id.eq(toll_company_id).and(third_transponder_number.eq(&vehicle_identifier_str)))
-                                            .or(fourth_transponder_company_id.eq(toll_company_id).and(fourth_transponder_number.eq(&vehicle_identifier_str)))
-                                    ).get_result::<crate::model::Vehicle>(&mut pool);
-                                    if let Ok(vehicle_result) = vehicle_result {
-                                        // found vehicle
-                                        charge_record.vehicle_id = Some(vehicle_result.id);
-                                        // try to find agreement
+
+                            // Clone what we need into the background task
+                            let records = json_records.clone();
+                            let pool_for_task = POOL.clone();
+                            let tc = toll_company.clone();
+
+                            // Spawn background processing of each record
+                            tokio::spawn(async move {
+                                for record in records.into_iter() {
+                                    let toll_company_clone = tc.clone();
+                                    let toll_company_id = toll_company_clone.id;
+                                    let vehicle_identifier_str = record[toll_company_clone.corresponding_key_for_vehicle_id].to_string();
+                                    let transaction_time_string = record[toll_company_clone.corresponding_key_for_transaction_time].to_string();
+                                    let transaction_amount_string = record[toll_company_clone.corresponding_key_for_transaction_amount].to_string();
+                                    let transaction_time = methods::timestamps::to_utc(&transaction_time_string, &toll_company_clone.timestamp_format, toll_company_clone.timezone).unwrap();
+                                    let transaction_amount = Currency::new_string(&transaction_amount_string, None).unwrap().value().abs();
+                                    let transaction_name = record[toll_company_clone.corresponding_key_for_transaction_name].to_string();
+                                    let to_be_hashed = transaction_name.clone() + &transaction_amount.to_string() + &transaction_time.to_string();
+                                    let hashed = blake3::hash(to_be_hashed.as_bytes()).to_hex().to_string();
+                                    use crate::schema::charges::dsl::*;
+                                    let mut pool = pool_for_task.get().unwrap();
+                                    let if_exist = diesel::select(diesel::dsl::exists(
+                                        charges
+                                            .filter(checksum.eq(&hashed)),
+                                    )).get_result::<bool>(&mut pool).unwrap();
+                                    if !if_exist {
+                                        let mut charge_record = crate::model::NewCharge {
+                                            name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
+                                            time: transaction_time,
+                                            amount: transaction_amount,
+                                            note: None,
+                                            agreement_id: None,
+                                            vehicle_id: 0,
+                                            checksum: hashed.to_string(),
+                                            transponder_company_id: Option::from(toll_company_id),
+                                            vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
+                                        };
+                                        use crate::schema::vehicles::dsl::*;
+                                        let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles.filter(
+                                            first_transponder_company_id.eq(toll_company_id).and(first_transponder_number.eq(&vehicle_identifier_str))
+                                                .or(second_transponder_company_id.eq(toll_company_id).and(second_transponder_number.eq(&vehicle_identifier_str)))
+                                                .or(third_transponder_company_id.eq(toll_company_id).and(third_transponder_number.eq(&vehicle_identifier_str)))
+                                                .or(fourth_transponder_company_id.eq(toll_company_id).and(fourth_transponder_number.eq(&vehicle_identifier_str)))
+                                        ).get_result::<crate::model::Vehicle>(&mut pool);
+                                        if let Ok(vehicle_result) = vehicle_result {
+                                            // found vehicle
+                                            charge_record.vehicle_id = vehicle_result.id;
+                                            // try to find agreement
+                                            use crate::schema::agreements::dsl::*;
+                                            use diesel::dsl::sql;
+                                            let agreement_result = agreements.filter(vehicle_id.eq(vehicle_result.id))
+                                                .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) <= ")
+                                                    .bind::<Timestamptz, _>(transaction_time)
+                                                    .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) >= ")
+                                                    .bind::<Timestamptz, _>(transaction_time)
+                                                )
+                                                .get_result::<crate::model::Agreement>(&mut pool);
+                                            if let Ok(agreement) = agreement_result {
+                                                charge_record.agreement_id = Some(agreement.id);
+                                            }
+                                            let _ = diesel::insert_into(charges).values(&charge_record).execute(&mut pool);
+                                        }
                                     }
                                 }
-                            }
-                            return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                warp::reply::json(&json_records),
-                                StatusCode::OK
-                            )),));
+                            });
+
+                            // Immediately respond OK; records are processing in background
+                            return Ok((
+                                methods::tokens::wrap_json_reply_with_token(
+                                    new_token_in_db_publish,
+                                    with_status(warp::reply::json(&json_records), StatusCode::OK),
+                                ),
+                            ));
+                            // note: original synchronous insertion code has been moved into the spawn above
                         }
                     }
                 };

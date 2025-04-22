@@ -14,7 +14,7 @@ struct LoginData {
     password: String,
 }
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("login")
         .and(warp::path::end())
         .and(warp::post())
@@ -35,7 +35,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         if verify(&input_password, &renter.password).unwrap_or(false) {
                             // user and password is verified
                             let user_id_data = renter.id;
-                            let new_access_token = crate::methods::tokens::gen_token_object(user_id_data, client_type).await;
+                            let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
                             let mut pool = POOL.clone().get().unwrap();
                             let insert_token_result = task::spawn_blocking(move || {
                                 use crate::schema::access_tokens::dsl::*;

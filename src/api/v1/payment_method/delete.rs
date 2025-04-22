@@ -11,7 +11,7 @@ pub struct CreatePaymentMethodsRequestBody {
     card_id: i32,
 }
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
     warp::path("delete")
         .and(warp::post())
         .and(warp::body::json())

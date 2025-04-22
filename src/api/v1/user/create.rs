@@ -175,7 +175,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 }
                                             }
                                             let user_id_data = renter.id;
-                                            let new_access_token = crate::methods::tokens::gen_token_object(user_id_data, client_type).await;
+                                            let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
                                             let mut pool = POOL.clone().get().unwrap();
                                             let insert_token_result = task::spawn_blocking(move || {
                                                 use crate::schema::access_tokens::dsl::*;
