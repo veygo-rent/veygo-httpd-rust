@@ -65,7 +65,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
         content_type: Cow::from(content_type),
         content_length: None,
     });
-    let uploaded = client
+    let _ = client
         .upload_object(
             &UploadObjectRequest {
                 bucket: "veygo-store".to_string(),

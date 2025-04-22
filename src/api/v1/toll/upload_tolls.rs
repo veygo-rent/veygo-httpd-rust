@@ -1,5 +1,7 @@
 use crate::{POOL, methods, model};
+use blake3;
 use bytes::BufMut;
+use currency_rs::Currency;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use futures::TryStreamExt;
@@ -56,6 +58,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
+                            let toll_company = {
+                                use crate::schema::transponder_companies::dsl::*;
+                                let if_exists = diesel::select(exists(transponder_companies.filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
+                                if !if_exists {
+                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
+                                        warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
+                                        StatusCode::NOT_ACCEPTABLE
+                                    )),));
+                                }
+                                transponder_companies.filter(id.eq(toll_id)).get_result::<model::TransponderCompany>(&mut pool).unwrap()
+                            };
                             if !methods::user::user_with_admin_access(&admin) {
                                 let token_clone = new_token_in_db_publish.clone();
                                 return methods::standard_replies::user_not_admin_wrapped_return(
@@ -123,22 +136,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     }
                                 }
                             }
-                            let toll_company = {
-                                use crate::schema::transponder_companies::dsl::*;
-                                let if_exists = diesel::select(exists(transponder_companies.filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
-                                if !if_exists {
-                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                        warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
-                                        StatusCode::NOT_ACCEPTABLE
-                                    )),));
-                                }
-                                transponder_companies.filter(id.eq(toll_id)).get_result::<model::TransponderCompany>(&mut pool).unwrap()
-                            };
+                            let toll_company_clone = toll_company.clone();
                             let required: HashSet<&str> = [
-                                toll_company.corresponding_key_for_transaction_amount.as_str(),
-                                toll_company.corresponding_key_for_transaction_name.as_str(),
-                                toll_company.corresponding_key_for_transaction_time.as_str(),
-                                toll_company.corresponding_key_for_vehicle_id.as_str(),
+                                toll_company_clone.corresponding_key_for_transaction_amount.as_str(),
+                                toll_company_clone.corresponding_key_for_transaction_name.as_str(),
+                                toll_company_clone.corresponding_key_for_transaction_time.as_str(),
+                                toll_company_clone.corresponding_key_for_vehicle_id.as_str(),
                             ]
                                 .into_iter()
                                 .collect();
@@ -158,6 +161,49 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 ),));
                             }
                             // TODO
+                            for record in &json_records {
+                                let toll_company_clone = toll_company.clone();
+                                let toll_company_id = toll_company_clone.id;
+                                let vehicle_identifier_str = record[toll_company_clone.corresponding_key_for_vehicle_id].to_string();
+                                let transaction_time_string = record[toll_company_clone.corresponding_key_for_transaction_time].to_string();
+                                let transaction_amount_string = record[toll_company_clone.corresponding_key_for_transaction_amount].to_string();
+                                let transaction_time = methods::timestamps::to_utc(&transaction_time_string, &toll_company_clone.timestamp_format, toll_company_clone.timezone).unwrap();
+                                let transaction_amount = Currency::new_string(&transaction_amount_string, None).unwrap().value().abs();
+                                let transaction_name = record[toll_company_clone.corresponding_key_for_transaction_name].to_string();
+                                let to_be_hashed = transaction_name.clone() + &transaction_amount.to_string() + &transaction_time.to_string();
+                                let hashed = blake3::hash(to_be_hashed.as_bytes()).to_hex().to_string();
+                                use crate::schema::charges::dsl::*;
+                                let mut pool = POOL.clone().get().unwrap();
+                                let if_exist = diesel::select(diesel::dsl::exists(
+                                    charges
+                                        .filter(checksum.eq(&hashed)),
+                                )).get_result::<bool>(&mut pool).unwrap();
+                                if !if_exist {
+                                    let mut charge_record = crate::model::NewCharge {
+                                        name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
+                                        time: transaction_time,
+                                        amount: transaction_amount,
+                                        note: None,
+                                        agreement_id: None,
+                                        vehicle_id: None,
+                                        checksum: "".to_string(),
+                                        transponder_company_id: Option::from(toll_company_id),
+                                        vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
+                                    };
+                                    use crate::schema::vehicles::dsl::*;
+                                    let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles.filter(
+                                        first_transponder_company_id.eq(toll_company_id).and(first_transponder_number.eq(&vehicle_identifier_str))
+                                            .or(second_transponder_company_id.eq(toll_company_id).and(second_transponder_number.eq(&vehicle_identifier_str)))
+                                            .or(third_transponder_company_id.eq(toll_company_id).and(third_transponder_number.eq(&vehicle_identifier_str)))
+                                            .or(fourth_transponder_company_id.eq(toll_company_id).and(fourth_transponder_number.eq(&vehicle_identifier_str)))
+                                    ).get_result::<crate::model::Vehicle>(&mut pool);
+                                    if let Ok(vehicle_result) = vehicle_result {
+                                        // found vehicle
+                                        charge_record.vehicle_id = Some(vehicle_result.id);
+                                        // try to find agreement
+                                    }
+                                }
+                            }
                             return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                 warp::reply::json(&json_records),
                                 StatusCode::OK

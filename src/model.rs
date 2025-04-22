@@ -840,7 +840,10 @@ pub struct Charge {
     pub amount: f64,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
-    pub vehicle_id: i32,
+    pub vehicle_id: Option<i32>,
+    pub checksum: String,
+    pub transponder_company_id: Option<i32>,
+    pub vehicle_identifier: Option<String>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -853,7 +856,10 @@ pub struct NewCharge {
     pub amount: f64,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
-    pub vehicle_id: i32,
+    pub vehicle_id: Option<i32>,
+    pub checksum: String,
+    pub transponder_company_id: Option<i32>,
+    pub vehicle_identifier: Option<String>,
 }
 
 #[derive(

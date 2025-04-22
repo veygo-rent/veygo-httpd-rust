@@ -13,7 +13,7 @@ use chrono_tz::Tz;
 ///   * `Some("America/Chicago")` → attach that IANA zone (DST‑aware)
 ///   * `Some("-5")`              → attach a fixed offset in **hours**
 ///   * `None`                     → allowed only if `fmt` already contains `%z` or a literal `Z`
-pub fn to_utc(raw: &str, fmt: &str, tz_hint: Option<&str>) -> anyhow::Result<DateTime<Utc>> {
+pub fn to_utc(raw: &str, fmt: &str, tz_hint: Option<String>) -> anyhow::Result<DateTime<Utc>> {
     //--------------------------------------------------------------------
     // 1. Pattern already carries numeric offset ( %z or %:z ) → parse directly.
     if fmt.contains("%z") || fmt.contains("%:z") {
@@ -101,7 +101,7 @@ mod tests {
         let t = to_utc(
             "2025/04/13 17:44:24",
             "%Y/%m/%d %H:%M:%S",
-            Some("-5"),
+            Some("-5".parse().unwrap()),
         )
         .unwrap();
         assert_eq!(t.to_rfc3339(), "2025-04-13T22:44:24+00:00");
@@ -112,7 +112,7 @@ mod tests {
         let t = to_utc(
             "2025/07/13 17:44:24",
             "%Y/%m/%d %H:%M:%S",
-            Some("America/Chicago"),
+            Some("America/Chicago".parse().unwrap()),
         )
         .unwrap();
         assert_eq!(t.to_rfc3339(), "2025-07-13T22:44:24+00:00");

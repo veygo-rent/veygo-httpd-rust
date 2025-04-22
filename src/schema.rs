@@ -119,7 +119,10 @@ diesel::table! {
         amount -> Float8,
         note -> Nullable<Varchar>,
         agreement_id -> Nullable<Int4>,
-        vehicle_id -> Int4,
+        vehicle_id -> Nullable<Int4>,
+        checksum -> Varchar,
+        transponder_company_id -> Nullable<Int4>,
+        vehicle_identifier -> Nullable<Varchar>,
     }
 }
 
