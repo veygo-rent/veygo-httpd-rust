@@ -113,7 +113,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 ));
                             };
                             let file_path = integration::gcloud_storage_veygo::upload_file(
-                                "usr_docs/".to_string(),
+                                "user_docs/".to_string(),
                                 field_names[0].0.to_string(),
                                 field_names[0].1.clone(),
                             )

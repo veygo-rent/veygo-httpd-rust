@@ -70,7 +70,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::user::get_user_by_id(user_id_clone).await.unwrap();
                             match body.verification_method {
                                 model::VerificationType::Phone => {
-                                    // TODO: Send phone 
+                                    let phone = &renter.phone;
+                                    integration::twilio_veygo::send_text(phone, ("Your Verification Code is: ".to_string() + &*otp).as_str()).await.unwrap();
                                 }
                                 model::VerificationType::Email => {
                                     let email = integration::sendgrid_veygo::make_email_obj(

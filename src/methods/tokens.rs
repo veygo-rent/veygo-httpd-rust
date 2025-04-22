@@ -6,7 +6,6 @@ use diesel::prelude::*;
 use hex::FromHexError;
 use secrets::Secret;
 use std::ops::Add;
-use tokio::task;
 use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
 use warp::reply::{Json, WithStatus, with_header};
