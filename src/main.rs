@@ -33,7 +33,8 @@ static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 #[tokio::main]
 async fn main() {
     // routing for the server
-    let httpd = api::api().and(warp::path::end());
+    let react_app = warp::fs::dir("/app/www");
+    let httpd = react_app.or(api::api()).and(warp::path::end());
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
     println!("Starting server on port {}", port);

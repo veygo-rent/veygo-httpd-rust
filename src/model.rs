@@ -739,6 +739,29 @@ pub struct NewDamage {
 }
 
 #[derive(
+    Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
+#[diesel(table_name = vehicle_snapshots)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct VehicleSnapshot {
+    pub id: i32,
+    pub left_image: String,
+    pub right_image: String,
+    pub front_image: String,
+    pub back_image: String,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = vehicle_snapshots)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewVehicleSnapshot {
+    pub left_image: String,
+    pub right_image: String,
+    pub front_image: String,
+    pub back_image: String,
+}
+
+#[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Apartment))]
@@ -784,6 +807,9 @@ pub struct Agreement {
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
+    pub damage_ids: Vec<Option<i32>>,
+    pub vehicle_snapshot_before: Option<i32>,
+    pub vehicle_snapshot_after: Option<i32>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]

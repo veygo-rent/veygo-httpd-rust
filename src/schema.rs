@@ -80,6 +80,9 @@ diesel::table! {
         vehicle_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Int4,
+        damage_ids -> Array<Nullable<Int4>>,
+        vehicle_snapshot_before -> Nullable<Int4>,
+        vehicle_snapshot_after -> Nullable<Int4>,
     }
 }
 
@@ -272,6 +275,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    vehicle_snapshots (id) {
+        id -> Int4,
+        left_image -> Varchar,
+        right_image -> Varchar,
+        front_image -> Varchar,
+        back_image -> Varchar,
+    }
+}
+
+diesel::table! {
     vehicles (id) {
         id -> Int4,
         vin -> Varchar,
@@ -343,6 +356,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     rental_transactions,
     renters,
     transponder_companies,
+    vehicle_snapshots,
     vehicles,
     verifications,
 );
