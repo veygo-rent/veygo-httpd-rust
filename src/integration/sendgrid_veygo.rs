@@ -30,6 +30,7 @@ pub async fn send_email(
 
     let sender = Sender::new(sg_api_key, None);
     let resp = sender.send(&m).await;
+    println!("{:?}", resp);
     resp
 }
 
