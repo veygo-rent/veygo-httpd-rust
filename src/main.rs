@@ -11,8 +11,7 @@ use dotenv::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
 use tokio::spawn;
-use tokio::fs::read;
-use warp::{http::Response, Filter};
+use warp::Filter;
 
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -34,15 +33,7 @@ static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 #[tokio::main]
 async fn main() {
     // routing for the server
-    let react_app = warp::any().and_then(|| async {
-        match read("/app/www/index.html").await {
-            Ok(contents) => Ok(Response::builder()
-                .header("content-type", "text/html")
-                .body(contents)
-                .unwrap()) as Result<_, warp::Rejection>,
-            Err(_) => Err(warp::reject::not_found()),
-        }
-    });
+    let react_app = warp::any().and(warp::fs::file("/app/www/index.html"));
     let httpd = api::api().or(react_app).and(warp::path::end());
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
