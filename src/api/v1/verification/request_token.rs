@@ -61,30 +61,27 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 renter_id: user_id_clone,
                                 code: otp.clone(),
                             };
-                            use crate::schema::verifications::dsl::*;
-                            diesel::insert_into(verifications)
-                                .values(&to_be_inserted)
-                                .execute(&mut pool)
-                                .unwrap();
                             let renter =
                                 methods::user::get_user_by_id(user_id_clone).await.unwrap();
                             match body.verification_method {
                                 model::VerificationType::Phone => {
                                     let phone = &renter.phone;
-                                    integration::twilio_veygo::send_text(
+                                    let text_result = integration::twilio_veygo::send_text(
                                         phone,
                                         ("Your Verification Code is: ".to_string() + &*otp)
                                             .as_str(),
                                     )
-                                    .await
-                                    .unwrap();
+                                    .await;
+                                    if text_result.is_err() {
+                                        return methods::standard_replies::internal_server_error_response();
+                                    }
                                 }
                                 model::VerificationType::Email => {
                                     let email = integration::sendgrid_veygo::make_email_obj(
                                         &renter.student_email,
                                         &renter.name,
                                     );
-                                    integration::sendgrid_veygo::send_email(
+                                    let email_result = integration::sendgrid_veygo::send_email(
                                         None,
                                         email,
                                         "Your Verification Code",
@@ -92,10 +89,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         None,
                                         None,
                                     )
-                                    .await
-                                    .unwrap();
+                                    .await;
+                                    if email_result.is_err() {
+                                        return methods::standard_replies::internal_server_error_response();
+                                    }
                                 }
                             }
+                            use crate::schema::verifications::dsl::*;
+                            diesel::insert_into(verifications)
+                                .values(&to_be_inserted)
+                                .execute(&mut pool)
+                                .unwrap();
                             let msg = serde_json::json!({});
                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
                                 new_token_in_db_publish,
