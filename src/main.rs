@@ -11,7 +11,8 @@ use dotenv::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
 use tokio::spawn;
-use warp::Filter;
+use tokio::fs::read;
+use warp::{http::Response, Filter};
 
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -30,19 +31,18 @@ fn get_connection_pool() -> PgPool {
 // Global pool initialized once at first access
 static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 
-// In your Rust warp server code, add the following fallback route:
-
-// let fallback = warp::any().and(warp::fs::file("./target/veygo-react/index.html"));
-
-// let routes = your_existing_routes
-//     .or(fallback);
-
-
-
 #[tokio::main]
 async fn main() {
     // routing for the server
-    let react_app = warp::any().and(warp::fs::file("/app/www/index.html"));
+    let react_app = warp::any().and_then(|| async {
+        match read("/app/www/index.html").await {
+            Ok(contents) => Ok(Response::builder()
+                .header("content-type", "text/html")
+                .body(contents)
+                .unwrap()) as Result<_, warp::Rejection>,
+            Err(_) => Err(warp::reject::not_found()),
+        }
+    });
     let httpd = api::api().or(react_app).and(warp::path::end());
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
