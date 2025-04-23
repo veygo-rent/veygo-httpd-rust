@@ -10,5 +10,7 @@ pub async fn send_text(
     let tw_acc_sid = env::var("TWILIO_SID").expect("TWILIO_SID must be set");
     let tw_token = env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set");
     let client = Client::new(&*tw_acc_sid, &*tw_token);
-    client.send_message(OutboundMessage::new("+18334683946", to, msg)).await
+    let result = client.send_message(OutboundMessage::new("+18334683946", to, msg)).await;
+    println!("{:?}", result);
+    result
 }
