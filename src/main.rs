@@ -30,11 +30,20 @@ fn get_connection_pool() -> PgPool {
 // Global pool initialized once at first access
 static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 
+// In your Rust warp server code, add the following fallback route:
+
+// let fallback = warp::any().and(warp::fs::file("./target/veygo-react/index.html"));
+
+// let routes = your_existing_routes
+//     .or(fallback);
+
+
+
 #[tokio::main]
 async fn main() {
     // routing for the server
-    let react_app = warp::fs::dir("/app/www");
-    let httpd = react_app.or(api::api()).and(warp::path::end());
+    let react_app = warp::any().and(warp::fs::file("/app/www/index.html"));
+    let httpd = api::api().or(react_app).and(warp::path::end());
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
     println!("Starting server on port {}", port);
