@@ -1,4 +1,5 @@
 use dotenv::dotenv;
+use reqwest::Response;
 use sendgrid::error::SendgridError;
 use sendgrid::v3::*;
 use std::env;
@@ -10,7 +11,7 @@ pub async fn send_email(
     text: &str,
     reply_to: Option<Email>,
     attachment: Option<Attachment>,
-) -> Result<(), SendgridError> {
+) -> Result<Response, SendgridError> {
     dotenv().ok();
     let sg_api_key = env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");
     let p = Personalization::new(to);
@@ -28,12 +29,8 @@ pub async fn send_email(
     }
 
     let sender = Sender::new(sg_api_key, None);
-    let resp = sender.send(&m).await?;
-    if !resp.status().is_success() {
-        println!("status: {}", resp.status());
-    }
-
-    Ok(())
+    let resp = sender.send(&m).await;
+    resp
 }
 
 pub fn make_email_obj(addr: &str, name: &str) -> Email {
