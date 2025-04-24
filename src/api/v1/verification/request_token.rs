@@ -66,13 +66,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match body.verification_method {
                                 model::VerificationType::Phone => {
                                     let phone = &renter.phone;
-                                    let text_result = integration::twilio_veygo::send_text(
-                                        phone,
-                                        ("Your Verification Code is: ".to_string() + &*otp)
-                                            .as_str(),
-                                    )
+                                    let call_result = integration::twilio_veygo::call_otp(
+                                        phone, &*otp)
                                     .await;
-                                    if text_result.is_err() {
+                                    if call_result.is_err() {
                                         return methods::standard_replies::internal_server_error_response();
                                     }
                                 }
