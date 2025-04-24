@@ -35,7 +35,7 @@ async fn main() {
     // routing for the server
     let react_app =
         warp::fs::dir("/app/www").or(warp::any().and(warp::fs::file("/app/www/index.html")));
-    let httpd = api::api().or(react_app);
+    let httpd = api::api().and(warp::path::end()).or(react_app);
     let args: Vec<String> = env::args().collect();
     let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
     println!("Starting server on port {}", port);
