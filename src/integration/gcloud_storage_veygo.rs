@@ -43,6 +43,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
         "JPEG" => Some("image/jpeg"),
         "PNG" => Some("image/png"),
         "CSV" => Some("text/csv"),
+        "HEIC" => Some("image/heic"),
         _ => None,
     }.unwrap();
     let u = uuid::Uuid::new_v4().to_string().to_uppercase();
