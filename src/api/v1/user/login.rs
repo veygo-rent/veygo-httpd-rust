@@ -33,7 +33,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 match result {
                     Ok(renter) => {
                         if verify(&input_password, &renter.password).unwrap_or(false) {
-                            // user and password is verified
+                            // user and password are verified
                             let user_id_data = renter.id;
                             let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
                             let mut pool = POOL.clone().get().unwrap();

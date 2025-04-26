@@ -73,7 +73,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 use crate::schema::renters::dsl::*;
                 let mut pool = POOL.clone().get().unwrap();
 
-                // Clone necessary fields *before* the spawn_blocking closure
+                // Clone the necessary fields *before* the spawn_blocking closure
                 let email_clone = renter_create_data.student_email.clone();
                 let phone_clone = renter_create_data.phone.clone();
                 let apartment_id_clone = renter_create_data.apartment_id; // i32 implements Copy, so no need to clone

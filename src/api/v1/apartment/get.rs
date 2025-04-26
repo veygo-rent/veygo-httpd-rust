@@ -14,6 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let mut pool = POOL.clone().get().unwrap();
             let results = spawn_blocking(move || {
                 apartments
+                    .into_boxed()
                     .filter(is_operating.eq(true))
                     .load::<Apartment>(&mut pool)
             })

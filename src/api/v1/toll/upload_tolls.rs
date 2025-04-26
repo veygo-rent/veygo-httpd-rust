@@ -62,14 +62,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .to_publish_access_token();
                             let toll_company = {
                                 use crate::schema::transponder_companies::dsl::*;
-                                let if_exists = diesel::select(exists(transponder_companies.filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
+                                let if_exists = diesel::select(exists(transponder_companies
+                                    .into_boxed().filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
                                 if !if_exists {
                                     return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                         warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
                                         StatusCode::NOT_ACCEPTABLE
                                     )),));
                                 }
-                                transponder_companies.filter(id.eq(toll_id)).get_result::<model::TransponderCompany>(&mut pool).unwrap()
+                                transponder_companies
+                                    .into_boxed().filter(id.eq(toll_id))
+                                    .get_result::<model::TransponderCompany>(&mut pool).unwrap()
                             };
                             if !methods::user::user_with_admin_access(&admin) {
                                 let token_clone = new_token_in_db_publish.clone();
@@ -200,7 +203,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
                                         };
                                         use crate::schema::vehicles::dsl::*;
-                                        let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles.filter(
+                                        let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles
+                                            .into_boxed().filter(
                                             first_transponder_company_id.eq(toll_company_id).and(first_transponder_number.eq(&vehicle_identifier_str))
                                                 .or(second_transponder_company_id.eq(toll_company_id).and(second_transponder_number.eq(&vehicle_identifier_str)))
                                                 .or(third_transponder_company_id.eq(toll_company_id).and(third_transponder_number.eq(&vehicle_identifier_str)))
@@ -212,7 +216,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             // try to find agreement
                                             use crate::schema::agreements::dsl::*;
                                             use diesel::dsl::sql;
-                                            let agreement_result = agreements.filter(vehicle_id.eq(vehicle_result.id))
+                                            let agreement_result = agreements
+                                                .into_boxed().filter(vehicle_id.eq(vehicle_result.id))
                                                 .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) <= ")
                                                     .bind::<Timestamptz, _>(transaction_time)
                                                     .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) >= ")

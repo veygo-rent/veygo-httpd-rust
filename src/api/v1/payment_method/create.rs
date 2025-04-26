@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let mut pool = POOL.clone().get().unwrap();
                                     let card_in_db = task::spawn_blocking(move || {
                                         use crate::schema::payment_methods::dsl::*;
-                                        diesel::select(diesel::dsl::exists(payment_methods.filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
+                                        diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
                                     }).await.unwrap().unwrap();
                                     if card_in_db {
                                         let error_msg = serde_json::json!({"error": "PaymentMethods existed"});

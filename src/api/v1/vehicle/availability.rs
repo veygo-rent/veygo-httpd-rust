@@ -44,7 +44,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let vehicle_list = spawn_blocking(move || {
                             use crate::schema::vehicles::dsl::*;
                             use crate::model::Vehicle;
-                            vehicles.filter(apartment_id.eq(apartment_id_clone)).filter(available.eq(true)).load::<Vehicle>(&mut pool).unwrap()
+                            vehicles
+                                .into_boxed().filter(apartment_id.eq(apartment_id_clone))
+                                .filter(available.eq(true)).load::<Vehicle>(&mut pool).unwrap()
                         }).await.unwrap();
 
                         let apt_id = user.apartment_id;
@@ -62,6 +64,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 use diesel::dsl::sql;
 
                                 agreements
+                                    .into_boxed()
                                     .filter(apartment_id.eq(apt_id))
                                     .filter(status.eq(model::AgreementStatus::Rental))
                                     .filter(

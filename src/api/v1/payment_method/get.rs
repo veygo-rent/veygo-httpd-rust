@@ -52,6 +52,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 let payment_method_query_result = spawn_blocking(move || {
                                     use crate::schema::payment_methods::dsl::*;
                                     payment_methods
+                                        .into_boxed()
                                         .filter(is_enabled.eq(true))
                                         .filter(renter_id.eq(id_clone))
                                         .load::<model::PaymentMethod>(&mut pool)

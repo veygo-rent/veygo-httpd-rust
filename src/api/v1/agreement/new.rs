@@ -153,6 +153,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                     use diesel::dsl::sql;
                                                     let if_conflict = diesel::select(diesel::dsl::exists(
                                                         agreements
+                                                            .into_boxed()
                                                             .filter(status.eq(crate::model::AgreementStatus::Rental))
                                                             .filter(vehicle_id.eq(&body.vehicle_id))
                                                             .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
@@ -172,7 +173,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                         let apartment_id_clone = vehicle.apartment_id.clone();
                                                         let apt = spawn_blocking(move || {
                                                             use crate::schema::apartments::dsl::*;
-                                                            apartments.filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool)
+                                                            apartments.into_boxed().filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool)
                                                         }).await.unwrap().unwrap();
                                                         let conf_id = methods::agreement::generate_unique_agreement_confirmation();
                                                         let new_agreement = crate::model::NewAgreement {
