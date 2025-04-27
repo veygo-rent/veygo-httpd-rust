@@ -234,7 +234,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
     }
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = rental_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -246,7 +246,7 @@ pub struct RentalTransaction {
     pub transaction_time: DateTime<Utc>,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset)]
+#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -367,7 +367,7 @@ pub struct NewRenter {
 }
 
 #[derive(
-    Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset,
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset,
 )]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
@@ -432,7 +432,7 @@ pub struct NewPaymentMethod {
     pub last_used_date_time: Option<DateTime<Utc>>,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Apartment {
@@ -671,8 +671,9 @@ pub struct NewVehicle {
     pub apartment_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = damage_submissions)]
+#[diesel(belongs_to(Renter, foreign_key = reported_by))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct DamageSubmission {
     pub id: i32,
@@ -762,7 +763,7 @@ pub struct NewVehicleSnapshot {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable, Selectable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Apartment))]
 #[diesel(belongs_to(Vehicle))]
@@ -914,8 +915,8 @@ pub struct NewPayment {
     pub payment_method_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[diesel(belongs_to(Renter))]
+#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[diesel(belongs_to(Renter, foreign_key = user_id))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct AccessToken {

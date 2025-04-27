@@ -239,13 +239,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                         }
                                                     }
                                                 } else {
-                                                    let error_msg = serde_json::json!({"error": "Payment Method unavailable"});
-                                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
+                                                    methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
                                                 }
                                             }
                                             Err(_) => {
-                                                let error_msg = serde_json::json!({"error": "Payment Method invalid"});
-                                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
+                                                methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
                                             }
                                         }
                                     } else {

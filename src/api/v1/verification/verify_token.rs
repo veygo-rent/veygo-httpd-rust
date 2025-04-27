@@ -63,6 +63,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let now_utc = Utc::now();
                             let if_verify = diesel::select(diesel::dsl::exists(
                                 verifications
+                                    .into_boxed()
                                     .filter(verification_method.eq(body.verification_method))
                                     .filter(renter_id.eq(access_token.user_id))
                                     .filter(expires_at.ge(now_utc))

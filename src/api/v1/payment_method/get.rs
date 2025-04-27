@@ -7,7 +7,7 @@ use warp::reply::with_status;
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("get")
-        .and(warp::post())
+        .and(warp::get())
         .and(warp::header::<String>("token"))
         .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
