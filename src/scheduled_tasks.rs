@@ -72,62 +72,70 @@ pub async fn nightly_task() {
                 }
                 let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, renter.name.as_str());
                 if rent != 0.0 {
-                    // Get Payment Method
-                    use crate::schema::payment_methods::dsl::*;
-                    let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renter.subscription_payment_method_id.unwrap())).get_result::<model::PaymentMethod>(&mut POOL.clone().get().unwrap()).unwrap();
-                    // Charge Renter. If fails, switch to the Free Tier
-                    let taxed_rent = rent * (1.00 + apartment.sales_tax_rate);
-                    let taxed_rent_in_int = (taxed_rent * 100.0).round() as i64;
-                    use stripe::PaymentIntentCaptureMethod;
-                    let payment_result = integration::stripe_veygo::create_payment_intent(description.clone(), renter.clone().stripe_id.unwrap(), plan_pm.token, taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic).await;
-                    match payment_result {
-                        Err(error) => {
-                            match error {
-                                StripeError::Stripe(request_error) => {
-                                    if request_error.code == Some(ErrorCode::CardDeclined) {
-                                        // Downgrade plan
-                                        renter.plan_tier = model::PlanTier::Free;
+                    if let Some(renew_id) = renter.subscription_payment_method_id {
+                        // Get Payment Method
+                        use crate::schema::payment_methods::dsl::*;
+                        let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renew_id)).get_result::<model::PaymentMethod>(&mut POOL.clone().get().unwrap()).unwrap();
+                        // Charge Renter. If fails, switch to the Free Tier
+                        let taxed_rent = rent * (1.00 + apartment.sales_tax_rate);
+                        let taxed_rent_in_int = (taxed_rent * 100.0).round() as i64;
+                        use stripe::PaymentIntentCaptureMethod;
+                        let payment_result = integration::stripe_veygo::create_payment_intent(description.clone(), renter.clone().stripe_id.unwrap(), plan_pm.token, taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic).await;
+                        match payment_result {
+                            Err(error) => {
+                                match error {
+                                    StripeError::Stripe(request_error) => {
+                                        if request_error.code == Some(ErrorCode::CardDeclined) {
+                                            // Downgrade plan
+                                            renter.plan_tier = model::PlanTier::Free;
 
-                                        // Downgrade email
-                                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                                            // Downgrade email
+                                            integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                                        }
+                                    }
+                                    StripeError::QueryStringSerialize(ser_err) => {
+                                        eprintln!("Query string serialization error: {:?}", ser_err);
+                                    }
+                                    StripeError::JSONSerialize(json_err) => {
+                                        eprintln!("JSON serialization error: {}", json_err.to_string());
+                                    }
+                                    StripeError::UnsupportedVersion => {
+                                        eprintln!("Unsupported Stripe API version");
+                                    }
+                                    StripeError::ClientError(msg) => {
+                                        eprintln!("Client error: {}", msg);
+                                    }
+                                    StripeError::Timeout => {
+                                        eprintln!("Stripe request timed out");
                                     }
                                 }
-                                StripeError::QueryStringSerialize(ser_err) => {
-                                    eprintln!("Query string serialization error: {:?}", ser_err);
-                                }
-                                StripeError::JSONSerialize(json_err) => {
-                                    eprintln!("JSON serialization error: {}", json_err.to_string());
-                                }
-                                StripeError::UnsupportedVersion => {
-                                    eprintln!("Unsupported Stripe API version");
-                                }
-                                StripeError::ClientError(msg) => {
-                                    eprintln!("Client error: {}", msg);
-                                }
-                                StripeError::Timeout => {
-                                    eprintln!("Stripe request timed out");
-                                }
+                            }
+                            Ok(pmi) => {
+                                // Approved
+                                // Save Payment
+                                let new_payment = model::NewPayment {
+                                    payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
+                                    amount: taxed_rent,
+                                    note: Some(description),
+                                    reference_number: Some(pmi.id.to_string()),
+                                    agreement_id: None,
+                                    renter_id: renter.id,
+                                    payment_method_id: plan_pm.id,
+                                    amount_authorized: None,
+                                    capture_before: None,
+                                };
+                                use crate::schema::payments::dsl::*;
+                                diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut POOL.clone().get().unwrap()).unwrap();
+                                // Paid Tier renewal email
+                                integration::sendgrid_veygo::send_email(None, renter_email, "Your plan has been renewed", "Your payment has been processed and your plan has been renewed. ", None, None).await.unwrap();
                             }
                         }
-                        Ok(pmi) => {
-                            // Approved
-                            // Save Payment
-                            let new_payment = model::NewPayment {
-                                payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
-                                amount: taxed_rent,
-                                note: Some(description),
-                                reference_number: Some(pmi.id.to_string()),
-                                agreement_id: None,
-                                renter_id: renter.id,
-                                payment_method_id: plan_pm.id,
-                                amount_authorized: None,
-                                capture_before: None,
-                            };
-                            use crate::schema::payments::dsl::*;
-                            diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut POOL.clone().get().unwrap()).unwrap();
-                            // Paid Tier renewal email
-                            integration::sendgrid_veygo::send_email(None, renter_email, "Your plan has been renewed", "Your payment has been processed and your plan has been renewed. ", None, None).await.unwrap();
-                        }
+                    } else {
+                        // Downgrade plan
+                        renter.plan_tier = model::PlanTier::Free;
+
+                        // Downgrade email
+                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan upon request. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
                     }
                 } else {
                     // Free Tier renewal email
