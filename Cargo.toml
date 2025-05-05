@@ -12,7 +12,7 @@ diesel = { version = "2.2.10", features = ["numeric", "chrono", "postgres", "r2d
 dotenv = "0.15.0"
 serde_derive = "1.0.219"
 regex = "1.11.1"
-chrono = { version = "0.4.40", features = ["serde"] }
+chrono = { version = "0.4.41", features = ["serde"] }
 chrono-tz = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
@@ -23,7 +23,7 @@ async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper"] }
 once_cell = "1.21.3"
 rand = "0.9.1"
 sendgrid = { version = "0.23.0", features = ["rustls"] }
-twilio = { version = "1.1.0"}
+twilio = { version = "1.1.0" }
 futures = "0.3.31"
 bytes = "1.10.1"
 currency_rs = "1.3.0"
