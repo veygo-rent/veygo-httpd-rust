@@ -133,7 +133,7 @@ pub async fn create_payment_intent(
             customer: Some(customer_id),
             description: Some(description_data.as_str()),
             error_on_requires_action: None,
-            expand: &[],
+            expand: &["latest_charge"],
             mandate: None,
             mandate_data: None,
             metadata: None,

@@ -2,7 +2,7 @@
 //! Each provider declares a `timestamp_format` (strftime pattern) and an optional
 //! `tz_hint` stored in `transponder_companies`.
 
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc, LocalResult};
+use chrono::{DateTime, FixedOffset, LocalResult, NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
 /// Convert a timestamp string to **UTC**.
@@ -41,11 +41,9 @@ pub fn to_utc(raw: &str, fmt: &str, tz_hint: Option<String>) -> anyhow::Result<D
         Some(name) if name.contains('/') => {
             let tz: Tz = name.parse()?;
             match tz.from_local_datetime(&naive) {
-                LocalResult::Single(dt)      => Ok(dt.with_timezone(&Utc)),
-                LocalResult::Ambiguous(dt,_) => Ok(dt.with_timezone(&Utc)), // pick earliest
-                LocalResult::None            => anyhow::bail!(
-                    "{} is not a valid local time in {}", raw, name
-                ),
+                LocalResult::Single(dt) => Ok(dt.with_timezone(&Utc)),
+                LocalResult::Ambiguous(dt, _) => Ok(dt.with_timezone(&Utc)), // pick earliest
+                LocalResult::None => anyhow::bail!("{} is not a valid local time in {}", raw, name),
             }
         }
         //--------------------------------------------------------
@@ -56,20 +54,27 @@ pub fn to_utc(raw: &str, fmt: &str, tz_hint: Option<String>) -> anyhow::Result<D
             let offset = FixedOffset::east_opt(h * 3600)
                 .ok_or_else(|| anyhow::anyhow!("invalid offset {}", hours))?;
             match offset.from_local_datetime(&naive) {
-                LocalResult::Single(dt)      => Ok(dt.with_timezone(&Utc)),
-                LocalResult::Ambiguous(dt,_) => Ok(dt.with_timezone(&Utc)),
-                LocalResult::None            => anyhow::bail!(
-                    "{} is not a valid local time with offset {}", raw, hours
-                ),
+                LocalResult::Single(dt) => Ok(dt.with_timezone(&Utc)),
+                LocalResult::Ambiguous(dt, _) => Ok(dt.with_timezone(&Utc)),
+                LocalResult::None => {
+                    anyhow::bail!("{} is not a valid local time with offset {}", raw, hours)
+                }
             }
         }
         //--------------------------------------------------------
         // 2‑c No hint → cannot disambiguate.
         //--------------------------------------------------------
         None => anyhow::bail!(
-            "timestamp '{}' has no zone info and no tz_hint supplied", raw
+            "timestamp '{}' has no zone info and no tz_hint supplied",
+            raw
         ),
     }
+}
+
+pub fn from_seconds(ts: i64) -> DateTime<Utc> {
+    // ts have been in seconds since the Unix epoch
+    let ndt = DateTime::from_timestamp(ts, 0).expect("invalid timestamp");
+    ndt.with_timezone(&Utc)
 }
 
 // -------------------------------------------------------------------------
@@ -87,12 +92,7 @@ mod tests {
 
     #[test]
     fn iso_numeric_offset() {
-        let t = to_utc(
-            "2025-04-08T13:31:13-04:00",
-            "%Y-%m-%dT%H:%M:%S%:z",
-            None,
-        )
-        .unwrap();
+        let t = to_utc("2025-04-08T13:31:13-04:00", "%Y-%m-%dT%H:%M:%S%:z", None).unwrap();
         assert_eq!(t.to_rfc3339(), "2025-04-08T17:31:13+00:00");
     }
 
@@ -127,8 +127,8 @@ mod tests {
     #[test]
     fn iso_numeric_offset_no_colon() {
         // format with %z (±HHMM) instead of %:z
-        let raw  = "2025-04-08T133113-0400";
-        let fmt  = "%Y-%m-%dT%H%M%S%z";
+        let raw = "2025-04-08T133113-0400";
+        let fmt = "%Y-%m-%dT%H%M%S%z";
         let dt = to_utc(raw, fmt, None).unwrap();
         assert_eq!(dt.to_rfc3339(), "2025-04-08T17:31:13+00:00");
     }

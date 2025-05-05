@@ -32,6 +32,16 @@ pub fn card_invalid_wrapped(
     ),))
 }
 
+pub fn apartment_not_operational_wrapped(
+    token_data: PublishAccessToken,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let error_msg = serde_json::json!({"error": "Credit card invalid"});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),
+    ),))
+}
+
 pub fn user_not_admin_wrapped_return(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {

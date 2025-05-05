@@ -120,6 +120,8 @@ pub async fn nightly_task() {
                                 agreement_id: None,
                                 renter_id: renter.id,
                                 payment_method_id: plan_pm.id,
+                                amount_authorized: None,
+                                capture_before: None,
                             };
                             use crate::schema::payments::dsl::*;
                             diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut POOL.clone().get().unwrap()).unwrap();

@@ -48,7 +48,19 @@ pub enum PaymentType {
     Succeeded,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[derive(
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    AsExpression,
+    FromSqlRow,
+    Ord,
+    PartialOrd,
+)]
 #[diesel(sql_type = sql_types::PlanTierEnum)]
 pub enum PlanTier {
     Free,
@@ -234,7 +246,9 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
     }
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = rental_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -246,7 +260,17 @@ pub struct RentalTransaction {
     pub transaction_time: DateTime<Utc>,
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset)]
+#[derive(
+    Queryable,
+    Identifiable,
+    Associations,
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    AsChangeset,
+)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -256,7 +280,7 @@ pub struct Renter {
     pub stripe_id: Option<String>,
     pub student_email: String,
     pub student_email_expiration: Option<NaiveDate>,
-    pub password: String, // Hashed!
+    pub password: String,
     pub phone: String,
     pub phone_is_verified: bool,
     pub date_of_birth: NaiveDate,
@@ -367,7 +391,16 @@ pub struct NewRenter {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AsChangeset,
+    Queryable,
+    Identifiable,
+    Associations,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    AsChangeset,
 )]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
@@ -671,7 +704,9 @@ pub struct NewVehicle {
     pub apartment_id: i32,
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
 #[diesel(table_name = damage_submissions)]
 #[diesel(belongs_to(Renter, foreign_key = reported_by))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -739,9 +774,7 @@ pub struct NewDamage {
     pub agreement_id: Option<i32>,
 }
 
-#[derive(
-    Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize,
-)]
+#[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct VehicleSnapshot {
@@ -763,7 +796,15 @@ pub struct NewVehicleSnapshot {
 }
 
 #[derive(
-    Queryable, Selectable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable,
+    Selectable,
+    Identifiable,
+    Associations,
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
 )]
 #[diesel(belongs_to(Apartment))]
 #[diesel(belongs_to(Vehicle))]
@@ -897,6 +938,8 @@ pub struct Payment {
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
     pub payment_method_id: i32,
+    pub amount_authorized: Option<f64>,
+    pub capture_before: Option<DateTime<Utc>>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -913,9 +956,13 @@ pub struct NewPayment {
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
     pub payment_method_id: i32,
+    pub amount_authorized: Option<f64>,
+    pub capture_before: Option<DateTime<Utc>>,
 }
 
-#[derive(Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Eq, Serialize, Deserialize,
+)]
 #[diesel(belongs_to(Renter, foreign_key = user_id))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
