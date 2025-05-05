@@ -1,4 +1,5 @@
-use crate::{POOL, integration, methods, model, schema};
+use crate::schema::renters::dsl::renters;
+use crate::{POOL, methods, model, schema};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Reply};
@@ -52,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            let user = methods::user::get_user_by_id(access_token.user_id)
+                            let mut user = methods::user::get_user_by_id(access_token.user_id)
                                 .await
                                 .unwrap();
                             use schema::apartments::dsl::*;
@@ -65,9 +66,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 return methods::standard_replies::apartment_not_operational_wrapped(new_token_in_db_publish);
                             }
                             if request_body.plan == model::PlanTier::Free {
-                                // TODO not implemented downgrade plan
-                                methods::standard_replies::not_implemented_response()
+                                // request downgrade will be automatically executed when the old plan expires
+                                user.subscription_payment_method_id = None;
+                                let pub_user = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().to_publish_renter();
+                                methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
                             } else {
+                                // TODO rewrite change plan logic
+                                // if old plan is free, setup plan like brand new
+                                // if Expires within 14 days, setup plan like brand new
+                                // if expires not within 14 days, change plan type and calculate exp based on unused portion against new plan's monthly price
                                 if let Some(pm_id) = request_body.payment_method_id {
                                     use schema::payment_methods::dsl::*;
                                     let payment_method_result = payment_methods
@@ -81,12 +88,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         Err(_) => methods::standard_replies::card_invalid_wrapped(
                                             new_token_in_db_publish,
                                         ),
-                                        Ok(payment_method) => {
+                                        Ok(_payment_method) => {
                                             methods::standard_replies::not_implemented_response()
                                         }
                                     };
                                 } else {
-                                    // plan it trying to change to require a payment method
+                                    // plan the renter is trying to change to require a payment method
                                     methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
                                 }
                             }

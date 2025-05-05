@@ -1,5 +1,5 @@
 use crate::methods::tokens::wrap_json_reply_with_token;
-use crate::model::PublishAccessToken;
+use crate::model::{PublishAccessToken, PublishRenter};
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -35,7 +35,7 @@ pub fn card_invalid_wrapped(
 pub fn apartment_not_operational_wrapped(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Credit card invalid"});
+    let error_msg = serde_json::json!({"error": "Apartment is not operational"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
         warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),
@@ -49,6 +49,17 @@ pub fn user_not_admin_wrapped_return(
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
         warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+    ),))
+}
+
+pub fn renter_wrapped(
+    token_data: PublishAccessToken,
+    renter: &PublishRenter,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg = serde_json::json!({"renter": renter});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),
     ),))
 }
 

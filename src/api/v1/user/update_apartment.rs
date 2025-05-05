@@ -108,10 +108,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     user_update.drivers_license_expiration = None;
                                     let renter_updated = diesel::update(renters.find(clone_of_user_id))
                                         .set(&user_update).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
-                                    let renter_msg = serde_json::json!({
-                                        "renter": renter_updated,
-                                    });
-                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
+                                    return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                                 }
                             }
                         }

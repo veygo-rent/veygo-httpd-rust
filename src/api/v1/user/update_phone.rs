@@ -22,7 +22,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
     PHONE_REGEX.is_match(phone)
 }
 
-pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("update-phone")
         .and(warp::path::end())
         .and(warp::post())
@@ -76,10 +76,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                             usr_in_question.phone_is_verified = false;
                             let renter_updated = diesel::update(renters.find(usr_id_clone))
                                 .set(&usr_in_question).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
-                            let renter_msg = serde_json::json!({
-                                        "renter": renter_updated,
-                                    });
-                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),));
+                            return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                         }
                     }
                 };
