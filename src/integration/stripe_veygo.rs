@@ -1,4 +1,4 @@
-use crate::model::NewPaymentMethod;
+use crate::model::{NewPaymentMethod, PaymentType};
 use dotenv::dotenv;
 use std::env;
 use std::str::FromStr;
@@ -11,8 +11,8 @@ use stripe::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
     CreateSetupIntentAutomaticPaymentMethods,
     CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, Currency, Customer, CustomerId,
-    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, PaymentMethod,
-    PaymentMethodId, SetupIntent, StripeError,
+    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, PaymentIntentStatus,
+    PaymentMethod, PaymentMethodId, SetupIntent, StripeError,
 };
 
 pub async fn create_new_payment_method(
@@ -164,4 +164,18 @@ pub async fn create_payment_intent(
             use_stripe_sdk: None,
         }
     ).await
+}
+
+impl PaymentType {
+    pub fn from_stripe_payment_intent_status(pis: PaymentIntentStatus) -> Self {
+        match pis {
+            PaymentIntentStatus::Canceled => PaymentType::Canceled,
+            PaymentIntentStatus::Processing => PaymentType::Processing,
+            PaymentIntentStatus::RequiresAction => PaymentType::RequiresAction,
+            PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
+            PaymentIntentStatus::RequiresConfirmation => PaymentType::RequiresConfirmation,
+            PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
+            PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
+        }
+    }
 }

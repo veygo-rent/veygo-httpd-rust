@@ -75,7 +75,7 @@ pub async fn nightly_task() {
                     // Get Payment Method
                     use crate::schema::payment_methods::dsl::*;
                     let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renter.subscription_payment_method_id.unwrap())).get_result::<model::PaymentMethod>(&mut POOL.clone().get().unwrap()).unwrap();
-                    // Charge Renter. If fails, switch to Free Tier
+                    // Charge Renter. If fails, switch to the Free Tier
                     let taxed_rent = rent * (1.00 + apartment.sales_tax_rate);
                     let taxed_rent_in_int = (taxed_rent * 100.0).round() as i64;
                     use stripe::PaymentIntentCaptureMethod;
@@ -113,7 +113,7 @@ pub async fn nightly_task() {
                             // Approved
                             // Save Payment
                             let new_payment = model::NewPayment {
-                                payment_type: model::PaymentType::Succeeded,
+                                payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
                                 amount: taxed_rent,
                                 note: Some(description),
                                 reference_number: Some(pmi.id.to_string()),

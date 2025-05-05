@@ -223,7 +223,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                                 let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<crate::model::Agreement>(&mut pool).unwrap();
 
                                                                 let new_payment = crate::model::NewPayment {
-                                                                    payment_type: crate::model::PaymentType::RequiresCapture,
+                                                                    payment_type: crate::model::PaymentType::from_stripe_payment_intent_status(pmi.status),
                                                                     amount: 0.00,
                                                                     note: Some("Non refundable deposit".to_string()),
                                                                     reference_number: Some(pmi.id.to_string()),
