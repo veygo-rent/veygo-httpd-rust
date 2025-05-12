@@ -72,9 +72,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
                             } else {
                                 // TODO rewrite change plan logic
-                                // if old plan is free, setup plan like brand new
+                                // if the old plan is free, setup plan like brand new
+                                let plan_exp_ddmmyyyy = user.plan_renewal_day + &user.plan_expire_month_year;
                                 // if Expires within 14 days, setup plan like brand new
-                                // if expires not within 14 days, change plan type and calculate exp based on unused portion against new plan's monthly price
+                                // if expires not within 14 days, change a plan type and calculate exp based on an unused portion against the new plan's monthly price
                                 if let Some(pm_id) = request_body.payment_method_id {
                                     use schema::payment_methods::dsl::*;
                                     let payment_method_result = payment_methods

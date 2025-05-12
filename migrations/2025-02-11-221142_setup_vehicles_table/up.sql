@@ -8,7 +8,7 @@ CREATE TABLE vehicles
     available                     BOOLEAN          NOT NULL,
     license_number                VARCHAR          NOT NULL,
     license_state                 VARCHAR          NOT NULL,
-    year                          VARCHAR          NOT NULL, -- Consider using SMALLINT or INTEGER
+    year                          VARCHAR          NOT NULL,
     make                          VARCHAR          NOT NULL,
     model                         VARCHAR          NOT NULL,
     msrp_factor                   DOUBLE PRECISION NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE vehicles
     second_transponder_company_id INTEGER,
     third_transponder_number      VARCHAR,
     third_transponder_company_id  INTEGER,
-    fourth_transponder_number     VARCHAR,                   -- "forth" -> "fourth"
+    fourth_transponder_number     VARCHAR,
     fourth_transponder_company_id INTEGER,
     apartment_id                  INTEGER          NOT NULL REFERENCES apartments (id)
 );

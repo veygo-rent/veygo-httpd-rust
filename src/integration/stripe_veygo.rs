@@ -17,8 +17,8 @@ use stripe::{
 
 pub async fn create_new_payment_method(
     pm_id: &str,
-    cardholder_name: String,  // Required as Stripe does not return full name
-    renter_id: i32,           // Must be provided
+    cardholder_name: String, // Required as Stripe does not return the full name
+    renter_id: i32,          // Must be provided
     nickname: Option<String>, // Optional user-defined alias
 ) -> Result<NewPaymentMethod, StripeError> {
     dotenv().ok();

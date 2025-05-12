@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use warp::http::header::{HeaderMap, HeaderValue};
 
 // Diesel requires us to define a custom mapping between the Rust enum
-// and the database type, if we are not using string.
+// and the database type if we are not using string.
 use crate::schema::*;
 use diesel::deserialize::{self, FromSql};
 use diesel::pg::{Pg, PgValue};
@@ -492,6 +492,7 @@ pub struct Apartment {
     pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
+    pub is_uni: bool,
 }
 
 impl Apartment {
@@ -518,6 +519,7 @@ impl Apartment {
             pai_protection_rate: self.pai_protection_rate,
             sales_tax_rate: self.sales_tax_rate,
             is_public: self.is_public,
+            is_uni: self.is_uni,
         }
     }
 }
@@ -545,6 +547,7 @@ pub struct PublishApartment {
     pub pai_protection_rate: f64,
     pub sales_tax_rate: f64,
     pub is_public: bool,
+    pub is_uni: bool,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -573,6 +576,7 @@ pub struct NewApartment {
     pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
+    pub is_uni: bool,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -831,17 +835,9 @@ pub struct Agreement {
     pub actual_pickup_time: Option<DateTime<Utc>>,
     pub pickup_odometer: Option<i32>,
     pub pickup_level: Option<i32>,
-    pub pickup_front_image: Option<String>,
-    pub pickup_back_image: Option<String>,
-    pub pickup_left_image: Option<String>,
-    pub pickup_right_image: Option<String>,
     pub actual_drop_off_time: Option<DateTime<Utc>>,
     pub drop_off_odometer: Option<i32>,
     pub drop_off_level: Option<i32>,
-    pub drop_off_front_image: Option<String>,
-    pub drop_off_back_image: Option<String>,
-    pub drop_off_left_image: Option<String>,
-    pub drop_off_right_image: Option<String>,
     pub tax_rate: f64,
     pub msrp_factor: f64,
     pub duration_rate: f64,

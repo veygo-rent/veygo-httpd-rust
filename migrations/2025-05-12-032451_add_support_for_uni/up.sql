@@ -1,0 +1,2 @@
+ALTER TABLE apartments
+    ADD COLUMN is_uni BOOLEAN NOT NULL DEFAULT false;

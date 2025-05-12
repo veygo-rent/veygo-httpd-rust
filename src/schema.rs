@@ -62,17 +62,9 @@ diesel::table! {
         actual_pickup_time -> Nullable<Timestamptz>,
         pickup_odometer -> Nullable<Int4>,
         pickup_level -> Nullable<Int4>,
-        pickup_front_image -> Nullable<Varchar>,
-        pickup_back_image -> Nullable<Varchar>,
-        pickup_left_image -> Nullable<Varchar>,
-        pickup_right_image -> Nullable<Varchar>,
         actual_drop_off_time -> Nullable<Timestamptz>,
         drop_off_odometer -> Nullable<Int4>,
         drop_off_level -> Nullable<Int4>,
-        drop_off_front_image -> Nullable<Varchar>,
-        drop_off_back_image -> Nullable<Varchar>,
-        drop_off_left_image -> Nullable<Varchar>,
-        drop_off_right_image -> Nullable<Varchar>,
         tax_rate -> Float8,
         msrp_factor -> Float8,
         duration_rate -> Float8,
@@ -111,6 +103,7 @@ diesel::table! {
         sales_tax_rate -> Float8,
         is_operating -> Bool,
         is_public -> Bool,
+        is_uni -> Bool,
     }
 }
 
