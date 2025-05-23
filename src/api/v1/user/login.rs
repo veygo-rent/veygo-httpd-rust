@@ -26,9 +26,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let mut pool = POOL.clone().get().unwrap();
                 let input_email = login_data.email.clone();
                 let input_password = login_data.password.clone();
-                let result = task::spawn_blocking(move || {
-                    renters.filter(student_email.eq(&login_data.email)).get_result::<Renter>(&mut pool)
-                }).await.unwrap();
+                let result = renters.filter(student_email.eq(&login_data.email)).get_result::<Renter>(&mut pool);
 
                 match result {
                     Ok(renter) => {
@@ -37,12 +35,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let user_id_data = renter.id;
                             let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
                             let mut pool = POOL.clone().get().unwrap();
-                            let insert_token_result = task::spawn_blocking(move || {
-                                use crate::schema::access_tokens::dsl::*;
-                                diesel::insert_into(access_tokens)
+                            use crate::schema::access_tokens::dsl::*;
+                            let insert_token_result = diesel::insert_into(access_tokens)
                                     .values(&new_access_token)
                                     .get_result::<AccessToken>(&mut pool) // Get the inserted Renter
-                            }).await.unwrap().unwrap();
+                            .unwrap();
 
                             let pub_token = insert_token_result.to_publish_access_token();
                             let pub_renter = renter.to_publish_renter();

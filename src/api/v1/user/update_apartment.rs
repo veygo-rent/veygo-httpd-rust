@@ -73,10 +73,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .unwrap()
                                 .to_publish_access_token();
                             let body_clone = body.clone();
-                            let apartment_result = task::spawn_blocking(move || {
-                                use crate::schema::apartments::dsl::*;
-                                apartments.find(body_clone.apartment_id).get_result::<model::Apartment>(&mut pool)
-                            }).await.unwrap();
+                            use crate::schema::apartments::dsl::*;
+                            let apartment_result = apartments.find(body_clone.apartment_id).get_result::<model::Apartment>(&mut pool);
                             match apartment_result {
                                 Err(_) => {
                                     // Wrong apartment ID

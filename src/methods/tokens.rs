@@ -6,7 +6,6 @@ use diesel::prelude::*;
 use hex::FromHexError;
 use secrets::Secret;
 use std::ops::Add;
-use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
 use warp::reply::{Json, WithStatus, with_header};
 use warp::{Rejection, Reply};
@@ -18,37 +17,14 @@ async fn generate_unique_token() -> Vec<u8> {
 
         let token_to_return = token_vec.clone();
 
+        let mut pool = POOL.clone().get().unwrap();
         // Wrap in a block for error handling.
-        let token_exists_result = spawn_blocking(move || {
-            //get connection.
-            let mut pool = POOL.clone().get().unwrap();
-            // Perform the Diesel query *synchronously* within the closure.
-            // Use the token_vec.expose_secret() here.
-            diesel::select(diesel::dsl::exists(
-                crate::schema::access_tokens::table
-                    .filter(token.eq(token_vec)),
-            ))
-            .get_result::<bool>(&mut pool)
-        })
-        .await;
+        let token_exists_result = diesel::select(diesel::dsl::exists(
+            crate::schema::access_tokens::table.filter(token.eq(token_vec)),
+        ))
+        .get_result::<bool>(&mut pool);
 
-        let token_exists = match token_exists_result {
-            Ok(result) => {
-                result.unwrap_or_else(|e| {
-                    // Handle database query errors.  In a real application, you'd probably
-                    // want to log this error and possibly retry.  For this example,
-                    // we'll just treat any database error as if the token *does* exist,
-                    // to force a retry. This avoids leaking information about internal errors.
-                    eprintln!("Database error: {:?}", e);
-                    true // Treat a DB error as if the token exists, to force a retry.
-                })
-            }
-            Err(join_err) => {
-                //For any tokio error.
-                eprintln!("Error joining blocking task: {:?}", join_err);
-                true // Treat a join error as if the token exists.
-            }
-        };
+        let token_exists = token_exists_result.unwrap();
 
         // If the token does not exist, return it
         if !token_exists {
@@ -80,28 +56,20 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
             let token_clone = binary_token.clone();
             let token_clone_again = binary_token.clone();
             let mut pool = POOL.clone().get().unwrap();
-            let token_in_db = spawn_blocking(move || {
-                diesel::select(diesel::dsl::exists(
-                    access_tokens
-                        .filter(token.eq(token_clone))
-                        .filter(user_id.eq(_user_id)),
-                ))
-                .get_result::<bool>(&mut pool)
-            })
-            .await
-            .unwrap()
+            let token_in_db = diesel::select(diesel::dsl::exists(
+                access_tokens
+                    .filter(token.eq(token_clone))
+                    .filter(user_id.eq(_user_id)),
+            ))
+            .get_result::<bool>(&mut pool)
             .unwrap();
             if token_in_db {
                 let mut pool = POOL.clone().get().unwrap();
-                let token_in_db_result = spawn_blocking(move || {
-                    access_tokens
-                        .filter(user_id.eq(_user_id))
-                        .filter(token.eq(token_clone_again))
-                        .first::<AccessToken>(&mut pool)
-                })
-                .await
-                .unwrap()
-                .unwrap();
+                let token_in_db_result = access_tokens
+                    .filter(user_id.eq(_user_id))
+                    .filter(token.eq(token_clone_again))
+                    .first::<AccessToken>(&mut pool)
+                    .unwrap();
                 let token_exp = token_in_db_result.exp;
                 if token_exp >= Utc::now() {
                     Ok(true)

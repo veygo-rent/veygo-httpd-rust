@@ -25,21 +25,17 @@ pub async fn check_if_on_do_not_rent(renter: &Renter) -> bool {
     let today = Utc::now().date_naive(); // e.g. 2025-03-01
 
     // Run the database check on a blocking thread
-    task::spawn_blocking(move || {
-        use crate::schema::do_not_rent_lists::dsl::*;
-        diesel::select(diesel::dsl::exists(
-            do_not_rent_lists
-                .filter(
-                    name.eq(Some(user_name))
-                        .or(phone.eq(Some(user_phone)))
-                        .or(email.eq(Some(user_email))),
-                )
-                .filter(exp.is_null().or(exp.ge(today))),
-        ))
-        .get_result::<bool>(&mut pool)
-    })
-    .await
-    .unwrap()
+    use crate::schema::do_not_rent_lists::dsl::*;
+    diesel::select(diesel::dsl::exists(
+        do_not_rent_lists
+            .filter(
+                name.eq(Some(user_name))
+                    .or(phone.eq(Some(user_phone)))
+                    .or(email.eq(Some(user_email))),
+            )
+            .filter(exp.is_null().or(exp.ge(today))),
+    ))
+    .get_result::<bool>(&mut pool)
     .unwrap()
 }
 

@@ -71,30 +71,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let pub_user = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().to_publish_renter();
                                 methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
                             } else {
-                                // TODO rewrite change plan logic
-                                // if the old plan is free, setup plan like brand new
-                                let plan_exp_ddmmyyyy = user.plan_renewal_day + &user.plan_expire_month_year;
-                                // if Expires within 14 days, setup plan like brand new
-                                // if expires not within 14 days, change a plan type and calculate exp based on an unused portion against the new plan's monthly price
                                 if let Some(pm_id) = request_body.payment_method_id {
-                                    use schema::payment_methods::dsl::*;
-                                    let payment_method_result = payment_methods
-                                        .into_boxed()
-                                        .filter(id.eq(pm_id))
-                                        .filter(is_enabled.eq(true))
-                                        .filter(renter_id.eq(access_token.user_id))
-                                        .get_result::<model::PaymentMethod>(&mut pool);
-                                    return match payment_method_result {
-                                        // card invalid
-                                        Err(_) => methods::standard_replies::card_invalid_wrapped(
-                                            new_token_in_db_publish,
-                                        ),
-                                        Ok(_payment_method) => {
-                                            methods::standard_replies::not_implemented_response()
-                                        }
-                                    };
+                                    if user.plan_tier == model::PlanTier::Free {
+                                        // TODO if the old plan is free, setting up a brand new plan
+                                        methods::standard_replies::not_implemented_response()
+                                    } else {
+                                        // TODO Change exp date and tier level
+                                        let plan_exp_ddmmyyyy = user.plan_renewal_day + &user.plan_expire_month_year;
+                                        methods::standard_replies::not_implemented_response()
+                                    }
                                 } else {
-                                    // plan the renter is trying to change to require a payment method
                                     methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
                                 }
                             }
