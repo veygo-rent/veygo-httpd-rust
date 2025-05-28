@@ -61,7 +61,7 @@ fn is_valid_phone_number(phone: &str) -> bool {
     PHONE_REGEX.is_match(phone)
 }
 
-pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("create")
         .and(warp::path::end())
         .and(warp::post())
