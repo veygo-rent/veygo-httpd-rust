@@ -68,7 +68,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let pub_user = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().to_publish_renter();
                                 methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
                             } else {
-                                if let Some(pm_id) = request_body.payment_method_id {
+                                if let Some(_pm_id) = request_body.payment_method_id {
                                     if user.plan_tier == model::PlanTier::Free {
                                         // TODO if the old plan is free, setting up a brand new plan
 
@@ -87,9 +87,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::not_implemented_response()
                                     } else {
                                         // TODO Change exp date and tier level
-                                        let plan_exp_ddmmyyyy = user.plan_renewal_day.clone() + &user.plan_expire_month_year;
-                                        let old_plan = user.plan_tier.clone();
-                                        let if_annual = user.is_plan_annual.clone();
+                                        let _plan_exp_ddmmyyyy = user.plan_renewal_day.clone() + &user.plan_expire_month_year;
+                                        let _old_plan = user.plan_tier.clone();
+                                        let _if_annual = user.is_plan_annual.clone();
                                         methods::standard_replies::not_implemented_response()
                                     }
                                 } else {
