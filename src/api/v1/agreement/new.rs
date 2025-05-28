@@ -30,7 +30,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("token"))
         .and(warp::header::<i32>("user_id"))
         .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(move |body: NewAgreementRequestBodyData, token: String, user_id: i32, client_type: Option<String>| async move {
+        .and_then(async move |body: NewAgreementRequestBodyData, token: String, user_id: i32, client_type: Option<String>| {
             let access_token = model::RequestToken{
                 user_id,
                 token,

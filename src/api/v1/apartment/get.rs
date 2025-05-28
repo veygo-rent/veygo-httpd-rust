@@ -8,7 +8,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
     warp::path("get")
         .and(warp::get())
         .and(warp::path::end())
-        .and_then(move || async move {
+        .and_then(async move || {
             use schema::apartments::dsl::*;
             let mut pool = POOL.clone().get().unwrap();
             let results = apartments
