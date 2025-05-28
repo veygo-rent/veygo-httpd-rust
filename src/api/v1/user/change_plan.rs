@@ -28,8 +28,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let if_token_valid = methods::tokens::verify_user_token(
                     access_token.user_id.clone(),
                     access_token.token.clone(),
-                )
-                    .await;
+                ).await;
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
@@ -39,13 +38,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             // gen new token
                             methods::tokens::rm_token_by_binary(
                                 hex::decode(access_token.token).unwrap(),
-                            )
-                                .await;
+                            ).await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
                                 client_type.clone(),
-                            )
-                                .await;
+                            ).await;
                             use schema::access_tokens::dsl::*;
                             let mut pool = POOL.clone().get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
