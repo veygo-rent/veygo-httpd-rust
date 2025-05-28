@@ -7,7 +7,6 @@ use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use futures::TryStreamExt;
 use std::collections::HashSet;
-use tokio;
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
@@ -84,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .and_then(|mut field| async move {
                                     let mut bytes: Vec<u8> = Vec::new();
 
-                                    // field.data() only returns a piece of the content, you should call over it until it replies None
+                                    // field.data() only returns a piece of the content, you should call over it until it replies to None
                                     while let Some(content) = field.data().await {
                                         let content = content.unwrap();
                                         bytes.put(content);
@@ -233,7 +232,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                             });
 
-                            // Immediately respond OK; records are processing in background
+                            // Immediately respond OK; records are processing in the background
                             return Ok((
                                 methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,

@@ -3,7 +3,6 @@ use crate::{POOL, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
-use tokio::task;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};

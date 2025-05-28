@@ -6,7 +6,6 @@ use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
-use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
 use warp::{Filter, Reply};
 
@@ -129,18 +128,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             use crate::schema::vehicles::dsl::*;
                             let renter_clone = user_in_request.clone();
                             let mut pool = POOL.clone().get().unwrap();
-                            let vehicle_result = spawn_blocking(move || {
-                                vehicles.filter(id.eq(&body.vehicle_id)).get_result::<crate::model::Vehicle>(&mut pool)
-                            }).await.unwrap();
+                            let vehicle_result = vehicles.filter(id.eq(&body.vehicle_id)).get_result::<crate::model::Vehicle>(&mut pool);
                             match vehicle_result {
                                 Ok(vehicle) => {
                                     if vehicle.available && vehicle.apartment_id == renter_clone.id {
                                         // Vehicle checked, check pm::exist, if pm.is_enabled, pm.renter_id == user.id => invalid_payment_method
                                         use crate::schema::payment_methods::dsl::*;
                                         let mut pool = POOL.clone().get().unwrap();
-                                        let pm_result = spawn_blocking(move || {
-                                            payment_methods.filter(id.eq(&body.payment_id)).get_result::<crate::model::PaymentMethod>(&mut pool)
-                                        }).await.unwrap();
+                                        let pm_result = payment_methods.filter(id.eq(&body.payment_id)).get_result::<crate::model::PaymentMethod>(&mut pool);
                                         match pm_result {
                                             Ok(pm) => {
                                                 if pm.is_enabled && pm.renter_id == user_in_request.id {
@@ -171,10 +166,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                     } else {
                                                         let mut pool = POOL.clone().get().unwrap();
                                                         let apartment_id_clone = vehicle.apartment_id.clone();
-                                                        let apt = spawn_blocking(move || {
-                                                            use crate::schema::apartments::dsl::*;
-                                                            apartments.into_boxed().filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool)
-                                                        }).await.unwrap().unwrap();
+                                                        use crate::schema::apartments::dsl::*;
+                                                        let apt = apartments.into_boxed().filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool).unwrap();
                                                         let conf_id = methods::agreement::generate_unique_agreement_confirmation();
                                                         let new_agreement = crate::model::NewAgreement {
                                                             confirmation: conf_id,

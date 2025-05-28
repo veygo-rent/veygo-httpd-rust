@@ -1,6 +1,5 @@
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
-use tokio::task::spawn_blocking;
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::reply::with_status;
@@ -49,17 +48,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                                 let id_clone = access_token.user_id.clone();
                                 let mut pool = POOL.clone().get().unwrap();
-                                let payment_method_query_result = spawn_blocking(move || {
-                                    use crate::schema::payment_methods::dsl::*;
-                                    payment_methods
-                                        .into_boxed()
-                                        .filter(is_enabled.eq(true))
-                                        .filter(renter_id.eq(id_clone))
-                                        .load::<model::PaymentMethod>(&mut pool)
-                                })
-                                .await
-                                .unwrap()
-                                .unwrap();
+                                use crate::schema::payment_methods::dsl::*;
+                                let payment_method_query_result = payment_methods
+                                    .into_boxed()
+                                    .filter(is_enabled.eq(true))
+                                    .filter(renter_id.eq(id_clone))
+                                    .load::<model::PaymentMethod>(&mut pool)
+                                    .unwrap();
                                 let publish_payment_methods: Vec<model::PublishPaymentMethod> =
                                     payment_method_query_result
                                         .iter()

@@ -5,7 +5,6 @@ use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, StripeError};
-use tokio::task;
 use warp::Filter;
 use warp::http::StatusCode;
 
@@ -51,10 +50,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 Ok(new_pm) => {
                                     let md5_clone = new_pm.md5.clone();
                                     let mut pool = POOL.clone().get().unwrap();
-                                    let card_in_db = task::spawn_blocking(move || {
-                                        use crate::schema::payment_methods::dsl::*;
-                                        diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
-                                    }).await.unwrap().unwrap();
+                                    use crate::schema::payment_methods::dsl::*;
+                                    let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
+                                        .unwrap();
                                     if card_in_db {
                                         let error_msg = serde_json::json!({"error": "PaymentMethods existed"});
                                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
@@ -69,10 +67,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     match attach_result {
                                         Ok(_) => {
                                             let mut pool = POOL.clone().get().unwrap();
-                                            let inserted_pm_card = task::spawn_blocking(move || {
-                                                use crate::schema::payment_methods::dsl::*;
-                                                diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap()
-                                            }).await.unwrap().to_public_payment_method();
+                                            use crate::schema::payment_methods::dsl::*;
+                                            let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap()
+                                            .to_public_payment_method();
                                             let msg = serde_json::json!({"payment_method": inserted_pm_card});
                                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
                                         }

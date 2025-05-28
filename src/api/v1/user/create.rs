@@ -6,7 +6,6 @@ use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
-use tokio::task;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};
@@ -73,7 +72,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 use crate::schema::renters::dsl::*;
                 let mut pool = POOL.clone().get().unwrap();
 
-                // Clone the necessary fields *before* the spawn_blocking closure
                 let email_clone = renter_create_data.student_email.clone();
                 let phone_clone = renter_create_data.phone.clone();
                 let apartment_id_clone = renter_create_data.apartment_id; // i32 implements Copy, so no need to clone
@@ -84,10 +82,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
                 } else {
                     // valid email
-                    let result = task::spawn_blocking(move || {
-                        renters.filter(student_email.eq(email_clone)
-                            .or(phone.eq(phone_clone))).get_result::<model::Renter>(&mut pool)
-                    }).await.unwrap();
+                    let result = renters.filter(student_email.eq(email_clone)
+                        .or(phone.eq(phone_clone))).get_result::<model::Renter>(&mut pool);
                     match result {
                         Ok(_user) => {
                             // credential existed
@@ -103,10 +99,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             } else {
                                 // Renter is old enough
                                 let mut pool = POOL.clone().get().unwrap();
-                                let result = task::spawn_blocking(move || {
-                                    use crate::schema::apartments::dsl::*;
-                                    apartments.find(apartment_id_clone).first::<model::Apartment>(&mut pool)
-                                }).await.unwrap();
+                                use crate::schema::apartments::dsl::*;
+                                let result = apartments.find(apartment_id_clone).first::<model::Apartment>(&mut pool);
                                 match result {
                                     // Apartment exists
                                     Ok(apartment) => {
@@ -149,11 +143,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 employee_tier: emp_tier,
                                             };
                                             let mut pool = POOL.clone().get().unwrap();
-                                            let mut renter = task::spawn_blocking(move || {
-                                                diesel::insert_into(renters)
-                                                    .values(&to_be_inserted)
-                                                    .get_result::<model::Renter>(&mut pool) // Get the inserted Renter
-                                            }).await.unwrap().unwrap(); //Awaiting a JoinHandle, not diesel query.
+                                            let mut renter = diesel::insert_into(renters)
+                                                .values(&to_be_inserted)
+                                                .get_result::<model::Renter>(&mut pool).unwrap();
 
                                             let stripe_name = renter.name.clone();
                                             let stripe_phone = renter.phone.clone();
@@ -177,12 +169,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             let user_id_data = renter.id;
                                             let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
                                             let mut pool = POOL.clone().get().unwrap();
-                                            let insert_token_result = task::spawn_blocking(move || {
-                                                use crate::schema::access_tokens::dsl::*;
-                                                diesel::insert_into(access_tokens)
-                                                    .values(&new_access_token)
-                                                    .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter
-                                            }).await.unwrap().unwrap();
+                                            use crate::schema::access_tokens::dsl::*;
+                                            let insert_token_result = diesel::insert_into(access_tokens)
+                                                .values(&new_access_token)
+                                                .get_result::<model::AccessToken>(&mut pool)
+                                                .unwrap();
 
                                             let pub_token = insert_token_result.to_publish_access_token();
                                             let pub_renter = renter.to_publish_renter();

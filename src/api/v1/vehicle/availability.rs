@@ -1,12 +1,11 @@
 use crate::methods::{tokens, user};
-use crate::model::{AccessToken, Vehicle};
+use crate::model::AccessToken;
 use crate::{POOL, model};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashSet;
-use tokio::task::spawn_blocking;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};
@@ -41,13 +40,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let user = user::get_user_by_id(user_id_clone).await.unwrap();
                         let apartment_id_clone = user.apartment_id.clone();
                         let mut pool = POOL.clone().get().unwrap();
-                        let vehicle_list = spawn_blocking(move || {
-                            use crate::schema::vehicles::dsl::*;
-                            use crate::model::Vehicle;
-                            vehicles
-                                .into_boxed().filter(apartment_id.eq(apartment_id_clone))
-                                .filter(available.eq(true)).load::<Vehicle>(&mut pool).unwrap()
-                        }).await.unwrap();
+                        use crate::schema::vehicles::dsl::*;
+                        use crate::model::Vehicle;
+                        let vehicle_list = vehicles
+                                .into_boxed().filter(crate::schema::vehicles::apartment_id.eq(apartment_id_clone))
+                                .filter(available.eq(true)).load::<Vehicle>(&mut pool).unwrap();
 
                         let apt_id = user.apartment_id;
 
@@ -58,31 +55,26 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let end_time_buffered = end_time + Duration::minutes(15);
 
                         let mut pool = POOL.clone().get().unwrap();
-                        let conflicting_vehicle_ids = spawn_blocking({
-                            move || {
-                                use crate::schema::agreements::dsl::*;
-                                use diesel::dsl::sql;
-
-                                agreements
-                                    .into_boxed()
-                                    .filter(apartment_id.eq(apt_id))
-                                    .filter(status.eq(model::AgreementStatus::Rental))
-                                    .filter(
-                                        // We chain .sql() and .bind() to handle multiple placeholders
-                                        sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                            .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                            .sql(" OR COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                            .bind::<Timestamptz, _>(end_time_buffered)
-                                            .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                            .bind::<Timestamptz, _>(end_time_buffered)
-                                    )
-                                    .select(vehicle_id)
-                                    .distinct()
-                                    .load::<i32>(&mut pool)
-                            }
-                        }).await.unwrap().unwrap();
+                        use crate::schema::agreements::dsl::*;
+                        use diesel::dsl::sql;
+                        let conflicting_vehicle_ids = agreements
+                            .into_boxed()
+                            .filter(crate::schema::agreements::apartment_id.eq(apt_id))
+                            .filter(status.eq(crate::model::AgreementStatus::Rental))
+                            .filter(
+                                // We chain .sql() and .bind() to handle multiple placeholders
+                                sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
+                                    .bind::<Timestamptz, _>(start_time_buffered)
+                                    .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
+                                    .bind::<Timestamptz, _>(start_time_buffered)
+                                    .sql(" OR COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
+                                    .bind::<Timestamptz, _>(end_time_buffered)
+                                    .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
+                                    .bind::<Timestamptz, _>(end_time_buffered)
+                            )
+                            .select(vehicle_id)
+                            .distinct()
+                            .load::<i32>(&mut pool).unwrap();
 
                         let conflicting_set: HashSet<i32> = conflicting_vehicle_ids.into_iter().collect();
                         let available_vehicle_list: Vec<Vehicle> = vehicle_list

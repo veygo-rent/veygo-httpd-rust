@@ -3,7 +3,6 @@ use crate::{POOL, methods};
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
-use tokio::task;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};

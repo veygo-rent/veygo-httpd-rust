@@ -2,18 +2,13 @@ use crate::POOL;
 use crate::model::Renter;
 use chrono::Utc;
 use diesel::prelude::*;
-use tokio::task;
 
 pub async fn get_user_by_id(user_id: i32) -> QueryResult<Renter> {
     let mut pool = POOL.clone().get().unwrap();
-    task::spawn_blocking(move || {
-        use crate::schema::renters::dsl::*;
-        renters
-            .filter(id.eq(&user_id))
-            .get_result::<Renter>(&mut pool)
-    })
-    .await
-    .unwrap()
+    use crate::schema::renters::dsl::*;
+    renters
+        .filter(id.eq(&user_id))
+        .get_result::<Renter>(&mut pool)
 }
 
 pub async fn check_if_on_do_not_rent(renter: &Renter) -> bool {

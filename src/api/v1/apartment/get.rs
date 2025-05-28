@@ -1,7 +1,6 @@
 use crate::model::{Apartment, PublishApartment};
 use crate::{POOL, schema};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use tokio::task::spawn_blocking;
 use warp::Filter;
 use warp::http::StatusCode;
 
@@ -12,15 +11,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and_then(move || async move {
             use schema::apartments::dsl::*;
             let mut pool = POOL.clone().get().unwrap();
-            let results = spawn_blocking(move || {
-                apartments
-                    .into_boxed()
-                    .filter(is_operating.eq(true))
-                    .load::<Apartment>(&mut pool)
-            })
-            .await
-            .unwrap()
-            .unwrap();
+            let results = apartments
+                .into_boxed()
+                .filter(is_operating.eq(true))
+                .load::<Apartment>(&mut pool)
+                .unwrap();
 
             let apt_publish: Vec<PublishApartment> = results
                 .iter()

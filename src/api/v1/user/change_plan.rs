@@ -74,10 +74,25 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if let Some(pm_id) = request_body.payment_method_id {
                                     if user.plan_tier == model::PlanTier::Free {
                                         // TODO if the old plan is free, setting up a brand new plan
+
+                                        let plan_cost = match request_body.plan {
+                                            model::PlanTier::Free => apartment.free_tier_rate,
+                                            model::PlanTier::Gold => apartment.gold_tier_rate,
+                                            model::PlanTier::Silver => apartment.silver_tier_rate,
+                                            model::PlanTier::Platinum => apartment.platinum_tier_rate,
+                                        } * if request_body.is_plan_annual { 10.0 } else { 1.0 };
+
+                                        if plan_cost == 0.00 {
+                                            // TODO 
+                                            return methods::standard_replies::not_implemented_response();
+                                        }
+
                                         methods::standard_replies::not_implemented_response()
                                     } else {
                                         // TODO Change exp date and tier level
-                                        let plan_exp_ddmmyyyy = user.plan_renewal_day + &user.plan_expire_month_year;
+                                        let plan_exp_ddmmyyyy = user.plan_renewal_day.clone() + &user.plan_expire_month_year;
+                                        let old_plan = user.plan_tier.clone();
+                                        let if_annual = user.is_plan_annual.clone();
                                         methods::standard_replies::not_implemented_response()
                                     }
                                 } else {
