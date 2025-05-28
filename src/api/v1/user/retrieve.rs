@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use warp::{Filter, Reply};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("change-plan")
+    warp::path("retrieve")
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("token"))
