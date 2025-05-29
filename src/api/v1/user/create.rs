@@ -39,9 +39,10 @@ fn is_at_least_18(dob: &NaiveDate) -> bool {
 }
 
 fn is_valid_email(email: &str) -> bool {
+    if email.len() > 254 { return false; }
     lazy_static::lazy_static! {
         static ref EMAIL_REGEX: Regex = Regex::new(
-            r"(?i)^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+            r"(?i)^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-](?:[a-z0-9-]{0,61}[a-z0-9])+(?:\.[a-z0-9-](?:[a-z0-9-]{0,61}[a-z0-9])+)+$"
         ).expect("Invalid regex");
     }
     // Check overall length (RFC 5321 limit is 254, but some say 320)
