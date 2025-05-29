@@ -23,6 +23,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         if !token_bool {
                             methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
+                            let token_clone = access_token.clone();
+                            methods::tokens::rm_token_by_binary(
+                                hex::decode(token_clone.token).unwrap(),
+                            ).await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
                                 client_type.clone(),
