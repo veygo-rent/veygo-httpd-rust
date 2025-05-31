@@ -21,15 +21,26 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
     warp::path("create")
         .and(warp::post())
         .and(warp::body::json())
-        .and(warp::header::<String>("token"))
-        .and(warp::header::<i32>("user_id"))
+        .and(warp::header::<String>("auth"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and(warp::path::end())
-        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, token: String, user_id: i32, client_type: Option<String>| {
-            let access_token = model::RequestToken {
-                user_id,
-                token,
+        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, auth: String, client_type: Option<String>| {
+            let token_and_id = auth.split("$").collect::<Vec<&str>>();
+            if token_and_id.len() != 2 {
+                return methods::tokens::token_invalid_wrapped_return(&auth);
+            }
+            let user_id;
+            let user_id_parsed_result = token_and_id[1].parse::<i32>();
+            user_id = match user_id_parsed_result {
+                Ok(int) => {
+                    int
+                }
+                Err(_) => {
+                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                }
             };
+
+            let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
             let if_token_valid = methods::tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
             return match if_token_valid {
                 Err(_) => {

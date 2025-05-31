@@ -17,17 +17,30 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
-        .and(warp::header::<String>("token"))
-        .and(warp::header::<i32>("user_id"))
-        .and(warp::header::<i32>("toll_id"))
+        .and(warp::header::<String>("auth"))
+        .and(warp::header::<String>("toll-id"))
         .and(warp::header::optional::<String>("x-client-type"))
         .and_then(
             async move |form: FormData,
-                        token: String,
-                        user_id: i32,
-                        toll_id: i32,
+                        auth: String,
+                        toll_id: String,
                         client_type: Option<String>| {
-                let access_token = model::RequestToken { user_id, token };
+                let token_and_id = auth.split("$").collect::<Vec<&str>>();
+                if token_and_id.len() != 2 {
+                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                }
+                let user_id;
+                let user_id_parsed_result = token_and_id[1].parse::<i32>();
+                user_id = match user_id_parsed_result {
+                    Ok(int) => {
+                        int
+                    }
+                    Err(_) => {
+                        return methods::tokens::token_invalid_wrapped_return(&auth);
+                    }
+                };
+
+                let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid = methods::tokens::verify_user_token(
                     access_token.user_id.clone(),
                     access_token.token.clone(),
@@ -59,10 +72,19 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
+                            let toll_id_int: i32 = match toll_id.parse() {
+                                Ok(int) => int,
+                                Err(_) => {
+                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
+                                        warp::reply::json(&serde_json::json!({ "error": "Toll company invalid" })),
+                                        StatusCode::NOT_ACCEPTABLE
+                                    )),));
+                                }
+                            };
                             let toll_company = {
                                 use crate::schema::transponder_companies::dsl::*;
                                 let if_exists = diesel::select(exists(transponder_companies
-                                    .into_boxed().filter(id.eq(toll_id)))).get_result::<bool>(&mut pool).unwrap();
+                                    .into_boxed().filter(id.eq(toll_id_int)))).get_result::<bool>(&mut pool).unwrap();
                                 if !if_exists {
                                     return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
                                         warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
@@ -70,7 +92,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     )),));
                                 }
                                 transponder_companies
-                                    .into_boxed().filter(id.eq(toll_id))
+                                    .into_boxed().filter(id.eq(toll_id_int))
                                     .get_result::<model::TransponderCompany>(&mut pool).unwrap()
                             };
                             if !methods::user::user_with_admin_access(&admin) {
