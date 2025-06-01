@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 mod api;
 mod integration;
 mod methods;
@@ -31,6 +32,7 @@ fn get_connection_pool() -> PgPool {
 static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 
 #[tokio::main]
+
 async fn main() {
     // routing for the server
     let react_app =
