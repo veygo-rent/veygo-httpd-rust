@@ -6,6 +6,7 @@ mod retrieve;
 mod update_apartment;
 mod update_phone;
 mod upload_file;
+mod rm_token;
 
 use warp::Filter;
 
@@ -20,7 +21,8 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                 .or(upload_file::main())
                 .or(get_files::main())
                 .or(change_plan::main())
-                .or(retrieve::main()),
+                .or(retrieve::main())
+                .or(rm_token::main()),
         )
         .and(warp::path::end())
 }
