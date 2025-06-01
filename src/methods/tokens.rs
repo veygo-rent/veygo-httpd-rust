@@ -83,11 +83,10 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
     }
 }
 
-pub async fn rm_token_by_binary(token_bit: Vec<u8>) -> AccessToken {
+pub async fn rm_token_by_binary(token_bit: Vec<u8>) -> QueryResult<AccessToken> {
     let mut pool = POOL.clone().get().unwrap();
     diesel::delete(access_tokens.filter(token.eq(token_bit)))
         .get_result::<AccessToken>(&mut pool)
-        .unwrap()
 }
 
 pub fn token_not_hex_warp_return(
