@@ -7,9 +7,16 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
     warp::path("remove-token")
         .and(warp::path::end())
         .and(warp::get())
-        .and(warp::header::<String>("auth"))
-        .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(async move |auth: String, _client_type: Option<String>| {
+        .and(warp::header::headers_cloned())
+        .and_then(async move |headers: warp::http::HeaderMap| {
+            println!("Received headers:\n{:#?}", headers);
+            let auth = match headers.get("auth") {
+                Some(val) => match val.to_str() {
+                    Ok(s) => s.to_string(),
+                    Err(_) => return methods::tokens::token_invalid_wrapped_return("invalid"),
+                },
+                None => return methods::tokens::token_invalid_wrapped_return("missing"),
+            };
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
                 return methods::tokens::token_invalid_wrapped_return(&auth);

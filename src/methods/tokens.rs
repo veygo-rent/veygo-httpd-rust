@@ -102,7 +102,7 @@ pub fn token_not_hex_warp_return(
 }
 
 pub fn token_invalid_wrapped_return(
-    token_data: &String,
+    token_data: &str,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not valid"});
     Ok::<_, Rejection>((warp::reply::with_status(
