@@ -28,8 +28,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::post())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
-        .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(async move |body: NewAgreementRequestBodyData, auth: String, client_type: Option<String>| {
+        .and(warp::header::<String>("user-agent"))
+        .and_then(async move |body: NewAgreementRequestBodyData, auth: String, user_agent: String| {
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
                 return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -56,8 +56,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
                         // Token is valid, generate new publish token, user_id valid
-                        methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), client_type.clone()).await;
+                        let _ = methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
+                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), user_agent.clone()).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();

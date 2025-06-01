@@ -22,9 +22,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::post())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
-        .and(warp::header::optional::<String>("x-client-type"))
+        .and(warp::header::<String>("user-agent"))
         .and(warp::path::end())
-        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, auth: String, client_type: Option<String>| {
+        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, auth: String, user_agent: String| {
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
                 return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -49,8 +49,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 Ok(token_bool) => {
                     if token_bool {
                         // gen new token
-                        methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), client_type.clone()).await;
+                        let _ = methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
+                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), user_agent.clone()).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();

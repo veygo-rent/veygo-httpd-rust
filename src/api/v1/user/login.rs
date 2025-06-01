@@ -18,8 +18,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
-        .and(warp::header::optional::<String>("x-client-type"))
-        .and_then(async move |login_data: LoginData, client_type: Option<String>| {
+        .and(warp::header::<String>("user-agent"))
+        .and_then(async move |login_data: LoginData, user_agent: String| {
             use crate::schema::renters::dsl::*;
             let mut pool = POOL.clone().get().unwrap();
             let input_email = login_data.email.clone();
@@ -31,7 +31,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     if verify(&input_password, &renter.password).unwrap_or(false) {
                         // user and password are verified
                         let user_id_data = renter.id;
-                        let new_access_token = methods::tokens::gen_token_object(user_id_data, client_type).await;
+                        let new_access_token = methods::tokens::gen_token_object(user_id_data, user_agent).await;
                         let mut pool = POOL.clone().get().unwrap();
                         use crate::schema::access_tokens::dsl::*;
                         let insert_token_result = diesel::insert_into(access_tokens)

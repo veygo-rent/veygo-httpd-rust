@@ -34,12 +34,10 @@ async fn generate_unique_token() -> Vec<u8> {
     }
 }
 
-pub async fn gen_token_object(_user_id: i32, client_type: Option<String>) -> NewAccessToken {
+pub async fn gen_token_object(_user_id: i32, user_agent: String) -> NewAccessToken {
     let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
-    if let Some(client_type) = client_type {
-        if client_type == "veygo-app" {
-            _exp = Utc::now().add(chrono::Duration::days(28));
-        }
+    if user_agent.contains("veygo") {
+        _exp = Utc::now().add(chrono::Duration::days(28));
     }
     NewAccessToken {
         user_id: _user_id,
@@ -83,10 +81,10 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
     }
 }
 
-pub async fn rm_token_by_binary(token_bit: Vec<u8>) -> QueryResult<AccessToken> {
+pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
     let mut pool = POOL.clone().get().unwrap();
-    diesel::delete(access_tokens.filter(token.eq(token_bit)))
-        .get_result::<AccessToken>(&mut pool)
+    let _ = diesel::delete(access_tokens.filter(token.eq(token_bit)))
+        .get_result::<AccessToken>(&mut pool);
 }
 
 pub fn token_not_hex_warp_return(

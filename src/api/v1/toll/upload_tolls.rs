@@ -19,12 +19,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("toll-id"))
-        .and(warp::header::optional::<String>("x-client-type"))
+        .and(warp::header::<String>("user-agent"))
         .and_then(
             async move |form: FormData,
                         auth: String,
                         toll_id: String,
-                        client_type: Option<String>| {
+                        user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -62,7 +62,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
-                                client_type.clone(),
+                                user_agent.clone(),
                             )
                             .await;
                             use crate::schema::access_tokens::dsl::*;

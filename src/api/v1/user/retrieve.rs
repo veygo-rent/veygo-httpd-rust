@@ -7,9 +7,9 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("auth"))
-        .and(warp::header::optional::<String>("x-client-type"))
+        .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |auth: String, client_type: Option<String>| {
+            async move |auth: String, user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -43,7 +43,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                             ).await;
                             let new_token = methods::tokens::gen_token_object(
                                 access_token.user_id.clone(),
-                                client_type.clone(),
+                                user_agent.clone(),
                             )
                                 .await;
                             use schema::access_tokens::dsl::*;
