@@ -492,7 +492,7 @@ pub struct Apartment {
     pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
-    pub is_uni: bool,
+    pub uni_id: i32,
 }
 
 impl Apartment {
@@ -520,7 +520,7 @@ impl Apartment {
             pai_protection_rate: self.pai_protection_rate,
             sales_tax_rate: self.sales_tax_rate,
             is_public: self.is_public,
-            is_uni: self.is_uni,
+            uni_id: self.uni_id,
         }
     }
 }
@@ -549,7 +549,7 @@ pub struct PublishApartment {
     pub pai_protection_rate: f64,
     pub sales_tax_rate: f64,
     pub is_public: bool,
-    pub is_uni: bool,
+    pub uni_id: i32,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -578,7 +578,7 @@ pub struct NewApartment {
     pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
-    pub is_uni: bool,
+    pub uni_id: i32,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let results = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))
-                .filter(is_uni.eq(true))
+                .filter(uni_id.eq(0))
                 .load::<Apartment>(&mut pool)
                 .unwrap();
 

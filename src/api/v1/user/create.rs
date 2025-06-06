@@ -101,7 +101,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                             let input_email_domain = get_email_domain(&email_clone).unwrap();
                             let result;
-                            result = if input_email_domain != "veygo.rent" { apartments.filter(is_uni).filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) } else { apartments.filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) };
+                            result = if input_email_domain != "veygo.rent" { apartments.filter(uni_id.eq(0)).filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) } else { apartments.filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) };
                             match result {
                                 // Matched Apartment Found
                                 Ok(apartment) => {

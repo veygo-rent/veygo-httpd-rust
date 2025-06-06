@@ -103,7 +103,7 @@ diesel::table! {
         sales_tax_rate -> Float8,
         is_operating -> Bool,
         is_public -> Bool,
-        is_uni -> Bool,
+        uni_id -> Int4,
     }
 }
 
@@ -327,7 +327,7 @@ diesel::joinable!(agreements -> renters (renter_id));
 diesel::joinable!(agreements -> vehicles (vehicle_id));
 diesel::joinable!(charges -> agreements (agreement_id));
 diesel::joinable!(charges -> vehicles (vehicle_id));
-diesel::joinable!(damage_submissions -> agreements (reported_by));
+diesel::joinable!(damage_submissions -> renters (reported_by));
 diesel::joinable!(damages -> agreements (agreement_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
 diesel::joinable!(payments -> agreements (agreement_id));
