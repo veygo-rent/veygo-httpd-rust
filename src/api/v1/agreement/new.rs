@@ -202,6 +202,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                             vehicle_id: vehicle.id,
                                                             renter_id: renter_clone.id,
                                                             payment_method_id: body.payment_id,
+                                                            promo_id: None,
                                                         };
                                                         let deposit_amount = new_agreement.duration_rate * (1.00 + apt.sales_tax_rate);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;

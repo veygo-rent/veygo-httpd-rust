@@ -801,6 +801,22 @@ pub struct NewVehicleSnapshot {
     pub back_image: String,
 }
 
+#[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(table_name = promos)]
+#[diesel(primary_key(code))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Promo {
+    pub code: String,
+    pub name: String,
+    pub amount: f64,
+    pub is_enabled: bool,
+    pub is_one_time: bool,
+    pub exp: DateTime<Utc>,
+    pub user_id: i32,
+    pub apt_id: i32,
+    pub uni_id: i32,
+}
+
 #[derive(
     Queryable,
     Selectable,
@@ -850,6 +866,7 @@ pub struct Agreement {
     pub damage_ids: Vec<Option<i32>>,
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
+    pub promo_id: Option<i32>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -881,6 +898,7 @@ pub struct NewAgreement {
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
+    pub promo_id: Option<i32>,
 }
 
 #[derive(

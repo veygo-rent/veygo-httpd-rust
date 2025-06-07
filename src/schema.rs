@@ -75,6 +75,7 @@ diesel::table! {
         damage_ids -> Array<Nullable<Int4>>,
         vehicle_snapshot_before -> Nullable<Int4>,
         vehicle_snapshot_after -> Nullable<Int4>,
+        promo_id -> Nullable<Int4>,
     }
 }
 
@@ -196,6 +197,20 @@ diesel::table! {
         payment_method_id -> Int4,
         amount_authorized -> Nullable<Float8>,
         capture_before -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    promos (code) {
+        code -> Varchar,
+        name -> Varchar,
+        amount -> Float8,
+        is_enabled -> Bool,
+        is_one_time -> Bool,
+        exp -> Timestamptz,
+        user_id -> Int4,
+        apt_id -> Int4,
+        uni_id -> Int4,
     }
 }
 
@@ -348,6 +363,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     do_not_rent_lists,
     payment_methods,
     payments,
+    promos,
     rental_transactions,
     renters,
     transponder_companies,
