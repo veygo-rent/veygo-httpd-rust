@@ -1,3 +1,4 @@
+mod admin;
 mod agreement;
 mod apartment;
 mod payment_method;
@@ -17,7 +18,8 @@ pub fn api_v1() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reje
                 .or(vehicle::api_v1_vehicle())
                 .or(agreement::api_v1_agreement())
                 .or(toll::api_v1_toll())
-                .or(verification::api_v1_verification()),
+                .or(verification::api_v1_verification())
+                .or(admin::api_v1_admin()),
         )
         .and(warp::path::end())
 }
