@@ -195,7 +195,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                             pcdw_ext_protection_rate: if body.pcdw_ext { apt.pcdw_ext_protection_rate * vehicle.msrp_factor } else { 0.00 },
                                                             rsa_protection_rate: if body.rsa { apt.rsa_protection_rate } else { 0.00 },
                                                             pai_protection_rate: if body.pai { apt.pai_protection_rate } else { 0.00 },
-                                                            tax_rate: apt.sales_tax_rate,
+                                                            taxes: apt.taxes,
                                                             msrp_factor: vehicle.msrp_factor,
                                                             duration_rate: apt.duration_rate * vehicle.msrp_factor,
                                                             apartment_id: vehicle.apartment_id,
@@ -204,10 +204,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                             payment_method_id: body.payment_id,
                                                             promo_id: None,
                                                         };
-                                                        let deposit_amount = new_agreement.duration_rate * (1.00 + apt.sales_tax_rate);
+                                                        //TODO update to real taxes
+                                                        let deposit_amount = new_agreement.duration_rate * (1.00 + 0.11);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                                                            "Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int, PaymentIntentCaptureMethod::Manual
+                                                            "Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
                                                         ).await;
                                                         match stripe_auth {
                                                             Err(error) => {

@@ -489,10 +489,10 @@ pub struct Apartment {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub sales_tax_rate: f64,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
+    pub taxes: Vec<Option<i32>>,
 }
 
 impl Apartment {
@@ -518,7 +518,7 @@ impl Apartment {
             pcdw_ext_protection_rate: self.pcdw_ext_protection_rate,
             rsa_protection_rate: self.rsa_protection_rate,
             pai_protection_rate: self.pai_protection_rate,
-            sales_tax_rate: self.sales_tax_rate,
+            taxes: self.taxes.clone(),
             is_public: self.is_public,
             uni_id: self.uni_id,
         }
@@ -547,9 +547,9 @@ pub struct PublishApartment {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub sales_tax_rate: f64,
     pub is_public: bool,
     pub uni_id: i32,
+    pub taxes: Vec<Option<i32>>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -575,7 +575,7 @@ pub struct NewApartment {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub sales_tax_rate: f64,
+    pub taxes: Vec<i32>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
@@ -856,7 +856,6 @@ pub struct Agreement {
     pub actual_drop_off_time: Option<DateTime<Utc>>,
     pub drop_off_odometer: Option<i32>,
     pub drop_off_level: Option<i32>,
-    pub tax_rate: f64,
     pub msrp_factor: f64,
     pub duration_rate: f64,
     pub apartment_id: i32,
@@ -867,6 +866,7 @@ pub struct Agreement {
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
     pub promo_id: Option<i32>,
+    pub taxes: Vec<Option<i32>>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -891,7 +891,6 @@ pub struct NewAgreement {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub tax_rate: f64,
     pub msrp_factor: f64,
     pub duration_rate: f64,
     pub apartment_id: i32,
@@ -899,6 +898,7 @@ pub struct NewAgreement {
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub promo_id: Option<i32>,
+    pub taxes: Vec<Option<i32>>,
 }
 
 #[derive(

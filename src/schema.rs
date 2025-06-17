@@ -65,7 +65,6 @@ diesel::table! {
         actual_drop_off_time -> Nullable<Timestamptz>,
         drop_off_odometer -> Nullable<Int4>,
         drop_off_level -> Nullable<Int4>,
-        tax_rate -> Float8,
         msrp_factor -> Float8,
         duration_rate -> Float8,
         apartment_id -> Int4,
@@ -76,6 +75,7 @@ diesel::table! {
         vehicle_snapshot_before -> Nullable<Int4>,
         vehicle_snapshot_after -> Nullable<Int4>,
         promo_id -> Nullable<Int4>,
+        taxes -> Array<Nullable<Int4>>,
     }
 }
 
@@ -101,10 +101,10 @@ diesel::table! {
         pcdw_ext_protection_rate -> Float8,
         rsa_protection_rate -> Float8,
         pai_protection_rate -> Float8,
-        sales_tax_rate -> Float8,
         is_operating -> Bool,
         is_public -> Bool,
         uni_id -> Int4,
+        taxes -> Array<Nullable<Int4>>,
     }
 }
 
@@ -120,6 +120,7 @@ diesel::table! {
         checksum -> Varchar,
         transponder_company_id -> Nullable<Int4>,
         vehicle_identifier -> Nullable<Varchar>,
+        taxes -> Array<Nullable<Int4>>,
     }
 }
 
@@ -271,6 +272,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    taxes (id) {
+        id -> Int4,
+        name -> Varchar,
+        multiplier -> Float8,
+        is_effective -> Bool,
+    }
+}
+
+diesel::table! {
     transponder_companies (id) {
         id -> Int4,
         name -> Varchar,
@@ -366,6 +376,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     promos,
     rental_transactions,
     renters,
+    taxes,
     transponder_companies,
     vehicle_snapshots,
     vehicles,

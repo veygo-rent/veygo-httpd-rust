@@ -77,7 +77,8 @@ pub async fn nightly_task() {
                         use crate::schema::payment_methods::dsl::*;
                         let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renew_id)).get_result::<model::PaymentMethod>(&mut POOL.clone().get().unwrap()).unwrap();
                         // Charge Renter. If fails, switch to the Free Tier
-                        let taxed_rent = rent * (1.00 + apartment.sales_tax_rate);
+                        //TODO: Add taxes
+                        let taxed_rent = rent * (1.00 + 0.11);
                         let taxed_rent_in_int = (taxed_rent * 100.0).round() as i64;
                         use stripe::PaymentIntentCaptureMethod;
                         let payment_result = integration::stripe_veygo::create_payment_intent(description.clone(), renter.clone().stripe_id.unwrap(), plan_pm.token, taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic).await;
