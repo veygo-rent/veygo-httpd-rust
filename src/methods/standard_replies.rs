@@ -63,6 +63,17 @@ pub fn renter_wrapped(
     ),))
 }
 
+pub fn admin_wrapped(
+    token_data: PublishAccessToken,
+    renter: &PublishRenter,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg = serde_json::json!({"admin": renter});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),
+    ),))
+}
+
 #[allow(dead_code)]
 pub fn not_implemented_response() -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Not Implemented"});

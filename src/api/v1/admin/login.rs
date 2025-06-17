@@ -32,7 +32,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
                         return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),));
                     }
-                    if verify(&input_password, &admin.password).unwrap_or(false) {
+                    return if verify(&input_password, &admin.password).unwrap_or(false) {
                         // user and password are verified
                         let user_id_data = admin.id;
                         let new_access_token = methods::tokens::gen_token_object(user_id_data, user_agent).await;
@@ -48,10 +48,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let renter_msg = serde_json::json!({
                             "admin": pub_renter,
                         });
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),));
+                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
                     } else {
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
-                        return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),));
+                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
                     }
                 },
                 Err(_) => {
