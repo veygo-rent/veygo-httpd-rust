@@ -31,4 +31,4 @@ anyhow = "1.0.98"
 gcloud-storage = { version = "1.1.0", features = ["auth"] }
 uuid = { version = "1.17.0", features = ["v4"] }
 blake3 = "1.8.2"
-reqwest = "0.12.19"
+reqwest = "0.12.20"
