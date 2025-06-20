@@ -12,6 +12,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
             async move |auth: String, user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
+                    crate::integration::sendgrid_veygo::send_email(Option::from("server"), crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"), "line 15 err", "line 15 err", None, None).await.expect("TODO: panic message");
                     return methods::tokens::token_invalid_wrapped_return(&auth);
                 }
                 let user_id;
@@ -21,6 +22,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                         int
                     }
                     Err(_) => {
+                        crate::integration::sendgrid_veygo::send_email(Option::from("server"), crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"), "line 25 err", "line 25 err", None, None).await.expect("TODO: panic message");
                         return methods::tokens::token_invalid_wrapped_return(&auth);
                     }
                 };
@@ -35,6 +37,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
                         if !token_bool {
+                            crate::integration::sendgrid_veygo::send_email(Option::from("server"), crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"), "line 40 err", "line 40 err", None, None).await.expect("TODO: panic message");
                             methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             let token_clone = access_token.clone();
