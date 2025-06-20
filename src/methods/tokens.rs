@@ -47,7 +47,7 @@ pub async fn gen_token_object(_user_id: i32, user_agent: String) -> NewAccessTok
 }
 
 pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool, FromHexError> {
-    let binary_token = hex::decode(token_data);
+    let binary_token = hex::decode(token_data.clone());
     match binary_token {
         Err(error) => Err(error),
         Ok(binary_token) => {
@@ -65,7 +65,7 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
                 None,
                 crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
                 "Token in db status",
-                &*token_in_db.to_string(),
+                &*(token_in_db.to_string() + " " + &token_data),
                 None,
                 None,
             )
