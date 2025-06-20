@@ -11,16 +11,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(async move |auth: String, user_agent: String| {
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
-                crate::integration::sendgrid_veygo::send_email(
-                    Option::from("server"),
-                    crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-                    "line 24 err",
-                    "line 24 err",
-                    None,
-                    None,
-                )
-                .await
-                .expect("TODO: panic message");
                 return methods::tokens::token_invalid_wrapped_return(&auth);
             }
             let user_id;
@@ -28,19 +18,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             user_id = match user_id_parsed_result {
                 Ok(int) => int,
                 Err(_) => {
-                    crate::integration::sendgrid_veygo::send_email(
-                        Option::from("server"),
-                        crate::integration::sendgrid_veygo::make_email_obj(
-                            "szhou@veygo.rent",
-                            "Danny",
-                        ),
-                        "line 44 err",
-                        "line 44 err",
-                        None,
-                        None,
-                    )
-                    .await
-                    .expect("TODO: panic message");
                     return methods::tokens::token_invalid_wrapped_return(&auth);
                 }
             };
@@ -58,19 +35,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                 Ok(token_bool) => {
                     if !token_bool {
-                        crate::integration::sendgrid_veygo::send_email(
-                            Option::from("server"),
-                            crate::integration::sendgrid_veygo::make_email_obj(
-                                "szhou@veygo.rent",
-                                "Danny",
-                            ),
-                            "line 74 err",
-                            "line 74 err",
-                            None,
-                            None,
-                        )
-                        .await
-                        .expect("TODO: panic message");
                         methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
                         let token_clone = access_token.clone();
