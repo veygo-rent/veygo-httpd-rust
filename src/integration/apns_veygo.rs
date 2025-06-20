@@ -9,6 +9,7 @@ pub async fn send_notification(
     device_token: String,
     title: String,
     message: String,
+    is_admin_app: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let key_file: String;
     let team_id = String::from("F84843HABV");
@@ -20,7 +21,12 @@ pub async fn send_notification(
         key_file = String::from("/app/cert/apple/Production_3C3L4DRJYN.p8");
         key_id = String::from("3C3L4DRJYN");
     }
-    let topic: Option<String> = String::from("com.veygo-rent.veygo-apartment-swift").into();
+    let topic: Option<String>;
+    if is_admin_app {
+        topic = String::from("com.veygo-rent.veygo-apartment-swift").into();
+    } else {
+        topic = String::from("com.veygo-rent.veygo-apartment-admin-swift").into();
+    }
 
     // Read the private key from the disk
     let private_key = File::open(key_file).unwrap();
