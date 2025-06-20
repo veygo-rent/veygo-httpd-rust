@@ -17,8 +17,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
+        .and(warp::header::optional::<String>("Debug-Mode"))
         .and_then(
-            async move |body: UpdateApnsBody, auth: String, user_agent: String| {
+            async move |body: UpdateApnsBody,
+                        auth: String,
+                        user_agent: String,
+                        debug_mode: Option<String>| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -68,6 +72,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let mut usr_in_question =
                                 methods::user::get_user_by_id(usr_id_clone).await.unwrap();
                             usr_in_question.apple_apns = Option::from(body.apns.clone());
+                            if let Some(debug_mode_string) = debug_mode {
+                                if debug_mode_string == "ios" {
+                                    usr_in_question.apple_apns = Option::from(
+                                        "!".to_owned()
+                                            + usr_in_question.apple_apns.unwrap().as_str(),
+                                    );
+                                }
+                            }
                             let renter_updated = diesel::update(renters.find(usr_id_clone))
                                 .set(&usr_in_question)
                                 .get_result::<Renter>(&mut pool)
