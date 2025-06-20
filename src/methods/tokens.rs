@@ -61,16 +61,6 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
             ))
             .get_result::<bool>(&mut pool)
             .unwrap();
-            crate::integration::sendgrid_veygo::send_email(
-                None,
-                crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-                "Token in db status",
-                &*(token_in_db.to_string() + " " + &token_data),
-                None,
-                None,
-            )
-            .await
-            .expect("Failed to send email");
             if token_in_db {
                 let mut pool = POOL.clone().get().unwrap();
                 let token_in_db_result = access_tokens
