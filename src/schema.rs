@@ -268,6 +268,8 @@ diesel::table! {
         is_plan_annual -> Bool,
         employee_tier -> EmployeeTierEnum,
         subscription_payment_method_id -> Nullable<Int4>,
+        apple_apns -> Nullable<Varchar>,
+        admin_apple_apns -> Nullable<Varchar>,
     }
 }
 

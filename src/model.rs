@@ -308,6 +308,8 @@ pub struct Renter {
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
     pub subscription_payment_method_id: Option<i32>,
+    pub apple_apns: Option<String>,
+    pub admin_apple_apns: Option<String>,
 }
 
 impl Renter {
