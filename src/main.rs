@@ -34,6 +34,15 @@ static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 #[tokio::main]
 
 async fn main() {
+    let _ = integration::sendgrid_veygo::send_email(
+        Option::from("Veygo Server"),
+        integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
+        "Main thread now running",
+        "Main thread is now running",
+        None,
+        None,
+    )
+    .await;
     // routing for the server
     let react_app =
         warp::fs::dir("/app/www").or(warp::any().and(warp::fs::file("/app/www/index.html")));
