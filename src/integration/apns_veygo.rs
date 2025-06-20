@@ -23,9 +23,9 @@ pub async fn send_notification(
     }
     let topic: Option<String>;
     if is_admin_app {
-        topic = String::from("com.veygo-rent.veygo-apartment-swift").into();
-    } else {
         topic = String::from("com.veygo-rent.veygo-apartment-admin-swift").into();
+    } else {
+        topic = String::from("com.veygo-rent.veygo-apartment-swift").into();
     }
 
     // Read the private key from the disk
