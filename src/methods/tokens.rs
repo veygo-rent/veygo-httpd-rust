@@ -69,16 +69,6 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
                     .first::<AccessToken>(&mut pool)
                     .unwrap();
                 let token_exp = token_in_db_result.exp;
-                crate::integration::sendgrid_veygo::send_email(
-                    None,
-                    crate::integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-                    "Token exp",
-                    &*token_exp.to_string(),
-                    None,
-                    None,
-                )
-                .await
-                .expect("Failed to send email");
                 if token_exp >= Utc::now() {
                     Ok(true)
                 } else {
