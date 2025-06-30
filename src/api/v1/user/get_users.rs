@@ -1,9 +1,12 @@
-use crate::{POOL, methods, model, schema};
+use crate::{POOL, methods, model};
+use diesel::RunQueryDsl;
 use diesel::prelude::*;
+use warp::http::StatusCode;
+use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("retrieve")
+    warp::path("get-users")
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("auth"))
@@ -37,6 +40,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     if !token_bool {
                         methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
+                        // Token is valid
+                        let id_clone = access_token.user_id.clone();
+                        let admin = methods::user::get_user_by_id(id_clone).await.unwrap();
                         let token_clone = access_token.clone();
                         methods::tokens::rm_token_by_binary(
                             hex::decode(token_clone.token).unwrap(),
@@ -47,26 +53,50 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             user_agent.clone(),
                         )
                         .await;
-                        use schema::access_tokens::dsl::*;
+                        use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
                             .to_publish_access_token();
-                        let user = methods::user::get_user_by_id(access_token.user_id)
-                            .await
-                            .unwrap();
-                        if !methods::user::user_with_admin_access(&user) {
+                        if !(admin.employee_tier == model::EmployeeTier::Admin
+                            && admin.apartment_id == 1
+                            || admin.employee_tier == model::EmployeeTier::GeneralEmployee
+                                && admin.apartment_id != 1)
+                        {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
                                 token_clone,
                             );
                         }
-                        methods::standard_replies::admin_wrapped(
+                        let publish_renters: Vec<model::PublishRenter>;
+                        use crate::schema::renters::dsl::*;
+                        if admin.apartment_id == 1 {
+                            // get ALL users
+                            publish_renters = renters
+                                .load::<model::Renter>(&mut pool)
+                                .unwrap()
+                                .iter()
+                                .map(|x| x.to_publish_renter())
+                                .collect();
+                        } else {
+                            // get Apartments-Specific users
+                            publish_renters = renters
+                                .filter(apartment_id.eq(admin.apartment_id))
+                                .load::<model::Renter>(&mut pool)
+                                .unwrap()
+                                .iter()
+                                .map(|x| x.to_publish_renter())
+                                .collect();
+                        }
+                        let msg = serde_json::json!({
+                            "renters": publish_renters,
+                        });
+                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
                             new_token_in_db_publish,
-                            &user.to_publish_renter(),
-                        )
+                            with_status(warp::reply::json(&msg), StatusCode::OK),
+                        ),))
                     }
                 }
             };
