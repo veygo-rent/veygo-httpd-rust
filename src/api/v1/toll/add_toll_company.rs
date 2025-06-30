@@ -62,7 +62,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            if !methods::user::user_with_admin_access(&admin) {
+                            if !methods::user::user_is_operational_admin(&admin) {
                                 let token_clone = new_token_in_db_publish.clone();
                                 return methods::standard_replies::user_not_admin_wrapped_return(
                                     token_clone,

@@ -1,5 +1,5 @@
 use crate::model::{AccessToken, Renter};
-use crate::{POOL, methods, model};
+use crate::{POOL, methods};
 use bcrypt::verify;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -28,7 +28,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             let result: QueryResult<Renter> = renters.filter(student_email.eq(&input_email)).get_result::<Renter>(&mut pool);
             return match result {
                 Ok(admin) => {
-                    if admin.employee_tier == model::EmployeeTier::User {
+                    if !methods::user::user_is_manager(&admin) {
                         let error_msg = serde_json::json!({"email": &input_email, "password": &input_password, "error": "Credentials invalid"});
                         return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),));
                     }

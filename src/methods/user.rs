@@ -34,10 +34,33 @@ pub async fn check_if_on_do_not_rent(renter: &Renter) -> bool {
     .unwrap()
 }
 
-pub fn user_with_admin_access(user: &Renter) -> bool {
+pub fn user_is_admin(user: &Renter) -> bool {
+    user.apartment_id == 1 && user.employee_tier == crate::model::EmployeeTier::Admin
+}
+
+pub fn user_is_operational_admin(user: &Renter) -> bool {
+    if user_is_admin(&user) {
+        return false;
+    }
     if let Some(email_expiration) = user.student_email_expiration {
         let today = Utc::now().date_naive();
-        user.apartment_id == 1 && email_expiration > today
+        email_expiration > today
+    } else {
+        false
+    }
+}
+
+pub fn user_is_manager(user: &Renter) -> bool {
+    user_is_admin(&user) || user.employee_tier == crate::model::EmployeeTier::GeneralEmployee
+}
+
+pub fn user_is_operational_manager(user: &Renter) -> bool {
+    if user_is_manager(&user) {
+        return false;
+    }
+    if let Some(email_expiration) = user.student_email_expiration {
+        let today = Utc::now().date_naive();
+        email_expiration > today
     } else {
         false
     }

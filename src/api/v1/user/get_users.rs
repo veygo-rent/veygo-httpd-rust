@@ -60,11 +60,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
                             .to_publish_access_token();
-                        if !(admin.employee_tier == model::EmployeeTier::Admin
-                            && admin.apartment_id == 1
-                            || admin.employee_tier == model::EmployeeTier::GeneralEmployee
-                                && admin.apartment_id != 1)
-                        {
+                        if !methods::user::user_is_manager(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
                                 token_clone,

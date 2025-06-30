@@ -95,7 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     .into_boxed().filter(id.eq(toll_id_int))
                                     .get_result::<model::TransponderCompany>(&mut pool).unwrap()
                             };
-                            if !methods::user::user_with_admin_access(&admin) {
+                            if !methods::user::user_is_operational_admin(&admin) {
                                 let token_clone = new_token_in_db_publish.clone();
                                 return methods::standard_replies::user_not_admin_wrapped_return(
                                     token_clone,
