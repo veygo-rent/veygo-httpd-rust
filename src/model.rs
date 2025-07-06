@@ -344,7 +344,6 @@ impl Renter {
         }
     }
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublishRenter {
     pub id: i32,
@@ -356,7 +355,7 @@ pub struct PublishRenter {
     pub date_of_birth: NaiveDate,
     pub profile_picture: Option<String>,
     pub gender: Option<Gender>,
-    #[serde(with = "chrono::serde::ts_milliseconds")]
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_registration: DateTime<Utc>,
     pub drivers_license_number: Option<String>,
     pub drivers_license_state_region: Option<String>,
@@ -366,7 +365,7 @@ pub struct PublishRenter {
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
     pub billing_address: Option<String>,
-    #[serde(with = "chrono::serde::ts_milliseconds_option")]
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
     pub plan_tier: PlanTier,
     pub plan_renewal_day: String,
