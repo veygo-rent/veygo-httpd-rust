@@ -257,6 +257,7 @@ pub struct RentalTransaction {
     pub agreement_id: i32,
     pub transaction_type: TransactionType,
     pub duration: f64,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
 }
 
@@ -286,6 +287,7 @@ pub struct Renter {
     pub date_of_birth: NaiveDate,
     pub profile_picture: Option<String>,
     pub gender: Option<Gender>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_registration: DateTime<Utc>,
     pub drivers_license_number: Option<String>,
     pub drivers_license_state_region: Option<String>,
@@ -300,6 +302,7 @@ pub struct Renter {
     pub lease_agreement_expiration: Option<NaiveDate>,
     pub billing_address: Option<String>,
     pub signature_image: Option<String>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
     pub plan_tier: PlanTier,
     pub plan_renewal_day: String,
@@ -419,6 +422,7 @@ pub struct PaymentMethod {
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
 }
 
@@ -432,6 +436,7 @@ pub struct PublishPaymentMethod {
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
 }
 
@@ -451,7 +456,7 @@ impl PaymentMethod {
     }
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -465,6 +470,7 @@ pub struct NewPaymentMethod {
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
 }
 
@@ -751,7 +757,9 @@ pub struct NewDamageSubmission {
 pub struct Damage {
     pub id: i32,
     pub note: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub record_date: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub occur_date: DateTime<Utc>,
     pub standard_coordination_x_percentage: i32,
     pub standard_coordination_y_percentage: i32,
@@ -759,18 +767,21 @@ pub struct Damage {
     pub second_image: Option<String>,
     pub third_image: Option<String>,
     pub fourth_image: Option<String>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
     pub fixed_amount: Option<f64>,
     pub agreement_id: Option<i32>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDamage {
     pub note: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub record_date: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub occur_date: DateTime<Utc>,
     pub standard_coordination_x_percentage: i32,
     pub standard_coordination_y_percentage: i32,
@@ -778,6 +789,7 @@ pub struct NewDamage {
     pub second_image: Option<String>,
     pub third_image: Option<String>,
     pub fourth_image: Option<String>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
     pub fixed_amount: Option<f64>,
     pub agreement_id: Option<i32>,
@@ -814,6 +826,7 @@ pub struct Promo {
     pub amount: f64,
     pub is_enabled: bool,
     pub is_one_time: bool,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
     pub user_id: i32,
     pub apt_id: i32,
@@ -846,16 +859,20 @@ pub struct Agreement {
     pub user_email: String,
     pub user_phone: String,
     pub user_billing_address: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_pickup_time: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
     pub liability_protection_rate: f64,
     pub pcdw_protection_rate: f64,
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_pickup_time: Option<DateTime<Utc>>,
     pub pickup_odometer: Option<i32>,
     pub pickup_level: Option<i32>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_drop_off_time: Option<DateTime<Utc>>,
     pub drop_off_odometer: Option<i32>,
     pub drop_off_level: Option<i32>,
@@ -872,7 +889,7 @@ pub struct Agreement {
     pub taxes: Vec<Option<i32>>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Renter))]
@@ -887,7 +904,9 @@ pub struct NewAgreement {
     pub user_email: String,
     pub user_phone: String,
     pub user_billing_address: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_pickup_time: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
     pub liability_protection_rate: f64,
     pub pcdw_protection_rate: f64,
@@ -913,6 +932,7 @@ pub struct NewAgreement {
 pub struct Charge {
     pub id: i32,
     pub name: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
@@ -923,12 +943,13 @@ pub struct Charge {
     pub vehicle_identifier: Option<String>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = charges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewCharge {
     pub name: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
@@ -950,6 +971,7 @@ pub struct NewCharge {
 pub struct Payment {
     pub id: i32,
     pub r#type: PaymentType,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub amount: f64,
     pub note: Option<String>,
@@ -958,10 +980,11 @@ pub struct Payment {
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub amount_authorized: Option<f64>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(belongs_to(Renter))]
@@ -976,6 +999,7 @@ pub struct NewPayment {
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub amount_authorized: Option<f64>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
 }
 
@@ -989,16 +1013,18 @@ pub struct AccessToken {
     pub id: i32,
     pub user_id: i32,
     pub token: Vec<u8>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewAccessToken {
     pub user_id: i32,
     pub token: Vec<u8>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
 }
 
@@ -1026,6 +1052,7 @@ impl AccessToken {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublishAccessToken {
     pub token: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
 }
 
@@ -1058,7 +1085,7 @@ pub struct RequestToken {
     pub token: String,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq, AsChangeset)]
+#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq, AsChangeset)]
 #[diesel(table_name = verifications)]
 #[diesel(belongs_to(Renter))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1066,6 +1093,7 @@ pub struct Verification {
     pub id: i32,
     pub verification_method: VerificationType,
     pub renter_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub expires_at: DateTime<Utc>,
     pub code: String,
 }
