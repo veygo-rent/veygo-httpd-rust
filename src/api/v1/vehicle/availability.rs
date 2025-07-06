@@ -1,6 +1,6 @@
 use crate::methods::{tokens, user};
 use crate::model::AccessToken;
-use crate::{POOL, model, methods};
+use crate::{POOL, methods, model};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
