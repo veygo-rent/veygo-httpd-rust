@@ -12,7 +12,9 @@ use warp::{Filter, Reply};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {
+    #[serde(with = "chrono::serde::ts_seconds")]
     start_time: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     end_time: DateTime<Utc>,
 }
 
