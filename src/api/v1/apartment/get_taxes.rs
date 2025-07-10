@@ -1,12 +1,11 @@
 use crate::{POOL, methods, model};
 use diesel::RunQueryDsl;
-use diesel::prelude::*;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("get-users")
+    warp::path("get-taxes")
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("auth"))
@@ -60,34 +59,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
                             .to_publish_access_token();
-                        if !methods::user::user_is_operational_manager(&admin) {
+                        if !methods::user::user_is_operational_admin(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
                                 token_clone,
                             );
                         }
-                        let publish_renters: Vec<model::PublishRenter>;
-                        use crate::schema::renters::dsl::*;
-                        if admin.apartment_id == 1 {
-                            // get ALL users
-                            publish_renters = renters
-                                .load::<model::Renter>(&mut pool)
-                                .unwrap()
-                                .iter()
-                                .map(|x| x.to_publish_renter())
-                                .collect();
-                        } else {
-                            // get Apartments-Specific users
-                            publish_renters = renters
-                                .filter(apartment_id.eq(admin.apartment_id))
-                                .load::<model::Renter>(&mut pool)
-                                .unwrap()
-                                .iter()
-                                .map(|x| x.to_publish_renter())
-                                .collect();
-                        }
+                        let publish_taxes: Vec<model::Tax>;
+                        use crate::schema::taxes::dsl::*;
+                        // get ALL taxes
+                        publish_taxes = taxes.load::<model::Tax>(&mut pool).unwrap();
                         let msg = serde_json::json!({
-                            "renters": publish_renters,
+                            "taxes": publish_taxes,
                         });
                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
                             new_token_in_db_publish,

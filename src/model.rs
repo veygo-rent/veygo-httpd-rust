@@ -530,6 +530,7 @@ impl Apartment {
             taxes: self.taxes.clone(),
             is_public: self.is_public,
             uni_id: self.uni_id,
+            is_operating: self.is_operating,
         }
     }
 }
@@ -556,6 +557,7 @@ pub struct PublishApartment {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
+    pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
     pub taxes: Vec<Option<i32>>,
@@ -1085,7 +1087,7 @@ pub struct RequestToken {
     pub token: String,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq, AsChangeset)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, AsChangeset)]
 #[diesel(table_name = verifications)]
 #[diesel(belongs_to(Renter))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1106,4 +1108,23 @@ pub struct NewVerification {
     pub verification_method: VerificationType,
     pub renter_id: i32,
     pub code: String,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = taxes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewTax {
+    pub name: String,
+    pub multiplier: f64,
+    pub is_effective: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[diesel(table_name = taxes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Tax {
+    pub id: i32,
+    pub name: String,
+    pub multiplier: f64,
+    pub is_effective: bool,
 }
