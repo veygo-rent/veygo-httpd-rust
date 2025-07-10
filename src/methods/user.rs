@@ -39,7 +39,7 @@ pub fn user_is_admin(user: &Renter) -> bool {
 }
 
 pub fn user_is_operational_admin(user: &Renter) -> bool {
-    if user_is_admin(&user) {
+    if !user_is_admin(&user) {
         return false;
     }
     if let Some(email_expiration) = user.student_email_expiration {
@@ -55,7 +55,7 @@ pub fn user_is_manager(user: &Renter) -> bool {
 }
 
 pub fn user_is_operational_manager(user: &Renter) -> bool {
-    if user_is_manager(&user) {
+    if !user_is_manager(&user) {
         return false;
     }
     if let Some(email_expiration) = user.student_email_expiration {
