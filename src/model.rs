@@ -504,65 +504,6 @@ pub struct Apartment {
     pub taxes: Vec<Option<i32>>,
 }
 
-impl Apartment {
-    pub fn to_publish_apartment(&self) -> PublishApartment {
-        PublishApartment {
-            id: self.id,
-            name: self.name.clone(),
-            email: self.email.clone(),
-            phone: self.phone.clone(),
-            address: self.address.clone(),
-            accepted_school_email_domain: self.accepted_school_email_domain.clone(),
-            free_tier_hours: self.free_tier_hours,
-            free_tier_rate: self.free_tier_rate,
-            silver_tier_hours: self.silver_tier_hours,
-            silver_tier_rate: self.silver_tier_rate,
-            gold_tier_hours: self.gold_tier_hours,
-            gold_tier_rate: self.gold_tier_rate,
-            platinum_tier_hours: self.platinum_tier_hours,
-            platinum_tier_rate: self.platinum_tier_rate,
-            duration_rate: self.duration_rate,
-            liability_protection_rate: self.liability_protection_rate,
-            pcdw_protection_rate: self.pcdw_protection_rate,
-            pcdw_ext_protection_rate: self.pcdw_ext_protection_rate,
-            rsa_protection_rate: self.rsa_protection_rate,
-            pai_protection_rate: self.pai_protection_rate,
-            taxes: self.taxes.clone(),
-            is_public: self.is_public,
-            uni_id: self.uni_id,
-            is_operating: self.is_operating,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PublishApartment {
-    pub id: i32,
-    pub name: String,
-    pub email: String,
-    pub phone: String,
-    pub address: String,
-    pub accepted_school_email_domain: String,
-    pub free_tier_hours: f64,
-    pub free_tier_rate: f64,
-    pub silver_tier_hours: f64,
-    pub silver_tier_rate: f64,
-    pub gold_tier_hours: f64,
-    pub gold_tier_rate: f64,
-    pub platinum_tier_hours: f64,
-    pub platinum_tier_rate: f64,
-    pub duration_rate: f64,
-    pub liability_protection_rate: f64,
-    pub pcdw_protection_rate: f64,
-    pub pcdw_ext_protection_rate: f64,
-    pub rsa_protection_rate: f64,
-    pub pai_protection_rate: f64,
-    pub is_operating: bool,
-    pub is_public: bool,
-    pub uni_id: i32,
-    pub taxes: Vec<Option<i32>>,
-}
-
 #[derive(Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -586,7 +527,7 @@ pub struct NewApartment {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    pub taxes: Vec<i32>,
+    pub taxes: Vec<Option<i32>>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,

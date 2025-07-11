@@ -1,4 +1,4 @@
-use crate::model::{Apartment, PublishApartment};
+use crate::model::Apartment;
 use crate::{POOL, schema};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::Filter;
@@ -11,18 +11,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and_then(async move || {
             use schema::apartments::dsl::*;
             let mut pool = POOL.clone().get().unwrap();
-            let results = apartments
+            let results: Vec<Apartment> = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))
                 .filter(uni_id.eq(0))
                 .load::<Apartment>(&mut pool)
                 .unwrap();
 
-            let apt_publish: Vec<PublishApartment> = results
-                .iter()
-                .map(|x| x.to_publish_apartment().clone())
-                .collect();
-            let msg = serde_json::json!({"universities": apt_publish});
+            let msg = serde_json::json!({"universities": results});
             Ok::<_, warp::Rejection>((warp::reply::with_status(
                 warp::reply::json(&msg),
                 StatusCode::OK,
