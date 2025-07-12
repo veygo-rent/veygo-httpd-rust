@@ -12,6 +12,15 @@ pub fn internal_server_error_response() -> Result<(warp::reply::Response,), Reje
     .into_response(),))
 }
 
+pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejection> {
+    let error_msg = serde_json::json!({"error": "Method Not Allowed"});
+    Ok::<_, Rejection>((warp::reply::with_status(
+        warp::reply::json(&error_msg),
+        StatusCode::METHOD_NOT_ALLOWED,
+    )
+    .into_response(),))
+}
+
 pub fn card_declined_wrapped(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {

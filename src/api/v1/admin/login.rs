@@ -6,7 +6,7 @@ use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::reply::with_status;
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::Method};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct LoginData {
@@ -17,10 +17,13 @@ struct LoginData {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("login")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |login_data: LoginData, user_agent: String| {
+        .and_then(async move |method: Method, login_data: LoginData, user_agent: String| {
+            if method != Method::POST {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             let mut pool = POOL.clone().get().unwrap();
             use crate::schema::renters::dsl::*;
             let input_email = login_data.email.clone();
