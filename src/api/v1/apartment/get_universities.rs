@@ -1,6 +1,6 @@
 use crate::model::Apartment;
 use crate::{POOL, schema};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::Filter;
 use warp::http::StatusCode;
 
@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let results: Vec<Apartment> = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))
-                .filter(uni_id.eq(0))
+                .filter(uni_id.eq(0).or(uni_id.eq(1)))
                 .load::<Apartment>(&mut pool)
                 .unwrap();
 
