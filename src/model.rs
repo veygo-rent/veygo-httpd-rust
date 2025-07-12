@@ -504,7 +504,7 @@ pub struct Apartment {
     pub taxes: Vec<Option<i32>>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewApartment {

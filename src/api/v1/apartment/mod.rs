@@ -1,3 +1,4 @@
+mod add_apartment;
 mod get_all_apartments;
 mod get_taxes;
 mod get_universities;
@@ -10,7 +11,8 @@ pub fn api_v1_apartment()
         .and(
             get_universities::main()
                 .or(get_taxes::main())
-                .or(get_all_apartments::main()),
+                .or(get_all_apartments::main())
+                .or(add_apartment::main()),
         )
         .and(warp::path::end())
 }
