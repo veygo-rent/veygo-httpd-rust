@@ -1,18 +1,22 @@
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
-use warp::Filter;
-use warp::http::StatusCode;
-use warp::reply::with_status;
+use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("add-apartment")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |apartment: model::NewApartment, auth: String, user_agent: String| {
+            async move |method: Method,
+                        apartment: model::NewApartment,
+                        auth: String,
+                        user_agent: String| {
+                if method != Method::POST {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
