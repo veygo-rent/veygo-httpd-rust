@@ -1,9 +1,9 @@
-use warp::{reply, Filter, Reply};
+use std::collections::HashMap;
 use warp::http::StatusCode;
 use warp::reply::with_status;
-use std::collections::HashMap;
+use warp::{Filter, Reply, reply};
 
-pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("header-check")
         .and(warp::path::end())
         .and(warp::header::headers_cloned())
@@ -14,6 +14,8 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                     header_map.insert(key.to_string(), val_str.to_string());
                 }
             }
-            Ok::<_, warp::Rejection>((with_status(reply::json(&header_map), StatusCode::OK).into_response(),))
+            Ok::<_, warp::Rejection>((
+                with_status(reply::json(&header_map), StatusCode::OK).into_response(),
+            ))
         })
 }
