@@ -6,7 +6,6 @@ use std::collections::HashMap;
 pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
     warp::path("header-check")
         .and(warp::path::end())
-        .and(warp::get())
         .and(warp::header::headers_cloned())
         .and_then(async move |headers: warp::http::HeaderMap| {
             let mut header_map = HashMap::new();
