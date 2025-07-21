@@ -30,7 +30,7 @@ pub async fn nightly_task() {
         AND plan_renewal_day::int > EXTRACT(DAY FROM (date_trunc('MONTH', CURRENT_DATE + INTERVAL '1 MONTH') - INTERVAL '1 day'))
     ))
     AND TO_CHAR(CURRENT_DATE, 'MMYYYY') = plan_expire_month_year
-)")).load::<model::Renter>(&mut POOL.clone().get().unwrap()).unwrap();
+)")).load::<model::Renter>(&mut POOL.get().unwrap()).unwrap();
             let today = Utc::now();
             let mut year = today.year();
             let mut month = today.month();
@@ -45,9 +45,10 @@ pub async fn nightly_task() {
             }
             let renew_for_one_month = format!("{:02}{}", month, year);
 
+            let mut pool = POOL.get().unwrap();
             for mut renter in user_needs_to_renew {
                 use crate::schema::apartments::dsl::*;
-                let apartment: model::Apartment = apartments.filter(id.eq(renter.apartment_id)).get_result::<model::Apartment>(&mut POOL.clone().get().unwrap()).unwrap();
+                let apartment: model::Apartment = apartments.filter(id.eq(renter.apartment_id)).get_result::<model::Apartment>(&mut pool).unwrap();
                 if !apartment.is_operating {
                     break;
                 }
@@ -75,7 +76,7 @@ pub async fn nightly_task() {
                     if let Some(renew_id) = renter.subscription_payment_method_id {
                         // Get Payment Method
                         use crate::schema::payment_methods::dsl::*;
-                        let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renew_id)).get_result::<model::PaymentMethod>(&mut POOL.clone().get().unwrap()).unwrap();
+                        let plan_pm: model::PaymentMethod = payment_methods.filter(id.eq(renew_id)).get_result::<model::PaymentMethod>(&mut pool).unwrap();
                         // Charge Renter. If fails, switch to the Free Tier
                         //TODO: Add taxes
                         let taxed_rent = rent * (1.00 + 0.11);
@@ -126,7 +127,7 @@ pub async fn nightly_task() {
                                     capture_before: None,
                                 };
                                 use crate::schema::payments::dsl::*;
-                                diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut POOL.clone().get().unwrap()).unwrap();
+                                diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut pool).unwrap();
                                 // Paid Tier renewal email
                                 integration::sendgrid_veygo::send_email(None, renter_email, "Your plan has been renewed", "Your payment has been processed and your plan has been renewed. ", None, None).await.unwrap();
                             }
@@ -149,20 +150,20 @@ pub async fn nightly_task() {
                     renter.plan_expire_month_year = renew_for_one_month.clone();
                 }
                 diesel::update(renters.find(renter.id))
-                    .set(&renter).execute(&mut POOL.clone().get().unwrap()).unwrap();
+                    .set(&renter).execute(&mut pool).unwrap();
             }
             // Delete expired tokens
             use crate::schema::access_tokens::dsl::*;
             let now = Utc::now();
             diesel::delete(
                 access_tokens.filter(exp.lt(now))
-            ).execute(&mut POOL.clone().get().unwrap()).unwrap();
+            ).execute(&mut pool).unwrap();
             // Delete expired verifications
             use crate::schema::verifications::dsl::*;
             let now = Utc::now();
             diesel::delete(
                 verifications.filter(expires_at.lt(now))
-            ).execute(&mut POOL.clone().get().unwrap()).unwrap();
+            ).execute(&mut pool).unwrap();
             println!("===== Daily Tasks Completed =====");
         })
             .await

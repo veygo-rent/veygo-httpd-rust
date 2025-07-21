@@ -28,20 +28,19 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 user_id = match user_id_parsed_result {
-                    Ok(int) => {
-                        int
-                    }
+                    Ok(int) => int,
                     Err(_) => {
                         return methods::tokens::token_invalid_wrapped_return(&auth);
                     }
                 };
 
-                let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
-                let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
-                )
-                .await;
+                let access_token = model::RequestToken {
+                    user_id,
+                    token: token_and_id[0].parse().unwrap(),
+                };
+                let if_token_valid =
+                    methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
+                        .await;
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
@@ -54,12 +53,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             )
                             .await;
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &user_agent,
                             )
                             .await;
                             use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
@@ -69,7 +68,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let pmt_id_clone = request_body.card_id.clone();
                             let if_pm_in_question_exists = {
                                 use crate::schema::payment_methods::dsl::*;
-                                let mut pool = POOL.clone().get().unwrap();
+                                let mut pool = POOL.get().unwrap();
                                 diesel::select(diesel::dsl::exists(
                                     payment_methods
                                         .filter(id.eq(pmt_id_clone))
@@ -93,7 +92,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             }
                             // check if pm match user id
                             let pmt_id_clone = request_body.card_id.clone();
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let mut pm = payment_methods
                                 .filter(crate::schema::payment_methods::id.eq(pmt_id_clone))
                                 .get_result::<model::PaymentMethod>(&mut pool)

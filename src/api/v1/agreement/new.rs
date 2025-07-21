@@ -30,6 +30,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |body: NewAgreementRequestBodyData, auth: String, user_agent: String| {
+            let mut pool = POOL.get().unwrap();
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
                 return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -46,7 +47,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             };
 
             let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
-            let if_token_valid = methods::tokens::verify_user_token(access_token.user_id.clone(), access_token.token.clone()).await;
+            let if_token_valid = methods::tokens::verify_user_token(&access_token.user_id, &access_token.token).await;
             match if_token_valid {
                 Err(_) => {
                     methods::tokens::token_not_hex_warp_return(&access_token.token)
@@ -57,11 +58,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     } else {
                         // Token is valid, generate new publish token, user_id valid
                         let _ = methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(access_token.user_id.clone(), user_agent.clone()).await;
+                        let new_token = methods::tokens::gen_token_object(&access_token.user_id, &user_agent).await;
                         use crate::schema::access_tokens::dsl::*;
-                        let mut pool = POOL.clone().get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
-                        let user_in_request = methods::user::get_user_by_id(access_token.user_id).await.unwrap();
+                        let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                         // Check if Renter has an address
                         if user_in_request.billing_address.is_none() {
                             let error_msg = serde_json::json!({"error": "Unknown billing address"});
@@ -138,14 +138,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             // check vehicle::exist, vehicle.available, vehicle.apt_id == renter.apt_id => invalid_vehicle
                             use crate::schema::vehicles::dsl::*;
                             let renter_clone = user_in_request.clone();
-                            let mut pool = POOL.clone().get().unwrap();
                             let vehicle_result = vehicles.filter(id.eq(&body.vehicle_id)).get_result::<crate::model::Vehicle>(&mut pool);
                             match vehicle_result {
                                 Ok(vehicle) => {
                                     if vehicle.available && vehicle.apartment_id == renter_clone.id {
                                         // Vehicle checked, check pm::exist, if pm.is_enabled, pm.renter_id == user.id => invalid_payment_method
                                         use crate::schema::payment_methods::dsl::*;
-                                        let mut pool = POOL.clone().get().unwrap();
                                         let pm_result = payment_methods.filter(id.eq(&body.payment_id)).get_result::<crate::model::PaymentMethod>(&mut pool);
                                         match pm_result {
                                             Ok(pm) => {
@@ -154,7 +152,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                     let start_time_buffered = body.start_time - Duration::minutes(15);
                                                     let end_time_buffered = body.end_time + Duration::minutes(15);
 
-                                                    let mut pool = POOL.clone().get().unwrap();
                                                     use crate::schema::agreements::dsl::*;
                                                     use diesel::dsl::sql;
                                                     let if_conflict = diesel::select(diesel::dsl::exists(
@@ -175,7 +172,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                         let error_msg = serde_json::json!({"error": "Vehicle unavailable for the requested time"});
                                                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),))
                                                     } else {
-                                                        let mut pool = POOL.clone().get().unwrap();
                                                         let apartment_id_clone = vehicle.apartment_id.clone();
                                                         use crate::schema::apartments::dsl::*;
                                                         let apt = apartments.into_boxed().filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool).unwrap();
@@ -225,7 +221,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                             }
                                                             Ok(pmi) => {
                                                                 use crate::schema::agreements::dsl::*;
-                                                                let mut pool = POOL.clone().get().unwrap();
                                                                 let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<crate::model::Agreement>(&mut pool).unwrap();
 
                                                                 let new_payment = crate::model::NewPayment {

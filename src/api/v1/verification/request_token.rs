@@ -39,8 +39,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
+                    &access_token.user_id,
+                    &access_token.token,
                 )
                 .await;
                 return match if_token_valid {
@@ -57,12 +57,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
                             let user_id_clone = access_token.user_id.clone();
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &user_agent,
                             )
                             .await;
                             use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
@@ -75,7 +75,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 code: otp.clone(),
                             };
                             let renter =
-                                methods::user::get_user_by_id(user_id_clone).await.unwrap();
+                                methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             match body.verification_method {
                                 model::VerificationType::Phone => {
                                     let phone = &renter.phone;

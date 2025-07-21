@@ -55,8 +55,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),));
                 };
                 let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
+                    &access_token.user_id,
+                    &access_token.token,
                 )
                     .await;
                 return match if_token_valid {
@@ -72,22 +72,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                                 .await;
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &user_agent,
                             )
                                 .await;
                             use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            let usr_id_clone = access_token.user_id.clone();
-                            let mut usr_in_question = methods::user::get_user_by_id(usr_id_clone).await.unwrap();
+                            let mut usr_in_question = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             usr_in_question.phone = body.phone_number.clone();
                             usr_in_question.phone_is_verified = false;
-                            let renter_updated = diesel::update(renters.find(usr_id_clone))
+                            let renter_updated = diesel::update(renters.find(&access_token.user_id))
                                 .set(&usr_in_question).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
                             return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                         }

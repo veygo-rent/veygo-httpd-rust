@@ -30,11 +30,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     user_id,
                     token: token_and_id[0].parse().unwrap(),
                 };
-                let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
-                )
-                .await;
+                let if_token_valid =
+                    methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
+                        .await;
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
                     Ok(token_bool) => {
@@ -47,18 +45,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                             .await;
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &user_agent,
                             )
                             .await;
                             use schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            let user = methods::user::get_user_by_id(access_token.user_id)
+                            let user = methods::user::get_user_by_id(&access_token.user_id)
                                 .await
                                 .unwrap();
                             if !methods::user::user_is_manager(&user) {

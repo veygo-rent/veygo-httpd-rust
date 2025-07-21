@@ -24,7 +24,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             if method != Method::POST {
                 return methods::standard_replies::method_not_allowed_response();
             }
-            let mut pool = POOL.clone().get().unwrap();
+            let mut pool = POOL.get().unwrap();
             use crate::schema::renters::dsl::*;
             let input_email = login_data.email.clone();
             let input_password = login_data.password.clone();
@@ -38,8 +38,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     return if verify(&input_password, &admin.password).unwrap_or(false) {
                         // user and password are verified
                         let user_id_data = admin.id;
-                        let new_access_token = methods::tokens::gen_token_object(user_id_data, user_agent).await;
-                        let mut pool = POOL.clone().get().unwrap();
+                        let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
+                        let mut pool = POOL.get().unwrap();
                         use crate::schema::access_tokens::dsl::*;
                         let insert_token_result = diesel::insert_into(access_tokens)
                             .values(&new_access_token)

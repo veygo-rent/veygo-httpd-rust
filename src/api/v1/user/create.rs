@@ -39,7 +39,9 @@ fn is_at_least_18(dob: &NaiveDate) -> bool {
 }
 
 fn is_valid_email(email: &str) -> bool {
-    if email.len() > 254 { return false; }
+    if email.len() > 254 {
+        return false;
+    }
     lazy_static::lazy_static! {
         static ref EMAIL_REGEX: Regex = Regex::new(
             r"(?i)^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-](?:[a-z0-9-]{0,61}[a-z0-9])+(?:\.[a-z0-9-](?:[a-z0-9-]{0,61}[a-z0-9])+)+$"
@@ -69,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |mut renter_create_data: CreateUserData, user_agent: String| {
             use crate::schema::renters::dsl::*;
-            let mut pool = POOL.clone().get().unwrap();
+            let mut pool = POOL.get().unwrap();
 
             let email_clone = renter_create_data.student_email.clone();
             let phone_clone = renter_create_data.phone.clone();
@@ -96,7 +98,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
                         } else {
                             // Renter is old enough
-                            let mut pool = POOL.clone().get().unwrap();
                             use crate::schema::apartments::dsl::*;
 
                             let input_email_domain = get_email_domain(&email_clone).unwrap();
@@ -142,7 +143,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         plan_available_duration: apartment.free_tier_hours,
                                         employee_tier: emp_tier,
                                     };
-                                    let mut pool = POOL.clone().get().unwrap();
                                     let mut renter = diesel::insert_into(renters)
                                         .values(&to_be_inserted)
                                         .get_result::<model::Renter>(&mut pool).unwrap();
@@ -155,20 +155,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         Ok(stripe_customer) => {
                                             let stripe_customer_id = stripe_customer.id.to_string();
                                             let renter_id_to_add_stripe = renter.id.clone();
-                                            let mut pool = POOL.clone().get().unwrap();
                                             let new_renter = diesel::update(renters.find(renter_id_to_add_stripe)).set(stripe_id.eq(stripe_customer_id)).get_result::<model::Renter>(&mut pool).unwrap();
                                             renter = new_renter;
                                         }
                                         Err(_) => {
                                             use crate::schema::renters::dsl::*;
-                                            let mut pool = POOL.clone().get().unwrap();
                                             diesel::delete(renters.filter(id.eq(renter.id))).execute(&mut pool).unwrap();
                                             return methods::standard_replies::internal_server_error_response();
                                         }
                                     }
                                     let user_id_data = renter.id;
-                                    let new_access_token = methods::tokens::gen_token_object(user_id_data, user_agent).await;
-                                    let mut pool = POOL.clone().get().unwrap();
+                                    let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
                                     use crate::schema::access_tokens::dsl::*;
                                     let insert_token_result = diesel::insert_into(access_tokens)
                                         .values(&new_access_token)

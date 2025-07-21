@@ -17,7 +17,7 @@ async fn generate_unique_token() -> Vec<u8> {
 
         let token_to_return = token_vec.clone();
 
-        let mut pool = POOL.clone().get().unwrap();
+        let mut pool = POOL.get().unwrap();
         // Wrap in a block for error handling.
         let token_exists_result = diesel::select(diesel::dsl::exists(
             crate::schema::access_tokens::table.filter(token.eq(token_vec)),
@@ -34,26 +34,26 @@ async fn generate_unique_token() -> Vec<u8> {
     }
 }
 
-pub async fn gen_token_object(_user_id: i32, user_agent: String) -> NewAccessToken {
+pub async fn gen_token_object(_user_id: &i32, user_agent: &String) -> NewAccessToken {
     let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
     if user_agent.contains("veygo") {
         _exp = Utc::now().add(chrono::Duration::days(28));
     }
     NewAccessToken {
-        user_id: _user_id,
+        user_id: *_user_id,
         token: generate_unique_token().await,
         exp: _exp,
     }
 }
 
-pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool, FromHexError> {
+pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bool, FromHexError> {
     let binary_token = hex::decode(token_data.clone());
     match binary_token {
         Err(error) => Err(error),
         Ok(binary_token) => {
             let token_clone = binary_token.clone();
             let token_clone_again = binary_token.clone();
-            let mut pool = POOL.clone().get().unwrap();
+            let mut pool = POOL.get().unwrap();
             let token_in_db = diesel::select(diesel::dsl::exists(
                 access_tokens
                     .filter(token.eq(token_clone))
@@ -62,7 +62,7 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
             .get_result::<bool>(&mut pool)
             .unwrap();
             if token_in_db {
-                let mut pool = POOL.clone().get().unwrap();
+                let mut pool = POOL.get().unwrap();
                 let token_in_db_result = access_tokens
                     .filter(user_id.eq(_user_id))
                     .filter(token.eq(token_clone_again))
@@ -82,7 +82,7 @@ pub async fn verify_user_token(_user_id: i32, token_data: String) -> Result<bool
 }
 
 pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
-    let mut pool = POOL.clone().get().unwrap();
+    let mut pool = POOL.get().unwrap();
     let _ = diesel::delete(access_tokens.filter(token.eq(token_bit)))
         .get_result::<AccessToken>(&mut pool);
 }
@@ -93,7 +93,7 @@ pub fn token_not_hex_warp_return(
     let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
     Ok::<_, Rejection>((warp::reply::with_status(
         warp::reply::json(&error_msg),
-        StatusCode::BAD_REQUEST,
+        StatusCode::UNAUTHORIZED,
     )
     .into_response(),))
 }

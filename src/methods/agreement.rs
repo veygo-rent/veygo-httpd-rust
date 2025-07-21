@@ -21,9 +21,9 @@ pub fn generate_unique_agreement_confirmation() -> String {
             })
             .collect();
 
-        // Check if the generated confirmation already exists in the agreements table, synchronously.
+        // Check if the generated confirmation already exists in the agreement table, synchronously.
         let exists = {
-            let mut conn = POOL.clone().get().expect("Failed to get DB connection");
+            let mut conn = POOL.get().unwrap();
 
             // If there's an error performing the query, treat it as "exists = true" so we retry.
             diesel::select(diesel::dsl::exists(

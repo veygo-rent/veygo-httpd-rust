@@ -56,8 +56,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
+                    &access_token.user_id,
+                    &access_token.token,
                 )
                 .await;
                 return match if_token_valid {
@@ -72,19 +72,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 hex::decode(token_clone.token).unwrap(),
                             ).await;
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &user_agent,
                             ).await;
                             use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            let body_clone = body.clone();
                             use crate::schema::apartments::dsl::*;
-                            let apartment_result = apartments.find(body_clone.apartment_id).get_result::<model::Apartment>(&mut pool);
+                            let apartment_result = apartments.find(&body.apartment_id).get_result::<model::Apartment>(&mut pool);
                             match apartment_result {
                                 Err(_) => {
                                     // Wrong apartment ID
@@ -100,10 +99,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         let error_msg = serde_json::json!({"email": &body.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
                                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                     }
-                                    let mut pool = POOL.clone().get().unwrap();
+                                    let mut pool = POOL.get().unwrap();
                                     use crate::schema::renters::dsl::*;
-                                    let clone_of_user_id = access_token.user_id.clone();
-                                    let mut user_update = methods::user::get_user_by_id(clone_of_user_id).await.unwrap();
+                                    let mut user_update = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                                     user_update.student_email = body.student_email.clone();
                                     user_update.apartment_id = body.apartment_id.clone();
                                     user_update.lease_agreement_image = None;
@@ -114,7 +112,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     user_update.drivers_license_image = None;
                                     user_update.drivers_license_image_secondary = None;
                                     user_update.drivers_license_expiration = None;
-                                    let renter_updated = diesel::update(renters.find(clone_of_user_id))
+                                    let renter_updated = diesel::update(renters.find(&access_token.user_id))
                                         .set(&user_update).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
                                     return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                                 }

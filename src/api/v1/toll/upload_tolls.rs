@@ -42,8 +42,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid = methods::tokens::verify_user_token(
-                    access_token.user_id.clone(),
-                    access_token.token.clone(),
+                    &access_token.user_id,
+                    &access_token.token,
                 )
                 .await;
                 return match if_token_valid {
@@ -53,20 +53,19 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             // Token is valid
-                            let id_clone = access_token.user_id.clone();
-                            let admin = methods::user::get_user_by_id(id_clone).await.unwrap();
+                            let admin = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             let token_clone = access_token.clone();
                             methods::tokens::rm_token_by_binary(
                                 hex::decode(token_clone.token).unwrap(),
                             )
                             .await;
                             let new_token = methods::tokens::gen_token_object(
-                                access_token.user_id.clone(),
-                                user_agent.clone(),
+                                &access_token.user_id,
+                                &access_token.token,
                             )
                             .await;
                             use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.clone().get().unwrap();
+                            let mut pool = POOL.get().unwrap();
                             let new_token_in_db_publish = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
@@ -189,7 +188,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                             // Clone what we need into the background task
                             let records = json_records.clone();
-                            let pool_for_task = POOL.clone();
                             let tc = toll_company.clone();
 
                             // Spawn background processing of each record
@@ -206,7 +204,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let to_be_hashed = transaction_name.clone() + &transaction_amount.to_string() + &transaction_time.to_string();
                                     let hashed = blake3::hash(to_be_hashed.as_bytes()).to_hex().to_string();
                                     use crate::schema::charges::dsl::*;
-                                    let mut pool = pool_for_task.get().unwrap();
+                                    let mut pool = POOL.get().unwrap();
                                     let if_exist = diesel::select(diesel::dsl::exists(
                                         charges
                                             .filter(checksum.eq(&hashed)),

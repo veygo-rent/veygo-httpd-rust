@@ -10,7 +10,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::path::end())
         .and_then(async move || {
             use schema::apartments::dsl::*;
-            let mut pool = POOL.clone().get().unwrap();
+            let mut pool = POOL.get().unwrap();
             let results: Vec<Apartment> = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))

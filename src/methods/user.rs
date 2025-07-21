@@ -3,8 +3,8 @@ use crate::model::Renter;
 use chrono::Utc;
 use diesel::prelude::*;
 
-pub async fn get_user_by_id(user_id: i32) -> QueryResult<Renter> {
-    let mut pool = POOL.clone().get().unwrap();
+pub async fn get_user_by_id(user_id: &i32) -> QueryResult<Renter> {
+    let mut pool = POOL.get().unwrap();
     use crate::schema::renters::dsl::*;
     renters
         .filter(id.eq(&user_id))
@@ -12,7 +12,7 @@ pub async fn get_user_by_id(user_id: i32) -> QueryResult<Renter> {
 }
 
 pub async fn check_if_on_do_not_rent(renter: &Renter) -> bool {
-    let mut pool = POOL.clone().get().unwrap();
+    let mut pool = POOL.get().unwrap();
     // Extract values from Renter
     let user_name = renter.name.clone(); // String
     let user_phone = renter.phone.clone(); // String
