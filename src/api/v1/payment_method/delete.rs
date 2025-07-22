@@ -65,13 +65,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 .unwrap()
                                 .to_publish_access_token();
                             // check if the pm in question exists as an active pm
-                            let pmt_id_clone = request_body.card_id.clone();
                             let if_pm_in_question_exists = {
                                 use crate::schema::payment_methods::dsl::*;
                                 let mut pool = POOL.get().unwrap();
                                 diesel::select(diesel::dsl::exists(
                                     payment_methods
-                                        .filter(id.eq(pmt_id_clone))
+                                        .filter(id.eq(&request_body.card_id))
                                         .filter(is_enabled.eq(true)),
                                 ))
                                 .get_result::<bool>(&mut pool)
@@ -91,10 +90,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 ));
                             }
                             // check if pm match user id
-                            let pmt_id_clone = request_body.card_id.clone();
-                            let mut pool = POOL.get().unwrap();
                             let mut pm = payment_methods
-                                .filter(crate::schema::payment_methods::id.eq(pmt_id_clone))
+                                .filter(
+                                    crate::schema::payment_methods::id.eq(&request_body.card_id),
+                                )
                                 .get_result::<model::PaymentMethod>(&mut pool)
                                 .unwrap();
                             if pm.renter_id != access_token.user_id {
@@ -105,7 +104,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                         new_token_in_db_publish,
                                         warp::reply::with_status(
                                             warp::reply::json(&error_msg),
-                                            StatusCode::FORBIDDEN,
+                                            StatusCode::NOT_ACCEPTABLE,
                                         ),
                                     ),
                                 ));

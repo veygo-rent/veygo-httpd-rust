@@ -204,7 +204,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                         let deposit_amount = new_agreement.duration_rate * (1.00 + 0.11);
                                                         let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                                                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                                                            "Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone(), user_in_request.stripe_id.unwrap(), pm.token.clone(), deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
+                                                            &("Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone()), &user_in_request.stripe_id.unwrap(), &pm.token, &deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
                                                         ).await;
                                                         match stripe_auth {
                                                             Err(error) => {

@@ -17,9 +17,9 @@ use stripe::{
 
 pub async fn create_new_payment_method(
     pm_id: &str,
-    cardholder_name: String, // Required as Stripe does not return the full name
-    renter_id: i32,          // Must be provided
-    nickname: Option<String>, // Optional user-defined alias
+    cardholder_name: &String, // Required as Stripe does not return the full name
+    renter_id: &i32,          // Must be provided
+    nickname: &Option<String>, // Optional user-defined alias
 ) -> Result<NewPaymentMethod, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -38,15 +38,15 @@ pub async fn create_new_payment_method(
             let expiration = format!("{:02}/{}", card.exp_month, card.exp_year);
 
             Ok(NewPaymentMethod {
-                cardholder_name,
+                cardholder_name: cardholder_name.to_string(),
                 masked_card_number,
                 network,
                 expiration,
                 token: pm_id.to_string(),
                 md5: card.fingerprint.unwrap(),
-                nickname,
+                nickname: nickname.clone(),
                 is_enabled: true,
-                renter_id,
+                renter_id: renter_id.clone(),
                 last_used_date_time: None,
             })
         }
@@ -55,9 +55,9 @@ pub async fn create_new_payment_method(
 }
 
 pub async fn create_stripe_customer(
-    name_data: String,
-    phone_data: String,
-    email_data: String,
+    name_data: &String,
+    phone_data: &String,
+    email_data: &String,
 ) -> Result<Customer, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -65,9 +65,9 @@ pub async fn create_stripe_customer(
     Customer::create(
         &client,
         CreateCustomer {
-            name: Some(name_data.as_str()),
-            email: Some(email_data.as_str()),
-            phone: Some(phone_data.as_str()),
+            name: Some(name_data),
+            email: Some(email_data),
+            phone: Some(phone_data),
 
             ..Default::default()
         },
@@ -76,8 +76,8 @@ pub async fn create_stripe_customer(
 }
 
 pub async fn attach_payment_method_to_stripe_customer(
-    stripe_customer_id: String,
-    pm_id: String,
+    stripe_customer_id: &String,
+    pm_id: &String,
 ) -> Result<SetupIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -105,22 +105,21 @@ pub async fn attach_payment_method_to_stripe_customer(
 }
 
 pub async fn create_payment_intent(
-    description: String,
-    customer_id_data: String,
-    payment_id_data: String,
-    amount: i64,
+    description: &String,
+    customer_id_data: &String,
+    payment_id_data: &String,
+    amount: &i64,
     capture_method: PaymentIntentCaptureMethod,
 ) -> Result<PaymentIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
-    let customer_id = CustomerId::from_str(customer_id_data.as_str()).unwrap();
-    let payment_method_id = PaymentMethodId::from_str(payment_id_data.as_str()).unwrap();
-    let description_data = description;
+    let customer_id = CustomerId::from_str(customer_id_data).unwrap();
+    let payment_method_id = PaymentMethodId::from_str(payment_id_data).unwrap();
     PaymentIntent::create(
         &client,
         CreatePaymentIntent {
-            amount,
+            amount: amount.clone(),
             application_fee_amount: None,
             automatic_payment_methods: Some(CreatePaymentIntentAutomaticPaymentMethods{
                 allow_redirects: Some(CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects::Never),
@@ -131,7 +130,7 @@ pub async fn create_payment_intent(
             confirmation_method: None,
             currency: Currency::USD,
             customer: Some(customer_id),
-            description: Some(description_data.as_str()),
+            description: Some(description),
             error_on_requires_action: None,
             expand: &["latest_charge"],
             mandate: None,

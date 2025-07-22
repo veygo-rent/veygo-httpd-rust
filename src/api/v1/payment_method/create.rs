@@ -55,29 +55,23 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let mut pool = POOL.get().unwrap();
                         let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
 
-                        let new_pm_result = stripe_veygo::create_new_payment_method(request_body.pm_id.as_str(), request_body.cardholder_name.clone(), access_token.user_id.clone(), request_body.nickname).await;
+                        let new_pm_result = stripe_veygo::create_new_payment_method(&request_body.pm_id, &request_body.cardholder_name, &access_token.user_id, &request_body.nickname).await;
                         match new_pm_result {
                             Ok(new_pm) => {
-                                let md5_clone = new_pm.md5.clone();
-                                let mut pool = POOL.get().unwrap();
                                 use crate::schema::payment_methods::dsl::*;
-                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(md5_clone)))).get_result::<bool>(&mut pool)
+                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(&new_pm.md5)))).get_result::<bool>(&mut pool)
                                     .unwrap();
                                 if card_in_db {
                                     let error_msg = serde_json::json!({"error": "PaymentMethods existed"});
                                     return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                 }
-                                let new_pm_clone = new_pm.clone();
                                 // attach payment method to customer
                                 let current_renter = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
-                                let stripe_customer_id = current_renter.stripe_id.clone().unwrap();
-                                let payment_method_id = new_pm.token.clone();
-                                let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(stripe_customer_id, payment_method_id).await;
+                                let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&current_renter.stripe_id.unwrap(), &new_pm.token).await;
                                 match attach_result {
                                     Ok(_) => {
-                                        let mut pool = POOL.get().unwrap();
                                         use crate::schema::payment_methods::dsl::*;
-                                        let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm_clone).get_result::<PaymentMethod>(&mut pool).unwrap().to_public_payment_method();
+                                        let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<PaymentMethod>(&mut pool).unwrap().to_public_payment_method();
                                         let msg = serde_json::json!({"payment_method": inserted_pm_card});
                                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
                                     }

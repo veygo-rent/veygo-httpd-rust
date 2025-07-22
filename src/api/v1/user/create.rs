@@ -147,10 +147,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         .values(&to_be_inserted)
                                         .get_result::<model::Renter>(&mut pool).unwrap();
 
-                                    let stripe_name = renter.name.clone();
-                                    let stripe_phone = renter.phone.clone();
-                                    let stripe_email = renter.student_email.clone();
-                                    let stripe_result = stripe_veygo::create_stripe_customer(stripe_name, stripe_phone, stripe_email).await;
+                                    let stripe_result = stripe_veygo::create_stripe_customer(&renter.name, &renter.phone, &renter.student_email).await;
                                     match stripe_result {
                                         Ok(stripe_customer) => {
                                             let stripe_customer_id = stripe_customer.id.to_string();
