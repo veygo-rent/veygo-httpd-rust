@@ -116,7 +116,20 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 .set(&pm)
                                 .execute(&mut pool)
                                 .unwrap();
-                            let msg = serde_json::json!({});
+                            let payment_method_query_result = payment_methods
+                                .into_boxed()
+                                .filter(is_enabled.eq(true))
+                                .filter(renter_id.eq(&access_token.user_id))
+                                .load::<model::PaymentMethod>(&mut pool)
+                                .unwrap();
+                            let publish_payment_methods: Vec<model::PublishPaymentMethod> =
+                                payment_method_query_result
+                                    .iter()
+                                    .map(|x| x.to_public_payment_method())
+                                    .collect();
+                            let msg = serde_json::json!({
+                                "payment_methods": publish_payment_methods,
+                            });
                             return Ok::<_, Rejection>((
                                 methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,

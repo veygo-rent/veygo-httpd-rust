@@ -1,4 +1,3 @@
-use crate::model::{AccessToken, PaymentMethod};
 use crate::{POOL, methods, model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -53,7 +52,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let new_token = methods::tokens::gen_token_object(&access_token.user_id, &user_agent).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.get().unwrap();
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<AccessToken>(&mut pool).unwrap().to_publish_access_token();
+                        let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
 
                         let new_pm_result = stripe_veygo::create_new_payment_method(&request_body.pm_id, &request_body.cardholder_name, &access_token.user_id, &request_body.nickname).await;
                         match new_pm_result {
@@ -71,8 +70,21 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 match attach_result {
                                     Ok(_) => {
                                         use crate::schema::payment_methods::dsl::*;
-                                        let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<PaymentMethod>(&mut pool).unwrap().to_public_payment_method();
-                                        let msg = serde_json::json!({"payment_method": inserted_pm_card});
+                                        let _inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<model::PaymentMethod>(&mut pool).unwrap();
+                                        let payment_method_query_result = payment_methods
+                                            .into_boxed()
+                                            .filter(is_enabled.eq(true))
+                                            .filter(renter_id.eq(&access_token.user_id))
+                                            .load::<model::PaymentMethod>(&mut pool)
+                                            .unwrap();
+                                        let publish_payment_methods: Vec<model::PublishPaymentMethod> =
+                                            payment_method_query_result
+                                                .iter()
+                                                .map(|x| x.to_public_payment_method())
+                                                .collect();
+                                        let msg = serde_json::json!({
+                                            "payment_methods": publish_payment_methods,
+                                        });
                                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
                                     }
                                     Err(error) => {

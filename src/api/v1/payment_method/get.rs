@@ -53,19 +53,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .unwrap()
                             .to_publish_access_token();
 
-                        let id_clone = access_token.user_id.clone();
-                        let mut pool = POOL.get().unwrap();
                         use crate::schema::payment_methods::dsl::*;
                         let payment_method_query_result = payment_methods
                             .into_boxed()
                             .filter(is_enabled.eq(true))
-                            .filter(renter_id.eq(id_clone))
+                            .filter(renter_id.eq(&access_token.user_id))
                             .load::<model::PaymentMethod>(&mut pool)
                             .unwrap();
                         let publish_payment_methods: Vec<model::PublishPaymentMethod> =
                             payment_method_query_result
                                 .iter()
-                                .map(|x| x.to_public_payment_method().clone())
+                                .map(|x| x.to_public_payment_method())
                                 .collect();
                         let msg = serde_json::json!({
                             "payment_methods": publish_payment_methods,
