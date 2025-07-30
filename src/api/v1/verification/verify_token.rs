@@ -96,7 +96,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                     model::VerificationType::Email => {
                                         let now = Utc::now().date_naive();
-                                        let two_years_from_now = now.with_year(now.year() + 2).unwrap();
+                                        let two_years_from_now = now.with_year(now.year() + 1).unwrap();
                                         renter.student_email_expiration = Some(two_years_from_now);
                                         renter
                                     }
