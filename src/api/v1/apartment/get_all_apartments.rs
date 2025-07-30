@@ -12,7 +12,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(
             async move |method: Method, auth: String, user_agent: String| {
-                if method != Method::POST {
+                if method != Method::GET {
                     return methods::standard_replies::method_not_allowed_response();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
