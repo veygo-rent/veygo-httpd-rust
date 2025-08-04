@@ -70,20 +70,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 match attach_result {
                                     Ok(_) => {
                                         use crate::schema::payment_methods::dsl::*;
-                                        let _inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<model::PaymentMethod>(&mut pool).unwrap();
-                                        let payment_method_query_result = payment_methods
-                                            .into_boxed()
-                                            .filter(is_enabled.eq(true))
-                                            .filter(renter_id.eq(&access_token.user_id))
-                                            .load::<model::PaymentMethod>(&mut pool)
-                                            .unwrap();
-                                        let publish_payment_methods: Vec<model::PublishPaymentMethod> =
-                                            payment_method_query_result
-                                                .iter()
-                                                .map(|x| x.to_public_payment_method())
-                                                .collect();
+                                        let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<model::PaymentMethod>(&mut pool).unwrap().to_public_payment_method();
+
                                         let msg = serde_json::json!({
-                                            "payment_methods": publish_payment_methods,
+                                            "new_payment_method": inserted_pm_card,
                                         });
                                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
                                     }
