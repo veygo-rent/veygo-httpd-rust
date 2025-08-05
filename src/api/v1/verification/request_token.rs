@@ -1,4 +1,5 @@
 use crate::{POOL, integration, methods, model};
+use askama::Template;
 use diesel::prelude::*;
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
@@ -91,11 +92,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         &renter.student_email,
                                         &renter.name,
                                     );
+                                    #[derive(Template)]
+                                    #[template(path = "email_verification.html")]
+                                    struct EmailVerificationTemplate<'a> {
+                                        verification_code: &'a str,
+                                    }
+                                    let email_content = EmailVerificationTemplate { verification_code: &otp };
                                     let email_result = integration::sendgrid_veygo::send_email(
                                         None,
                                         email,
                                         "Your Verification Code",
-                                        &*otp,
+                                        &email_content.render().unwrap(),
                                         None,
                                         None,
                                     )

@@ -16,7 +16,7 @@ pub struct CreatePaymentMethodsRequestBody {
     nickname: Option<String>,
 }
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection> + Clone {
     warp::path("create")
         .and(warp::post())
         .and(warp::body::json())
