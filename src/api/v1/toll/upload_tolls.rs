@@ -61,7 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                             let new_token = methods::tokens::gen_token_object(
                                 &access_token.user_id,
-                                &access_token.token,
+                                &user_agent,
                             )
                             .await;
                             use crate::schema::access_tokens::dsl::*;

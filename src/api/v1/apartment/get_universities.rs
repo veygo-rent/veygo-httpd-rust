@@ -1,6 +1,6 @@
 use crate::model::Apartment;
 use crate::{POOL, schema};
-use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::Filter;
 use warp::http::StatusCode;
 

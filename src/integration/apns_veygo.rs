@@ -4,6 +4,7 @@ use a2::{
 };
 use std::fs::File;
 
+#[allow(dead_code)]
 pub async fn send_notification(
     sandbox: bool,
     device_token: String,
