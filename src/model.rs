@@ -20,6 +20,15 @@ pub enum VerificationType {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::RemoteMgmtEnum)]
+pub enum RemoteMgmtType {
+    Revers,
+    Smartcar,
+    Tesla,
+    None,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::AgreementStatusEnum)]
 pub enum AgreementStatus {
     Rental,
@@ -86,6 +95,30 @@ pub enum TransactionType {
 }
 
 //This is for postgres. For other databases the type might be different.
+impl ToSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            RemoteMgmtType::Revers => out.write_all(b"reverse")?,
+            RemoteMgmtType::Tesla => out.write_all(b"tesla")?,
+            RemoteMgmtType::Smartcar => out.write_all(b"smartcar")?,
+            RemoteMgmtType::None => out.write_all(b"none")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"reverse" => Ok(RemoteMgmtType::Revers),
+            b"tesla" => Ok(RemoteMgmtType::Tesla),
+            b"smartcar" => Ok(RemoteMgmtType::Smartcar),
+            b"none" => Ok(RemoteMgmtType::None),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
 impl ToSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
@@ -533,6 +566,19 @@ pub struct NewApartment {
     pub uni_id: i32,
 }
 
+#[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(table_name = locations)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Location {
+    pub id: i32,
+    pub apartment_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub enabled: bool,
+}
+
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[diesel(table_name = transponder_companies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -565,7 +611,7 @@ pub struct NewTransponderCompany {
 #[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
-#[diesel(belongs_to(Apartment))]
+#[diesel(belongs_to(Location))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Vehicle {
@@ -591,7 +637,9 @@ pub struct Vehicle {
     pub third_transponder_company_id: Option<i32>,
     pub fourth_transponder_number: Option<String>,
     pub fourth_transponder_company_id: Option<i32>,
-    pub apartment_id: i32,
+    pub location_id: i32,
+    pub remote_mgmt: RemoteMgmtType,
+    pub remote_mgmt_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -609,7 +657,9 @@ pub struct PublishVehicle {
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
-    pub apartment_id: i32,
+    pub location_id: i32,
+    pub remote_mgmt: RemoteMgmtType,
+    pub remote_mgmt_id: String,
 }
 
 impl Vehicle {
@@ -628,7 +678,9 @@ impl Vehicle {
             odometer: self.odometer,
             tank_size: self.tank_size,
             tank_level_percentage: self.tank_level_percentage,
-            apartment_id: self.apartment_id,
+            location_id: self.location_id,
+            remote_mgmt: self.remote_mgmt,
+            remote_mgmt_id: self.remote_mgmt_id.clone(),
         }
     }
 }
@@ -659,7 +711,9 @@ pub struct NewVehicle {
     pub third_transponder_company_id: Option<i32>,
     pub fourth_transponder_number: Option<String>,
     pub fourth_transponder_company_id: Option<i32>,
-    pub apartment_id: i32,
+    pub location_id: i32,
+    pub remote_mgmt: RemoteMgmtType,
+    pub remote_mgmt_id: String,
 }
 
 #[derive(
@@ -830,6 +884,7 @@ pub struct Agreement {
     pub vehicle_snapshot_after: Option<i32>,
     pub promo_id: Option<i32>,
     pub taxes: Vec<Option<i32>>,
+    pub location_id: i32,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]

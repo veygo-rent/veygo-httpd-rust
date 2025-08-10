@@ -22,6 +22,10 @@ pub mod sql_types {
     pub struct PlanTierEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "remote_mgmt_enum"))]
+    pub struct RemoteMgmtEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "transaction_type_enum"))]
     pub struct TransactionTypeEnum;
 
@@ -76,6 +80,7 @@ diesel::table! {
         vehicle_snapshot_after -> Nullable<Int4>,
         promo_id -> Nullable<Int4>,
         taxes -> Array<Nullable<Int4>>,
+        location_id -> Int4,
     }
 }
 
@@ -163,6 +168,19 @@ diesel::table! {
         email -> Nullable<Varchar>,
         note -> Text,
         exp -> Nullable<Date>,
+    }
+}
+
+diesel::table! {
+    locations (id) {
+        id -> Int4,
+        apartment_id -> Int4,
+        #[max_length = 255]
+        name -> Varchar,
+        description -> Nullable<Text>,
+        latitude -> Float8,
+        longitude -> Float8,
+        enabled -> Bool,
     }
 }
 
@@ -307,6 +325,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::RemoteMgmtEnum;
+
     vehicles (id) {
         id -> Int4,
         vin -> Varchar,
@@ -330,7 +351,10 @@ diesel::table! {
         third_transponder_company_id -> Nullable<Int4>,
         fourth_transponder_number -> Nullable<Varchar>,
         fourth_transponder_company_id -> Nullable<Int4>,
-        apartment_id -> Int4,
+        location_id -> Int4,
+        remote_mgmt -> RemoteMgmtEnum,
+        #[max_length = 255]
+        remote_mgmt_id -> Varchar,
     }
 }
 
@@ -349,6 +373,7 @@ diesel::table! {
 
 diesel::joinable!(access_tokens -> renters (user_id));
 diesel::joinable!(agreements -> apartments (apartment_id));
+diesel::joinable!(agreements -> locations (location_id));
 diesel::joinable!(agreements -> payment_methods (payment_method_id));
 diesel::joinable!(agreements -> renters (renter_id));
 diesel::joinable!(agreements -> vehicles (vehicle_id));
@@ -356,13 +381,14 @@ diesel::joinable!(charges -> agreements (agreement_id));
 diesel::joinable!(charges -> vehicles (vehicle_id));
 diesel::joinable!(damage_submissions -> renters (reported_by));
 diesel::joinable!(damages -> agreements (agreement_id));
+diesel::joinable!(locations -> apartments (apartment_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
 diesel::joinable!(payments -> agreements (agreement_id));
 diesel::joinable!(payments -> payment_methods (payment_method_id));
 diesel::joinable!(payments -> renters (renter_id));
 diesel::joinable!(rental_transactions -> agreements (agreement_id));
 diesel::joinable!(renters -> apartments (apartment_id));
-diesel::joinable!(vehicles -> apartments (apartment_id));
+diesel::joinable!(vehicles -> locations (location_id));
 diesel::joinable!(verifications -> renters (renter_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -373,6 +399,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     damage_submissions,
     damages,
     do_not_rent_lists,
+    locations,
     payment_methods,
     payments,
     promos,

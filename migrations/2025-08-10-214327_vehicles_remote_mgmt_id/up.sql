@@ -1,0 +1,2 @@
+ALTER TABLE vehicles
+    ADD COLUMN remote_mgmt_id VARCHAR(255) NOT NULL DEFAULT '';
