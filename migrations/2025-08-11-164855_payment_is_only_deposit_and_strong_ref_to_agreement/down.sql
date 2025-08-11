@@ -1,0 +1,2 @@
+ALTER TABLE payments
+DROP COLUMN IF EXISTS is_deposit;

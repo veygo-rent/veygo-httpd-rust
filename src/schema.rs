@@ -217,6 +217,7 @@ diesel::table! {
         payment_method_id -> Int4,
         amount_authorized -> Nullable<Float8>,
         capture_before -> Nullable<Timestamptz>,
+        is_deposit -> Bool,
     }
 }
 

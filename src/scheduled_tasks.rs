@@ -125,6 +125,7 @@ pub async fn nightly_task() {
                                     payment_method_id: plan_pm.id,
                                     amount_authorized: None,
                                     capture_before: None,
+                                    is_deposit: false,
                                 };
                                 use crate::schema::payments::dsl::*;
                                 diesel::insert_into(payments).values(&new_payment).get_result::<model::Payment>(&mut pool).unwrap();

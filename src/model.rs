@@ -975,7 +975,7 @@ pub struct NewCharge {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Payment {
     pub id: i32,
-    pub r#type: PaymentType,
+    pub payment_type: PaymentType,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub amount: f64,
@@ -987,6 +987,7 @@ pub struct Payment {
     pub amount_authorized: Option<f64>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
+    pub is_deposit: bool,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -1006,6 +1007,7 @@ pub struct NewPayment {
     pub amount_authorized: Option<f64>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
+    pub is_deposit: bool,
 }
 
 #[derive(

@@ -142,6 +142,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .inner_join(location_query::locations
                             .inner_join(apartment_query::apartments)
                         )
+                        .filter(apartment_query::id.ne(1))
                         .filter(apartment_query::is_operating)
                         .filter(location_query::is_operational)
                         .filter(vehicle_query::id.eq(&body.vehicle_id))
@@ -159,6 +160,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                     }
                     let vehicle_with_location = vehicle_result.unwrap();
+
+                    if vehicle_with_location.2.id <= 1 {
+                        // RETURN: FORBIDDEN
+                        return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
+                    }
+
+                    if vehicle_with_location.2.uni_id != 1 && (user_in_request.employee_tier != model::EmployeeTier::Admin || user_in_request.apartment_id != vehicle_with_location.2.id) {
+                        // RETURN: FORBIDDEN
+                        return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
+                    }
 
                     if vehicle_with_location.2.liability_protection_rate <= 0.0 {
                         body.liability = false;
@@ -247,7 +258,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                 } else if request_error.error_type == InvalidRequest {
                                     let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED)),));
                                 }
                             }
                             return methods::standard_replies::internal_server_error_response();
