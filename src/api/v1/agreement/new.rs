@@ -1,4 +1,4 @@
-use crate::{POOL, integration, methods, model};
+use crate::{POOL, integration, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -8,11 +8,14 @@ use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
+use warp::reply::with_status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
     vehicle_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds")]
     start_time: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
     end_time: DateTime<Utc>,
     payment_id: i32,
     liability: bool,
@@ -37,7 +40,59 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 if method != Method::POST {
                     return methods::standard_replies::method_not_allowed_response();
                 }
-                return methods::standard_replies::not_implemented_response();
+                let now = Utc::now();
+                if body.start_time < now || body.end_time < now || body.start_time + Duration::minutes(proj_config::RSVP_BUFFER) > body.end_time {
+                    let error_msg = serde_json::json!({"start_time": &body.start_time, "end_time": &body.end_time, "error": "Time is in valid"});
+                    // RETURN: BAD_REQUEST
+                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                }
+                let mut pool = POOL.get().unwrap();
+                let token_and_id = auth.split("$").collect::<Vec<&str>>();
+                if token_and_id.len() != 2 {
+                    // RETURN: UNAUTHORIZED
+                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                }
+                let user_id_parsed_result = token_and_id[1].parse::<i32>();
+                let user_id = match user_id_parsed_result {
+                    Ok(int) => {
+                        int
+                    }
+                    Err(_) => {
+                        // RETURN: UNAUTHORIZED
+                        return methods::tokens::token_invalid_wrapped_return(&auth);
+                    }
+                };
+
+                let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
+                let if_token_valid_result = methods::tokens::verify_user_token(&access_token.user_id, &access_token.token).await;
+                if if_token_valid_result.is_err() {
+                    return methods::tokens::token_not_hex_warp_return(&access_token.token);
+                }
+                let token_bool = if_token_valid_result.unwrap();
+                if !token_bool {
+                    // RETURN: UNAUTHORIZED
+                    methods::tokens::token_invalid_wrapped_return(&access_token.token)
+                } else {
+                    // gen new token
+                    let token_clone = access_token.clone();
+                    methods::tokens::rm_token_by_binary(
+                        hex::decode(token_clone.token).unwrap(),
+                    )
+                        .await;
+                    let new_token = methods::tokens::gen_token_object(
+                        &access_token.user_id,
+                        &user_agent,
+                    )
+                        .await;
+                    use crate::schema::access_tokens::dsl::*;
+                    let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                        .values(&new_token)
+                        .get_result::<model::AccessToken>(&mut pool)
+                        .unwrap()
+                        .to_publish_access_token();
+                    
+                    methods::standard_replies::not_implemented_response()
+                }
                 // let mut pool = POOL.get().unwrap();
                 // let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 // if token_and_id.len() != 2 {

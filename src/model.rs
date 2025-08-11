@@ -841,8 +841,8 @@ pub struct Promo {
     Serialize,
     Deserialize,
 )]
-#[diesel(belongs_to(Apartment))]
 #[diesel(belongs_to(Vehicle))]
+#[diesel(belongs_to(Location))]
 #[diesel(belongs_to(Renter))]
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(table_name = agreements)]
@@ -875,7 +875,6 @@ pub struct Agreement {
     pub drop_off_level: Option<i32>,
     pub msrp_factor: f64,
     pub duration_rate: f64,
-    pub apartment_id: i32,
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
@@ -888,7 +887,7 @@ pub struct Agreement {
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
-#[diesel(belongs_to(Apartment))]
+#[diesel(belongs_to(Location))]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Renter))]
 #[diesel(belongs_to(PaymentMethod))]
@@ -913,12 +912,12 @@ pub struct NewAgreement {
     pub pai_protection_rate: f64,
     pub msrp_factor: f64,
     pub duration_rate: f64,
-    pub apartment_id: i32,
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub promo_id: Option<i32>,
     pub taxes: Vec<Option<i32>>,
+    pub location_id: i32,
 }
 
 #[derive(

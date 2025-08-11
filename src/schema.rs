@@ -71,7 +71,6 @@ diesel::table! {
         drop_off_level -> Nullable<Int4>,
         msrp_factor -> Float8,
         duration_rate -> Float8,
-        apartment_id -> Int4,
         vehicle_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Int4,
@@ -372,7 +371,6 @@ diesel::table! {
 }
 
 diesel::joinable!(access_tokens -> renters (user_id));
-diesel::joinable!(agreements -> apartments (apartment_id));
 diesel::joinable!(agreements -> locations (location_id));
 diesel::joinable!(agreements -> payment_methods (payment_method_id));
 diesel::joinable!(agreements -> renters (renter_id));
