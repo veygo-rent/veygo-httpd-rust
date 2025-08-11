@@ -92,3 +92,14 @@ pub fn not_implemented_response() -> Result<(warp::reply::Response,), Rejection>
     )
     .into_response(),))
 }
+
+pub fn apartment_not_allowed_response(
+    token_data: PublishAccessToken,
+    apartment: i32,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg = serde_json::json!({"apartment": apartment});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),
+    ),))
+}

@@ -92,7 +92,7 @@ fn env_or_default(key: &str, default: &str) -> String {
 
 /// Fetch a new Tesla OAuth token using client credentials and store it globally
 #[allow(dead_code)]
-pub async fn fetch_and_store_tesla_token() -> Result<TeslaToken> {
+async fn fetch_and_store_tesla_token() -> Result<TeslaToken> {
     let client_id = env_or_err("TESLA_CLIENT_ID")?;
     let client_secret = env_or_err("TESLA_CLIENT_SECRET")?;
 
