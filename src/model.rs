@@ -457,6 +457,7 @@ pub struct PaymentMethod {
     pub renter_id: i32,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
+    pub cdw_enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -471,6 +472,7 @@ pub struct PublishPaymentMethod {
     pub renter_id: i32,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
+    pub cdw_enabled: bool,
 }
 
 impl PaymentMethod {
@@ -485,6 +487,7 @@ impl PaymentMethod {
             is_enabled: self.is_enabled,
             renter_id: self.renter_id,
             last_used_date_time: self.last_used_date_time.clone(),
+            cdw_enabled: self.cdw_enabled,
         }
     }
 }

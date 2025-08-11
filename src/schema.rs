@@ -197,6 +197,7 @@ diesel::table! {
         is_enabled -> Bool,
         renter_id -> Int4,
         last_used_date_time -> Nullable<Timestamptz>,
+        cdw_enabled -> Bool,
     }
 }
 

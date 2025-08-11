@@ -134,7 +134,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     // TODO: Add apartment liability availability check
                     if user_in_request.insurance_liability_expiration.is_none() && !body.liability {
                         let error_msg = serde_json::json!({"error": "Liability coverage required"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
                     let user_liability_expiration = user_in_request.insurance_liability_expiration.unwrap();
                     if user_liability_expiration < return_date && !body.liability {
@@ -142,14 +142,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             "error": "Liability coverage expired before return"
                         });
                         return Ok::<_, warp::Rejection>((
-                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
                         ));
                     }
                     // collision
                     // TODO: Add credit card collision verification
                     if user_in_request.insurance_collision_expiration.is_none() && !body.pcdw {
                         let error_msg = serde_json::json!({"error": "Collision coverage required"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
                     let user_collision_expiration = user_in_request.insurance_collision_expiration.unwrap();
                     if user_collision_expiration < return_date && !body.pcdw {
@@ -157,7 +157,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             "error": "Collision coverage expired before return"
                         });
                         return Ok::<_, warp::Rejection>((
-                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
                         ));
                     }
 
@@ -177,7 +177,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .filter(apartment_query::is_operating)
                         .filter(location_query::is_operational)
                         .filter(vehicle_query::id.eq(&body.vehicle_id))
-                        .select((vehicle_query::vehicles::all_columns(), location_query::locations::all_columns(), apartment_query::apartments::all_columns()))
+                        .select(
+                            (
+                                vehicle_query::vehicles::all_columns(),
+                                location_query::locations::all_columns(),
+                                apartment_query::apartments::all_columns()
+                            )
+                        )
                         .get_result::<(model::Vehicle, model::Location, model::Apartment)>(&mut pool);
 
                     if vehicle_result.is_err() {
@@ -185,6 +191,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
                     let vehicle_with_location = vehicle_result.unwrap();
+
+                    use crate::schema::payment_methods::dsl as payment_method_query;
+                    let pm_result = payment_method_query::payment_methods
+                        .filter(payment_method_query::id.eq(&body.payment_id))
+                        .filter(payment_method_query::renter_id.eq(&user_in_request.id))
+                        .filter(payment_method_query::is_enabled)
+                        .get_result::<model::PaymentMethod>(&mut pool);
+
+                    if pm_result.is_err() {
+                        let error_msg = serde_json::json!({"error": "Credit card is unavailable"});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let payment_method = pm_result.unwrap();
 
 
                     methods::standard_replies::not_implemented_response()
