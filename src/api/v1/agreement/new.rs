@@ -77,20 +77,105 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let token_clone = access_token.clone();
                     methods::tokens::rm_token_by_binary(
                         hex::decode(token_clone.token).unwrap(),
-                    )
-                        .await;
+                    ).await;
                     let new_token = methods::tokens::gen_token_object(
                         &access_token.user_id,
                         &user_agent,
-                    )
-                        .await;
+                    ).await;
                     use crate::schema::access_tokens::dsl::*;
                     let new_token_in_db_publish = diesel::insert_into(access_tokens)
                         .values(&new_token)
                         .get_result::<model::AccessToken>(&mut pool)
                         .unwrap()
                         .to_publish_access_token();
-                    
+
+                    let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
+                    // Check if Renter has an address
+                    if user_in_request.billing_address.is_none() {
+                        let error_msg = serde_json::json!({"error": "Unknown billing address"});
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+
+                    // Check if Renter DL exp
+                    if user_in_request.drivers_license_expiration.is_none() {
+                        let error_msg = serde_json::json!({"error": "Drivers license not verified"});
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let user_dl_expiration = user_in_request.drivers_license_expiration.unwrap();
+                    let return_date = body.end_time.naive_utc().date();
+                    if user_dl_expiration < return_date {
+                        let error_msg = serde_json::json!({
+                            "error": "Drivers license expired before return"
+                        });
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((
+                            with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),
+                        ));
+                    }
+
+                    // Check if Renter lease exp
+                    if user_in_request.lease_agreement_expiration.is_none() {
+                        let error_msg = serde_json::json!({"error": "Lease agreement not verified"});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let user_lease_expiration = user_in_request.lease_agreement_expiration.unwrap();
+                    if user_lease_expiration < return_date {
+                        let error_msg = serde_json::json!({
+                            "error": "Lease agreement expired before return"
+                        });
+                        return Ok::<_, warp::Rejection>((
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                        ));
+                    }
+                    // Check if liability is covered (liability & collision)
+                    // liability
+                    // TODO: Add apartment liability availability check
+                    if user_in_request.insurance_liability_expiration.is_none() && !body.liability {
+                        let error_msg = serde_json::json!({"error": "Liability coverage required"});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let user_liability_expiration = user_in_request.insurance_liability_expiration.unwrap();
+                    if user_liability_expiration < return_date && !body.liability {
+                        let error_msg = serde_json::json!({
+                            "error": "Liability coverage expired before return"
+                        });
+                        return Ok::<_, warp::Rejection>((
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                        ));
+                    }
+                    // collision
+                    // TODO: Add credit card collision verification
+                    if user_in_request.insurance_collision_expiration.is_none() && !body.pcdw {
+                        let error_msg = serde_json::json!({"error": "Collision coverage required"});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let user_collision_expiration = user_in_request.insurance_collision_expiration.unwrap();
+                    if user_collision_expiration < return_date && !body.pcdw {
+                        let error_msg = serde_json::json!({
+                            "error": "Collision coverage expired before return"
+                        });
+                        return Ok::<_, warp::Rejection>((
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                        ));
+                    }
+
+                    let dnr_records = methods::user::get_dnr_record_for(&user_in_request);
+                    if let Some(records) = dnr_records {
+                        let error_msg = serde_json::json!({"error": "User on do not rent list", "do_not_rent_records": records});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
+                    }
+
+                    use crate::schema::vehicles::dsl as vehicle_query;
+                    let vehicle_result = vehicle_query::vehicles.filter(vehicle_query::id.eq(&body.vehicle_id)).get_result::<model::Vehicle>(&mut pool);
+
+                    if vehicle_result.is_err() {
+                        let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    }
+                    let vehicle = vehicle_result.unwrap();
+
                     methods::standard_replies::not_implemented_response()
                 }
                 // let mut pool = POOL.get().unwrap();
