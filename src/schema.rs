@@ -180,6 +180,7 @@ diesel::table! {
         latitude -> Float8,
         longitude -> Float8,
         enabled -> Bool,
+        is_operational -> Bool,
     }
 }
 
@@ -354,6 +355,7 @@ diesel::table! {
         remote_mgmt -> RemoteMgmtEnum,
         #[max_length = 255]
         remote_mgmt_id -> Varchar,
+        requires_own_insurance -> Bool,
     }
 }
 

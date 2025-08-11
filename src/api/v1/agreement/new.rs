@@ -168,13 +168,24 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
 
                     use crate::schema::vehicles::dsl as vehicle_query;
-                    let vehicle_result = vehicle_query::vehicles.filter(vehicle_query::id.eq(&body.vehicle_id)).get_result::<model::Vehicle>(&mut pool);
+                    use crate::schema::locations::dsl as location_query;
+                    use crate::schema::apartments::dsl as apartment_query;
+                    let vehicle_result = vehicle_query::vehicles
+                        .inner_join(location_query::locations
+                            .inner_join(apartment_query::apartments)
+                        )
+                        .filter(apartment_query::is_operating)
+                        .filter(location_query::is_operational)
+                        .filter(vehicle_query::id.eq(&body.vehicle_id))
+                        .select((vehicle_query::vehicles::all_columns(), location_query::locations::all_columns(), apartment_query::apartments::all_columns()))
+                        .get_result::<(model::Vehicle, model::Location, model::Apartment)>(&mut pool);
 
                     if vehicle_result.is_err() {
                         let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
-                    let vehicle = vehicle_result.unwrap();
+                    let vehicle_with_location = vehicle_result.unwrap();
+
 
                     methods::standard_replies::not_implemented_response()
                 }

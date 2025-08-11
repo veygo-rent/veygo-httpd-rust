@@ -577,6 +577,7 @@ pub struct Location {
     pub latitude: f64,
     pub longitude: f64,
     pub enabled: bool,
+    pub is_operational: bool,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -640,6 +641,7 @@ pub struct Vehicle {
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
+    pub requires_own_insurance: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -660,6 +662,7 @@ pub struct PublishVehicle {
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
+    pub requires_own_insurance: bool,
 }
 
 impl Vehicle {
@@ -681,6 +684,7 @@ impl Vehicle {
             location_id: self.location_id,
             remote_mgmt: self.remote_mgmt,
             remote_mgmt_id: self.remote_mgmt_id.clone(),
+            requires_own_insurance: self.requires_own_insurance,
         }
     }
 }
@@ -714,6 +718,7 @@ pub struct NewVehicle {
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
+    pub requires_own_insurance: bool,
 }
 
 #[derive(
