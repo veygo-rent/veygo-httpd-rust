@@ -90,6 +90,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             if apt.uni_id != 1 && (user.employee_tier != model::EmployeeTier::Admin || user.apartment_id != body.apartment_id) {
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }
+                            if !apt.is_operating {
+                                return methods::standard_replies::apartment_not_operational_wrapped(new_token_in_db_publish.clone());
+                            }
                             use crate::schema::locations::dsl as locations_query;
                             use crate::schema::vehicles::dsl as vehicles_query;
                             let all_vehicles = vehicles_query::vehicles

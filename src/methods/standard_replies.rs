@@ -44,10 +44,10 @@ pub fn card_invalid_wrapped(
 pub fn apartment_not_operational_wrapped(
     token_data: PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Apartment is not operational"});
+    let error_msg = serde_json::json!({"error": "Location is not operational"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),
+        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
     ),))
 }
 
@@ -97,9 +97,9 @@ pub fn apartment_not_allowed_response(
     token_data: PublishAccessToken,
     apartment: i32,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let msg = serde_json::json!({"apartment": apartment});
+    let msg = serde_json::json!({"apartment": apartment, "error": "renting at this location is not permitted"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK),
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
     ),))
 }
