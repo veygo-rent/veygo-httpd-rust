@@ -42,6 +42,25 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::header::<String>("user-agent"))
         .and_then(
             async move |form: FormData, auth: String, content_type: String, user_agent: String| {
+
+                let field_names: Vec<_> = form
+                    .and_then(|mut field| async move {
+                        let mut bytes: Vec<u8> = Vec::new();
+
+                        // field.data() only returns a piece of the content, you should call over it until it replies None
+                        while let Some(content) = field.data().await {
+                            let content = content.unwrap();
+                            bytes.put(content);
+                        }
+                        Ok((field.filename().unwrap().to_string(), bytes))
+                    })
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let file_count = field_names.len() as i32;
+                if file_count != 1 {
+                    return methods::standard_replies::bad_request("Please upload exactly one file");
+                };
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -64,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .await;
                 let content_type_parsed_result = UploadedFileType::from_str(&*content_type);
                 if content_type_parsed_result.is_err() {
-                    return methods::standard_replies::internal_server_error_response();
+                    return methods::standard_replies::bad_request("File type not supported");
                 }
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
@@ -93,35 +112,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
-                            let field_names: Vec<_> = form
-                                .and_then(|mut field| async move {
-                                    let mut bytes: Vec<u8> = Vec::new();
-
-                                    // field.data() only returns a piece of the content, you should call over it until it replies None
-                                    while let Some(content) = field.data().await {
-                                        let content = content.unwrap();
-                                        bytes.put(content);
-                                    }
-                                    Ok((field.filename().unwrap().to_string(), bytes))
-                                })
-                                .try_collect()
-                                .await
-                                .unwrap();
-                            let file_count = field_names.len() as i32;
-                            if file_count != 1 {
-                                let msg = serde_json::json!({
-                                    "message": "Please upload exactly one file",
-                                });
-                                return Ok::<_, warp::Rejection>((
-                                    methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        with_status(
-                                            warp::reply::json(&msg),
-                                            StatusCode::BAD_REQUEST,
-                                        ),
-                                    ),
-                                ));
-                            };
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 "user_docs/".to_string(),
                                 field_names[0].0.to_string(),

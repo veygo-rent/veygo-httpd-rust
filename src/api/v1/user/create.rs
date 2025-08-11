@@ -78,8 +78,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
             if !is_valid_email(&renter_create_data.student_email) || !is_valid_phone_number(&renter_create_data.phone) {
                 // invalid email or phone number format
-                let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "phone": &renter_create_data.phone, "error": "Please check your email and phone number format"});
-                Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                methods::standard_replies::bad_request("Please check your email and phone number format")
             } else {
                 // valid email
                 let result = renters.filter(student_email.eq(&email_clone)
@@ -158,7 +157,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         Err(_) => {
                                             use crate::schema::renters::dsl::*;
                                             diesel::delete(renters.filter(id.eq(renter.id))).execute(&mut pool).unwrap();
-                                            return methods::standard_replies::internal_server_error_response();
+                                            return methods::standard_replies::internal_server_error_response_without_token();
                                         }
                                     }
                                     let user_id_data = renter.id;

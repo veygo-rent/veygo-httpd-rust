@@ -1,5 +1,5 @@
 use crate::{POOL, integration, methods, model, proj_config};
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Duration, Utc};
 use diesel::dsl::sql;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -43,9 +43,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 let now = Utc::now();
                 if body.start_time < now || body.end_time < now || body.start_time + Duration::minutes(proj_config::RSVP_BUFFER) > body.end_time {
-                    let error_msg = serde_json::json!({"start_time": &body.start_time, "end_time": &body.end_time, "error": "Time is in valid"});
                     // RETURN: BAD_REQUEST
-                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                    return methods::standard_replies::bad_request("Time is invalid")
                 }
                 let mut pool = POOL.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -92,11 +91,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                     // Check if Renter has an address
-                    if user_in_request.billing_address.is_none() {
+                    let Some(billing_address) = user_in_request.clone().billing_address else {
                         let error_msg = serde_json::json!({"error": "Unknown billing address"});
                         // RETURN: NOT_ACCEPTABLE
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
-                    }
+                    };
 
                     // Check if Renter DL exp
                     if user_in_request.drivers_license_expiration.is_none() {
@@ -166,7 +165,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
 
-                    if vehicle_with_location.2.uni_id != 1 && (user_in_request.employee_tier != model::EmployeeTier::Admin || user_in_request.apartment_id != vehicle_with_location.2.id) {
+                    if vehicle_with_location.2.uni_id != 1 && !(user_in_request.employee_tier == model::EmployeeTier::Admin || user_in_request.apartment_id == vehicle_with_location.2.id) {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
@@ -243,8 +242,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let start_time_buffered = body.start_time - Duration::minutes(proj_config::RSVP_BUFFER);
                     let end_time_buffered = body.end_time + Duration::minutes(proj_config::RSVP_BUFFER);
 
+                    let tax_ids: Vec<i32> = vehicle_with_location.2.taxes.clone().into_iter().flatten().collect();
+                    use crate::schema::taxes::dsl as tax_query;
+                    let tax_objs = tax_query::taxes
+                        .filter(tax_query::id.eq_any(tax_ids))
+                        .filter(tax_query::is_effective)
+                        .get_results::<model::Tax>(&mut pool)
+                        .unwrap_or_default();
+
+                    let mut local_tax_rate = 0.00;
+                    for tax_obj in tax_objs {
+                        local_tax_rate += tax_obj.multiplier;
+                    }
+
                     let conf_id = methods::agreement::generate_unique_agreement_confirmation();
-                    let deposit_amount = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * (1.00 + 0.11);
+                    let deposit_amount = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * (1.00 + local_tax_rate);
                     let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                     let stripe_auth = integration::stripe_veygo::create_payment_intent(
                         &("Hold for Veygo Reservation #".to_owned() + &*conf_id.clone()), &user_in_request.stripe_id.unwrap(), &payment_method.token, &deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
@@ -261,7 +273,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED)),));
                                 }
                             }
-                            return methods::standard_replies::internal_server_error_response();
+                            methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
                         }
                         Ok(pmi) => {
                             use crate::schema::agreements::dsl as agreement_query;
@@ -282,108 +294,64 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             if if_conflict {
                                 let _ = integration::stripe_veygo::drop_auth(&pmi).await;
                                 let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                             }
+
+                            let new_agreement = model::NewAgreement {
+                                confirmation: conf_id,
+                                status: model::AgreementStatus::Rental,
+                                user_name: user_in_request.name.clone(),
+                                user_date_of_birth: user_in_request.date_of_birth.clone(),
+                                user_email: user_in_request.student_email.clone(),
+                                user_phone: user_in_request.phone.clone(),
+                                user_billing_address: billing_address,
+                                rsvp_pickup_time: body.start_time,
+                                rsvp_drop_off_time: body.end_time,
+                                liability_protection_rate: if body.liability { vehicle_with_location.2.liability_protection_rate } else { 0.00 },
+                                pcdw_protection_rate: if body.pcdw { vehicle_with_location.2.pcdw_protection_rate * vehicle_with_location.0.msrp_factor } else { 0.00 },
+                                pcdw_ext_protection_rate: if body.pcdw_ext { vehicle_with_location.2.pcdw_ext_protection_rate * vehicle_with_location.0.msrp_factor } else { 0.00 },
+                                rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { 0.00 },
+                                pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { 0.00 },
+                                taxes: vehicle_with_location.2.taxes,
+                                msrp_factor: vehicle_with_location.0.msrp_factor,
+                                duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
+                                vehicle_id: vehicle_with_location.0.id,
+                                renter_id: user_in_request.id,
+                                payment_method_id: body.payment_id,
+                                promo_id: None,
+                                location_id: vehicle_with_location.1.id,
+                            };
+
+                            let new_publish_agreement_result = diesel::insert_into(agreement_query::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);
+                            if new_publish_agreement_result.is_err() {
+                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                            }
+                            let new_publish_agreement = new_publish_agreement_result.unwrap();
+                            use crate::schema::payments::dsl as payment_query;
+                            let new_payment = model::NewPayment {
+                                payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
+                                amount: 0.00,
+                                note: Some("Non refundable deposit".to_string()),
+                                reference_number: Some(pmi.id.to_string()),
+                                agreement_id: Some(new_publish_agreement.id.clone()),
+                                renter_id: user_in_request.id,
+                                payment_method_id: payment_method.id,
+                                amount_authorized: Option::from(deposit_amount),
+                                capture_before: Option::from(methods::timestamps::from_seconds(pmi.clone().latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
+                                is_deposit: true,
+                            };
+                            let payment_result = diesel::insert_into(payment_query::payments).values(&new_payment).get_result::<model::Payment>(&mut pool);
+                            if payment_result.is_err() {
+                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let _ = diesel::update(agreement_query::agreements).filter(agreement_query::id.eq(&new_publish_agreement.id)).set(agreement_query::status.eq(model::AgreementStatus::Void)).execute(&mut pool);
+                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                            }
+                            let msg = serde_json::json!({"agreement": &new_publish_agreement});
+                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))
                         }
                     }
-                    methods::standard_replies::not_implemented_response()
                 }
-
-
-                //                                             let apartment_id_clone = vehicle.apartment_id.clone();
-                //                                             use crate::schema::apartments::dsl::*;
-                //                                             let apt = apartments.into_boxed().filter(id.eq(apartment_id_clone)).get_result::<crate::model::Apartment>(&mut pool).unwrap();
-                //                                             let conf_id = methods::agreement::generate_unique_agreement_confirmation();
-                //                                             let new_agreement = crate::model::NewAgreement {
-                //                                                 confirmation: conf_id,
-                //                                                 status: crate::model::AgreementStatus::Rental,
-                //                                                 user_name: renter_clone.name.clone(),
-                //                                                 user_date_of_birth: renter_clone.date_of_birth.clone(),
-                //                                                 user_email: renter_clone.student_email.clone(),
-                //                                                 user_phone: renter_clone.phone.clone(),
-                //                                                 user_billing_address: user_address,
-                //                                                 rsvp_pickup_time: body.start_time,
-                //                                                 rsvp_drop_off_time: body.end_time,
-                //                                                 liability_protection_rate: if body.liability { apt.liability_protection_rate } else { 0.00 },
-                //                                                 pcdw_protection_rate: if body.pcdw { apt.pcdw_protection_rate * vehicle.msrp_factor } else { 0.00 },
-                //                                                 pcdw_ext_protection_rate: if body.pcdw_ext { apt.pcdw_ext_protection_rate * vehicle.msrp_factor } else { 0.00 },
-                //                                                 rsa_protection_rate: if body.rsa { apt.rsa_protection_rate } else { 0.00 },
-                //                                                 pai_protection_rate: if body.pai { apt.pai_protection_rate } else { 0.00 },
-                //                                                 taxes: apt.taxes,
-                //                                                 msrp_factor: vehicle.msrp_factor,
-                //                                                 duration_rate: apt.duration_rate * vehicle.msrp_factor,
-                //                                                 apartment_id: vehicle.apartment_id,
-                //                                                 vehicle_id: vehicle.id,
-                //                                                 renter_id: renter_clone.id,
-                //                                                 payment_method_id: body.payment_id,
-                //                                                 promo_id: None,
-                //                                             };
-                //                                             //TODO update to real taxes
-                //                                             let deposit_amount = new_agreement.duration_rate * (1.00 + 0.11);
-                //                                             let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
-                //                                             let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                //                                                 &("Veygo Reservation #".to_owned() + &*new_agreement.confirmation.clone()), &user_in_request.stripe_id.unwrap(), &pm.token, &deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
-                //                                             ).await;
-                //                                             match stripe_auth {
-                //                                                 Err(error) => {
-                //                                                     if let StripeError::Stripe(request_error) = error {
-                //                                                         eprintln!("Stripe API error: {:?}", request_error);
-                //                                                         if request_error.code == Some(ErrorCode::CardDeclined) {
-                //                                                             return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
-                //                                                         } else if request_error.error_type == InvalidRequest {
-                //                                                             let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
-                //                                                             return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
-                //                                                         }
-                //                                                     }
-                //                                                     methods::standard_replies::internal_server_error_response()
-                //                                                 }
-                //                                                 Ok(pmi) => {
-                //                                                     use crate::schema::agreements::dsl::*;
-                //                                                     let new_publish_agreement = diesel::insert_into(agreements).values(&new_agreement).get_result::<crate::model::Agreement>(&mut pool).unwrap();
-                //
-                //                                                     let new_payment = crate::model::NewPayment {
-                //                                                         payment_type: crate::model::PaymentType::from_stripe_payment_intent_status(pmi.status),
-                //                                                         amount: 0.00,
-                //                                                         note: Some("Non refundable deposit".to_string()),
-                //                                                         reference_number: Some(pmi.id.to_string()),
-                //                                                         agreement_id: Some(new_publish_agreement.id.clone()),
-                //                                                         renter_id: new_publish_agreement.renter_id,
-                //                                                         payment_method_id: pm.id,
-                //                                                         amount_authorized: Option::from(deposit_amount),
-                //                                                         capture_before: Option::from(methods::timestamps::from_seconds(pmi.latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
-                //                                                     };
-                //                                                     use crate::schema::payments::dsl::*;
-                //                                                     let _saved_payment = diesel::insert_into(payments).values(&new_payment).get_result::<crate::model::Payment>(&mut pool).unwrap();
-                //                                                     let error_msg = serde_json::json!({"agreement": &new_publish_agreement});
-                //                                                     Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::OK)),))
-                //                                                 }
-                //                                             }
-                //                                         }
-                //                                     } else {
-                //                                         methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
-                //                                     }
-                //                                 }
-                //                                 Err(_) => {
-                //                                     methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
-                //                                 }
-                //                             }
-                //                         } else {
-                //                             let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
-                //                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
-                //                         }
-                //                     }
-                //                     Err(_) => {
-                //                         let error_msg = serde_json::json!({"error": "Vehicle invalid"});
-                //                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
-                //                     }
-                //                 }
-                //             } else {
-                //                 let error_msg = serde_json::json!({"error": "User on do not rent list"});
-                //                 Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
-                //             }
-                //         }
-                //     }
-                // }
             },
         )
 }

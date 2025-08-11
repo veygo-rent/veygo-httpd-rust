@@ -59,7 +59,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .await;
                 let content_type_parsed_result = UploadedFileType::from_str(&*content_type);
                 if content_type_parsed_result.is_err() {
-                    return methods::standard_replies::internal_server_error_response();
+                    return methods::standard_replies::bad_request("File type not supported");
                 }
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),

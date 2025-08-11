@@ -4,8 +4,6 @@ use crate::{POOL, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
-use warp::http::StatusCode;
-use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,8 +49,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 if !is_valid_phone_number(&body.phone_number) {
                     // invalid email or phone number format
-                    let error_msg = serde_json::json!({"phone": &body.phone_number, "error": "Please check your phone number format"});
-                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),));
+                    return methods::standard_replies::bad_request("Please check your phone number format");
                 };
                 let if_token_valid = methods::tokens::verify_user_token(
                     &access_token.user_id,

@@ -35,6 +35,7 @@ pub fn get_dnr_record_for(renter: &Renter) -> Option<Vec<crate::model::DoNotRent
     }
 }
 
+#[allow(dead_code)]
 pub fn get_university_apartment_by_renter(renter: &Renter) -> (crate::model::Apartment, Option<crate::model::Apartment>) {
     let mut pool = POOL.get().unwrap();
     use crate::schema::apartments::dsl::*;

@@ -84,7 +84,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         phone, &*otp)
                                     .await;
                                     if call_result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response();
+                                        return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                                     }
                                 }
                                 model::VerificationType::Email => {
@@ -108,7 +108,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     )
                                     .await;
                                     if email_result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response();
+                                        return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                                     }
                                 }
                             }

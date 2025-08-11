@@ -36,9 +36,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 let now = Utc::now();
                 if body.start_time < now || body.end_time < now || body.start_time + Duration::minutes(proj_config::RSVP_BUFFER) > body.end_time {
-                    let error_msg = serde_json::json!({"start_time": &body.start_time, "end_time": &body.end_time, "error": "Time is in valid"});
                     // RETURN: BAD_REQUEST
-                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                    return methods::standard_replies::bad_request("Time is invalid")
                 }
                 let mut pool = POOL.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();

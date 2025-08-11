@@ -3,13 +3,33 @@ use crate::model::{PublishAccessToken, PublishRenter};
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
-pub fn internal_server_error_response() -> Result<(warp::reply::Response,), Rejection> {
+pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection> {
+    let error_msg = serde_json::json!({"error": err_msg});
+    Ok::<_, Rejection>((warp::reply::with_status(
+        warp::reply::json(&error_msg),
+        StatusCode::BAD_REQUEST,
+    ).into_response(),))
+}
+pub fn internal_server_error_response_without_token() -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Internal Server Error"});
     Ok::<_, Rejection>((warp::reply::with_status(
         warp::reply::json(&error_msg),
         StatusCode::INTERNAL_SERVER_ERROR,
-    )
-    .into_response(),))
+    ).into_response(),))
+}
+
+pub fn internal_server_error_response(
+    token_data: PublishAccessToken
+) -> Result<(warp::reply::Response,), Rejection> {
+    let error_msg = serde_json::json!({"error": "Internal Server Error"});
+    let with_status = warp::reply::with_status(
+        warp::reply::json(&error_msg),
+        StatusCode::INTERNAL_SERVER_ERROR,
+    );
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        with_status,
+    ),))
 }
 
 pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejection> {

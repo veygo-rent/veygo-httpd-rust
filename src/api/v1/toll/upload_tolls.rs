@@ -40,6 +40,27 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
                 };
 
+                let field_names: Vec<_> = form
+                    .and_then(|mut field| async move {
+                        let mut bytes: Vec<u8> = Vec::new();
+
+                        // field.data() only returns a piece of the content, you should call over it until it replies to None
+                        while let Some(content) = field.data().await {
+                            let content = content.unwrap();
+                            bytes.put(content);
+                        }
+                        Ok((
+                            bytes,
+                        ))
+                    })
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let file_count = field_names.len() as i32;
+                if file_count != 1 {
+                    return methods::standard_replies::bad_request("Please upload exactly one file");
+                };
+
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid = methods::tokens::verify_user_token(
                     &access_token.user_id,
@@ -100,37 +121,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     token_clone,
                                 );
                             }
-                            let field_names: Vec<_> = form
-                                .and_then(|mut field| async move {
-                                    let mut bytes: Vec<u8> = Vec::new();
-
-                                    // field.data() only returns a piece of the content, you should call over it until it replies to None
-                                    while let Some(content) = field.data().await {
-                                        let content = content.unwrap();
-                                        bytes.put(content);
-                                    }
-                                    Ok((
-                                        bytes,
-                                    ))
-                                })
-                                .try_collect()
-                                .await
-                                .unwrap();
-                            let file_count = field_names.len() as i32;
-                            if file_count != 1 {
-                                let msg = serde_json::json!({
-                                      "message": "Please upload exactly one file",
-                                  });
-                                return Ok::<_, warp::Rejection>((
-                                    methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        with_status(
-                                            warp::reply::json(&msg),
-                                            StatusCode::BAD_REQUEST,
-                                        ),
-                                    ),
-                                ));
-                            };
                             // Parse CSV and convert to a JSON array
                             let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_slice());
 

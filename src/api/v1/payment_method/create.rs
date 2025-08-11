@@ -87,7 +87,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                                 return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
                                             }
                                         }
-                                        methods::standard_replies::internal_server_error_response()
+                                        methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
                                     }
                                 }
                             }
