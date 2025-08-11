@@ -39,6 +39,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(
             async move |body: UpdateApartmentBody, auth: String, user_agent: String| {
+                if !is_valid_email(&body.student_email) {
+                    let error_msg = serde_json::json!({"email": &body.student_email, "error": "Email is invalid"});
+                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
+                }
+                
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -91,10 +96,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
                                 }
                                 Ok(apartment) => {
-                                    if !is_valid_email(&body.student_email) {
-                                        let error_msg = serde_json::json!({"email": &body.student_email, "error": "Email is invalid"});
-                                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST)),))
-                                    }
                                     if !email_belongs_to_domain(&body.student_email, &apartment.accepted_school_email_domain) {
                                         let error_msg = serde_json::json!({"email": &body.student_email, "accepted_domain": &apartment.accepted_school_email_domain});
                                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));

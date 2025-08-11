@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
@@ -31,11 +31,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         auth: String,
                         user_agent: String| {
                 if method != Method::POST {
+                    // RETURN: METHOD_NOT_ALLOWED
                     return methods::standard_replies::method_not_allowed_response();
+                }
+                let now = Utc::now();
+                if body.start_time < now || body.end_time < now || body.start_time + Duration::minutes(proj_config::RSVP_BUFFER) > body.end_time {
+                    let error_msg = serde_json::json!({"start_time": &body.start_time, "end_time": &body.end_time, "error": "Time is in valid"});
+                    return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::BAD_REQUEST).into_response(),))
                 }
                 let mut pool = POOL.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
+                    // RETURN: UNAUTHORIZED
                     return methods::tokens::token_invalid_wrapped_return(&auth);
                 }
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -44,6 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         int
                     }
                     Err(_) => {
+                        // RETURN: UNAUTHORIZED
                         return methods::tokens::token_invalid_wrapped_return(&auth);
                     }
                 };
@@ -57,6 +65,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(token_bool) => {
                         if !token_bool {
+                            // RETURN: UNAUTHORIZED
                             methods::tokens::token_invalid_wrapped_return(&access_token.token)
                         } else {
                             // gen new token
@@ -78,19 +87,23 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .to_publish_access_token();
 
                             if body.apartment_id <= 1 {
+                                // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }
                             let user = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             use crate::schema::apartments::dsl as apartments_query;
                             let apt_in_request = apartments_query::apartments.filter(apartments_query::id.eq(&body.apartment_id)).get_result::<model::Apartment>(&mut pool);
                             if apt_in_request.is_err() {
+                                // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }
                             let apt = apt_in_request.unwrap();
                             if apt.uni_id != 1 && (user.employee_tier != model::EmployeeTier::Admin || user.apartment_id != body.apartment_id) {
+                                // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }
                             if !apt.is_operating {
+                                // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_operational_wrapped(new_token_in_db_publish.clone());
                             }
                             use crate::schema::locations::dsl as locations_query;
@@ -101,8 +114,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .select((vehicles_query::vehicles::all_columns(), locations_query::locations::all_columns()))
                                 .get_results::<(model::Vehicle, model::Location)>(&mut pool).unwrap_or_default();
 
-                            let start_time_buffered = body.start_time - Duration::minutes(15);
-                            let end_time_buffered = body.end_time + Duration::minutes(15);
+                            let start_time_buffered = body.start_time - Duration::minutes(proj_config::RSVP_BUFFER);
+                            let end_time_buffered = body.end_time + Duration::minutes(proj_config::RSVP_BUFFER);
 
                             #[derive(
                                 Serialize, Deserialize,
@@ -174,6 +187,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             let locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
                             let msg = serde_json::json!({"vehicles": locations_with_vehicles});
+                            // RETURN: OK
                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))
                         }
                     }

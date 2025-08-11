@@ -5,6 +5,7 @@ mod methods;
 mod model;
 mod scheduled_tasks;
 mod schema;
+mod proj_config;
 
 use diesel::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
