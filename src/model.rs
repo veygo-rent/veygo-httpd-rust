@@ -689,7 +689,6 @@ pub struct PublishVehicle {
     pub tank_level_percentage: i32,
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
-    pub remote_mgmt_id: String,
     pub requires_own_insurance: bool,
 }
 
@@ -739,7 +738,6 @@ impl Vehicle {
             tank_level_percentage: self.tank_level_percentage,
             location_id: self.location_id,
             remote_mgmt: self.remote_mgmt,
-            remote_mgmt_id: self.remote_mgmt_id.clone(),
             requires_own_insurance: self.requires_own_insurance,
         }
     }
