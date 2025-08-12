@@ -6,7 +6,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
-use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
+use stripe::{ErrorCode, PaymentIntent, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
@@ -294,7 +294,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )).get_result::<bool>(&mut pool).unwrap();
 
                             if if_conflict {
-                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let result = integration::stripe_veygo::drop_auth(&pmi).await;
+                                match result {
+                                    Ok(pi) => {
+                                        println!("{}", pi.status);
+                                    }
+                                    Err(err) => {
+                                        println!("{}", err.to_string());
+                                    }
+                                }
                                 let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
                                 return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                             }

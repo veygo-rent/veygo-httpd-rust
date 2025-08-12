@@ -12,7 +12,7 @@ use stripe::{
     CreateSetupIntentAutomaticPaymentMethods, PaymentIntentCancellationReason,
     CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, Currency, Customer, CustomerId,
     PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, PaymentIntentStatus,
-    PaymentMethod, PaymentMethodId, SetupIntent, StripeError, CancelPaymentIntent, 
+    PaymentMethod, PaymentMethodId, SetupIntent, StripeError, CancelPaymentIntent,
 };
 
 pub async fn create_new_payment_method(
@@ -179,15 +179,15 @@ impl PaymentType {
     }
 }
 
-pub async fn drop_auth(intent: &PaymentIntent) {
+pub async fn drop_auth(intent: &PaymentIntent) -> Result<PaymentIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
-    let _ = PaymentIntent::cancel(
+    PaymentIntent::cancel(
         &client,
         &intent.id,
         CancelPaymentIntent {
-            cancellation_reason: Some(PaymentIntentCancellationReason::VoidInvoice),
+            cancellation_reason: None,
         }
-    ).await;
+    ).await
 }
