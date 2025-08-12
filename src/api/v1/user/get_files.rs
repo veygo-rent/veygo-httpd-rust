@@ -33,10 +33,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("auth"))
-        .and(warp::header::<String>("content-type"))
+        .and(warp::header::<String>("file-type"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |auth: String, content_type: String, user_agent: String| {
+            async move |auth: String, file_type: String, user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
@@ -57,7 +57,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 let if_token_valid =
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
-                let content_type_parsed_result = UploadedFileType::from_str(&*content_type);
+                let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
                 if content_type_parsed_result.is_err() {
                     return methods::standard_replies::bad_request("File type not supported");
                 }
