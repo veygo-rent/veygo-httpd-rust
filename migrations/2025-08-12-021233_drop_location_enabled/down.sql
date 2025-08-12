@@ -1,0 +1,2 @@
+ALTER TABLE locations
+    ADD COLUMN enabled BOOLEAN NOT NULL;

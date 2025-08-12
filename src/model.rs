@@ -579,8 +579,18 @@ pub struct Location {
     pub description: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
-    pub enabled: bool,
     pub is_operational: bool,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(table_name = locations)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewLocation {
+    pub apartment_id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

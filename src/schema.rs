@@ -179,7 +179,6 @@ diesel::table! {
         description -> Nullable<Text>,
         latitude -> Float8,
         longitude -> Float8,
-        enabled -> Bool,
         is_operational -> Bool,
     }
 }
