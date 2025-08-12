@@ -77,7 +77,7 @@ diesel::table! {
         damage_ids -> Array<Nullable<Int4>>,
         vehicle_snapshot_before -> Nullable<Int4>,
         vehicle_snapshot_after -> Nullable<Int4>,
-        promo_id -> Nullable<Int4>,
+        promo_id -> Nullable<Varchar>,
         taxes -> Array<Nullable<Int4>>,
         location_id -> Int4,
     }

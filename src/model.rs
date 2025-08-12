@@ -295,6 +295,20 @@ pub struct RentalTransaction {
 }
 
 #[derive(
+    Insertable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
+#[diesel(belongs_to(Agreement))]
+#[diesel(table_name = rental_transactions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewRentalTransaction {
+    pub agreement_id: i32,
+    pub transaction_type: TransactionType,
+    pub duration: f64,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub transaction_time: DateTime<Utc>,
+}
+
+#[derive(
     Queryable,
     Identifiable,
     Associations,
@@ -309,6 +323,7 @@ pub struct RentalTransaction {
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Renter {
+    // Absolutely No Frontend Access
     pub id: i32,
     pub name: String,
     pub stripe_id: Option<String>,
@@ -419,7 +434,7 @@ pub struct PublishRenter {
 pub struct NewRenter {
     pub name: String,
     pub student_email: String,
-    pub password: String, // Hash this before inserting!
+    pub password: String,
     pub phone: String,
     pub date_of_birth: NaiveDate,
     pub apartment_id: i32,
@@ -445,6 +460,7 @@ pub struct NewRenter {
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
+    // Absolutely No Frontend Access
     pub id: i32,
     pub cardholder_name: String,
     pub masked_card_number: String,
@@ -668,10 +684,38 @@ pub struct PublishVehicle {
     pub make: String,
     pub model: String,
     pub msrp_factor: f64,
-    pub image_link: Option<String>,
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
+    pub location_id: i32,
+    pub remote_mgmt: RemoteMgmtType,
+    pub remote_mgmt_id: String,
+    pub requires_own_insurance: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublishAdminVehicle {
+    pub id: i32,
+    pub vin: String,
+    pub name: String,
+    pub available: bool,
+    pub license_number: String,
+    pub license_state: String,
+    pub year: String,
+    pub make: String,
+    pub model: String,
+    pub msrp_factor: f64,
+    pub odometer: i32,
+    pub tank_size: f64,
+    pub tank_level_percentage: i32,
+    pub first_transponder_number: Option<String>,
+    pub first_transponder_company_id: Option<i32>,
+    pub second_transponder_number: Option<String>,
+    pub second_transponder_company_id: Option<i32>,
+    pub third_transponder_number: Option<String>,
+    pub third_transponder_company_id: Option<i32>,
+    pub fourth_transponder_number: Option<String>,
+    pub fourth_transponder_company_id: Option<i32>,
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
@@ -690,7 +734,6 @@ impl Vehicle {
             make: self.make.clone(),
             model: self.model.clone(),
             msrp_factor: self.msrp_factor,
-            image_link: self.image_link.clone(),
             odometer: self.odometer,
             tank_size: self.tank_size,
             tank_level_percentage: self.tank_level_percentage,
@@ -763,6 +806,25 @@ pub struct NewDamageSubmission {
     pub description: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublishDamageSubmission {
+    pub id: i32,
+    pub reported_by: i32,
+    pub description: String,
+    pub processed: bool,
+}
+
+impl DamageSubmission {
+    pub fn to_publish_damage_submission(&self) -> PublishDamageSubmission {
+        PublishDamageSubmission {
+            id: self.id,
+            reported_by: self.reported_by,
+            description: self.description.clone(),
+            processed: self.processed,
+        }
+    }
+}
+
 #[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
@@ -786,6 +848,38 @@ pub struct Damage {
     pub fixed_date: Option<DateTime<Utc>>,
     pub fixed_amount: Option<f64>,
     pub agreement_id: Option<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PublishDamage {
+    pub id: i32,
+    pub note: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub record_date: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub occur_date: DateTime<Utc>,
+    pub standard_coordination_x_percentage: i32,
+    pub standard_coordination_y_percentage: i32,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub fixed_date: Option<DateTime<Utc>>,
+    pub fixed_amount: Option<f64>,
+    pub agreement_id: Option<i32>,
+}
+
+impl Damage {
+    pub fn to_publish_damage(&self) -> PublishDamage {
+        PublishDamage {
+            id: self.id,
+            note: self.note.clone(),
+            record_date: self.record_date,
+            occur_date: self.occur_date,
+            standard_coordination_x_percentage: self.standard_coordination_x_percentage,
+            standard_coordination_y_percentage: self.standard_coordination_y_percentage,
+            fixed_date: self.fixed_date,
+            fixed_amount: self.fixed_amount,
+            agreement_id: self.agreement_id,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -899,7 +993,7 @@ pub struct Agreement {
     pub damage_ids: Vec<Option<i32>>,
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
-    pub promo_id: Option<i32>,
+    pub promo_id: Option<String>,
     pub taxes: Vec<Option<i32>>,
     pub location_id: i32,
 }
@@ -933,7 +1027,7 @@ pub struct NewAgreement {
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
-    pub promo_id: Option<i32>,
+    pub promo_id: Option<String>,
     pub taxes: Vec<Option<i32>>,
     pub location_id: i32,
 }
