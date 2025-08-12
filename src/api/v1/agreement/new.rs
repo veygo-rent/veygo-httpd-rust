@@ -294,19 +294,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )).get_result::<bool>(&mut pool).unwrap();
 
                             if if_conflict {
-                                let result = integration::stripe_veygo::drop_auth(&pmi).await;
-                                let refund_status: String;
-                                match result {
-                                    Ok(pi) => {
-                                        println!("{}", pi.status);
-                                        refund_status = pi.status.to_string();
-                                    }
-                                    Err(err) => {
-                                        println!("{}", err.to_string());
-                                        refund_status = err.to_string();
-                                    }
-                                }
-                                let error_msg = serde_json::json!({"error": "Vehicle unavailable", "refund_status": refund_status});
+                                let _result = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
                                 return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                             }
 
