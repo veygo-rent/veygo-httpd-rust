@@ -295,12 +295,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                             if if_conflict {
                                 let result = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let refund_status: String;
                                 match result {
                                     Ok(pi) => {
                                         println!("{}", pi.status);
+                                        refund_status = pi.status.to_string();
                                     }
                                     Err(err) => {
                                         println!("{}", err.to_string());
+                                        refund_status = err.to_string();
                                     }
                                 }
                                 let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
