@@ -251,8 +251,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .unwrap_or_default();
 
                     let mut local_tax_rate = 0.00;
+                    let mut local_tax_id: Vec<Option<i32>> = Vec::new();
                     for tax_obj in tax_objs {
                         local_tax_rate += tax_obj.multiplier;
+                        (&mut local_tax_id).push(Some(tax_obj.id));
                     }
 
                     let conf_id = methods::agreement::generate_unique_agreement_confirmation();
@@ -312,7 +314,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 pcdw_ext_protection_rate: if body.pcdw_ext { vehicle_with_location.2.pcdw_ext_protection_rate * vehicle_with_location.0.msrp_factor } else { 0.00 },
                                 rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { 0.00 },
                                 pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { 0.00 },
-                                taxes: vehicle_with_location.2.taxes,
+                                taxes: local_tax_id,
                                 msrp_factor: vehicle_with_location.0.msrp_factor,
                                 duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
                                 vehicle_id: vehicle_with_location.0.id,
