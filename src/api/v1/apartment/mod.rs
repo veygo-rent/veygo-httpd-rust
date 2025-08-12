@@ -3,6 +3,7 @@ mod get_all_apartments;
 mod get_taxes;
 mod get_universities;
 mod get_apartment_locations;
+mod add_location;
 
 use warp::Filter;
 
@@ -14,7 +15,8 @@ pub fn api_v1_apartment()
                 .or(get_taxes::main())
                 .or(get_all_apartments::main())
                 .or(add_apartment::main())
-                .or(get_apartment_locations::main()),
+                .or(get_apartment_locations::main())
+                .or(add_location::main()),
         )
         .and(warp::path::end())
 }
