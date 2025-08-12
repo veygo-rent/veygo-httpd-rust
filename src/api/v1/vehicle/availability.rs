@@ -130,7 +130,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 Serialize, Deserialize,
                             )]
                             struct VehicleWithBlockedDurations {
-                                vehicle: model::Vehicle,
+                                vehicle: model::PublishVehicle,
                                 blocked_durations: Vec<BlockedRange>,
                             }
                             #[derive(
@@ -183,7 +183,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     location,
                                     vehicles: Vec::new(),
                                 });
-                                (&mut entry.vehicles).push(VehicleWithBlockedDurations { vehicle, blocked_durations });
+                                (&mut entry.vehicles).push(VehicleWithBlockedDurations { vehicle: vehicle.to_publish_vehicle(), blocked_durations });
                             }
                             let locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
                             let msg = serde_json::json!({"vehicles": locations_with_vehicles});
