@@ -38,10 +38,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::post())
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
         .and(warp::header::<String>("auth"))
-        .and(warp::header::<String>("content-type"))
+        .and(warp::header::<String>("file-type"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |form: FormData, auth: String, content_type: String, user_agent: String| {
+            async move |form: FormData, auth: String, file_type: String, user_agent: String| {
 
                 let field_names: Vec<_> = form
                     .and_then(|mut field| async move {
@@ -81,7 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 let if_token_valid =
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
-                let content_type_parsed_result = UploadedFileType::from_str(&*content_type);
+                let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
                 if content_type_parsed_result.is_err() {
                     return methods::standard_replies::bad_request("File type not supported");
                 }
