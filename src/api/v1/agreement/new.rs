@@ -129,7 +129,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
 
                     let dnr_records = methods::user::get_dnr_record_for(&user_in_request);
-                    if let Some(records) = dnr_records {
+                    if let Some(records) = dnr_records && !records.is_empty() {
                         let error_msg = serde_json::json!({"error": "User on do not rent list", "do_not_rent_records": records});
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
                     }
