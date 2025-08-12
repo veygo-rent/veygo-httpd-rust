@@ -95,8 +95,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ),
                                     ))
                                 }
-                                Ok(apt) => {
-                                    let msg = serde_json::json!({"apartment": &apt});
+                                Ok(loc) => {
+                                    let msg = serde_json::json!({"location": &loc});
                                     Ok::<_, warp::Rejection>((
                                         methods::tokens::wrap_json_reply_with_token(
                                             new_token_in_db_publish,
