@@ -306,7 +306,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         refund_status = err.to_string();
                                     }
                                 }
-                                let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
+                                let error_msg = serde_json::json!({"error": "Vehicle unavailable", "refund_status": refund_status});
                                 return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                             }
 
