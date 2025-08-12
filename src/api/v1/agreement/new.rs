@@ -260,9 +260,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let conf_id = methods::agreement::generate_unique_agreement_confirmation();
                     let deposit_amount = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * (1.00 + local_tax_rate);
                     let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
-                    let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                        &("Hold for Veygo Reservation #".to_owned() + &*conf_id.clone()), &user_in_request.stripe_id.unwrap(), &payment_method.token, &deposit_amount_in_int, PaymentIntentCaptureMethod::Manual,
-                    ).await;
+                    let description = &("Hold for Veygo Reservation #".to_owned() + &*conf_id.clone());
+                    let suffix: Option<&str> = Some(&*("DEPOSIT #".to_owned() + &*conf_id.clone()));
+                    let stripe_auth = integration::stripe_veygo::create_payment_intent(description, &user_in_request.stripe_id.unwrap(), &payment_method.token, &deposit_amount_in_int, PaymentIntentCaptureMethod::Manual, suffix).await;
 
                     match stripe_auth {
                         Err(error) => {

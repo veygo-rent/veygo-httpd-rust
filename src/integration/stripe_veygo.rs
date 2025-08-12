@@ -4,15 +4,14 @@ use std::env;
 use std::str::FromStr;
 use stripe::{
     Client, CreateCustomer, CreatePaymentIntent, CreatePaymentIntentAutomaticPaymentMethods,
-    CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects,
+    CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects, PaymentMethodId, SetupIntent,
     CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, PaymentMethod,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, Currency,
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
-    CreateSetupIntentAutomaticPaymentMethods, PaymentIntentCancellationReason,
-    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, Currency, Customer, CustomerId,
-    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, PaymentIntentStatus,
-    PaymentMethod, PaymentMethodId, SetupIntent, StripeError, CancelPaymentIntent,
+    CreateSetupIntentAutomaticPaymentMethods, StripeError, CancelPaymentIntent, Customer,
+    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, PaymentIntentStatus,
+    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession,
 };
 
 pub async fn create_new_payment_method(
@@ -110,6 +109,7 @@ pub async fn create_payment_intent(
     payment_id_data: &String,
     amount: &i64,
     capture_method: PaymentIntentCaptureMethod,
+    statement_descriptor_suffix: Option<&str>,
 ) -> Result<PaymentIntent, StripeError> {
     dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
@@ -157,7 +157,7 @@ pub async fn create_payment_intent(
             setup_future_usage: None,
             shipping: None,
             statement_descriptor: None,
-            statement_descriptor_suffix: None,
+            statement_descriptor_suffix,
             transfer_data: None,
             transfer_group: None,
             use_stripe_sdk: None,

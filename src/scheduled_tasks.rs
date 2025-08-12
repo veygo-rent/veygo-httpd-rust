@@ -82,7 +82,7 @@ pub async fn nightly_task() {
                         let taxed_rent = rent * (1.00 + 0.11);
                         let taxed_rent_in_int = (taxed_rent * 100.0).round() as i64;
                         use stripe::PaymentIntentCaptureMethod;
-                        let payment_result = integration::stripe_veygo::create_payment_intent(&description, &renter.stripe_id.as_ref().unwrap(), &plan_pm.token, &taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic).await;
+                        let payment_result = integration::stripe_veygo::create_payment_intent(&description, &renter.stripe_id.as_ref().unwrap(), &plan_pm.token, &taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic, None).await;
                         match payment_result {
                             Err(error) => {
                                 match error {
