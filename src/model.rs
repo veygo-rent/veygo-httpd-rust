@@ -378,12 +378,17 @@ impl Renter {
             date_of_registration: self.date_of_registration,
             drivers_license_number: self.drivers_license_number.clone(),
             drivers_license_state_region: self.drivers_license_state_region.clone(),
+            drivers_license_image: self.drivers_license_image.clone(),
+            drivers_license_image_secondary: self.drivers_license_image_secondary.clone(),
             drivers_license_expiration: self.drivers_license_expiration.clone(),
+            insurance_id_image: self.insurance_id_image.clone(),
             insurance_liability_expiration: self.insurance_liability_expiration.clone(),
             insurance_collision_expiration: self.insurance_collision_expiration.clone(),
+            lease_agreement_image: self.lease_agreement_image.clone(),
             apartment_id: self.apartment_id,
             lease_agreement_expiration: self.lease_agreement_expiration,
             billing_address: self.billing_address.clone(),
+            signature_image: self.signature_image.clone(),
             signature_datetime: self.signature_datetime.clone(),
             plan_tier: self.plan_tier.clone(),
             plan_renewal_day: self.plan_renewal_day.clone(),
@@ -410,12 +415,17 @@ pub struct PublishRenter {
     pub date_of_registration: DateTime<Utc>,
     pub drivers_license_number: Option<String>,
     pub drivers_license_state_region: Option<String>,
+    pub drivers_license_image: Option<String>,
+    pub drivers_license_image_secondary: Option<String>,
     pub drivers_license_expiration: Option<NaiveDate>,
+    pub insurance_id_image: Option<String>,
     pub insurance_liability_expiration: Option<NaiveDate>,
     pub insurance_collision_expiration: Option<NaiveDate>,
+    pub lease_agreement_image: Option<String>,
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
     pub billing_address: Option<String>,
+    pub signature_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
     pub plan_tier: PlanTier,
@@ -684,6 +694,7 @@ pub struct PublishVehicle {
     pub make: String,
     pub model: String,
     pub msrp_factor: f64,
+    pub image_link: Option<String>,
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
@@ -704,6 +715,7 @@ pub struct PublishAdminVehicle {
     pub make: String,
     pub model: String,
     pub msrp_factor: f64,
+    pub image_link: Option<String>,
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
@@ -733,11 +745,43 @@ impl Vehicle {
             make: self.make.clone(),
             model: self.model.clone(),
             msrp_factor: self.msrp_factor,
+            image_link: self.image_link.clone(),
             odometer: self.odometer,
             tank_size: self.tank_size,
             tank_level_percentage: self.tank_level_percentage,
             location_id: self.location_id,
             remote_mgmt: self.remote_mgmt,
+            requires_own_insurance: self.requires_own_insurance,
+        }
+    }
+
+    pub fn to_publish_admin_vehicle(&self) -> PublishAdminVehicle {
+        PublishAdminVehicle {
+            id: self.id,
+            vin: self.vin.clone(),
+            name: self.name.clone(),
+            available: self.available,
+            license_number: self.license_number.clone(),
+            license_state: self.license_state.clone(),
+            year: self.year.clone(),
+            make: self.make.clone(),
+            model: self.model.clone(),
+            msrp_factor: self.msrp_factor,
+            image_link: self.image_link.clone(),
+            odometer: self.odometer,
+            tank_size: self.tank_size,
+            tank_level_percentage: self.tank_level_percentage,
+            first_transponder_number: self.first_transponder_number.clone(),
+            first_transponder_company_id: self.first_transponder_company_id.clone(),
+            second_transponder_number: self.second_transponder_number.clone(),
+            second_transponder_company_id: self.second_transponder_company_id.clone(),
+            third_transponder_number: self.third_transponder_number.clone(),
+            third_transponder_company_id: self.third_transponder_company_id.clone(),
+            fourth_transponder_number: self.fourth_transponder_number.clone(),
+            fourth_transponder_company_id: self.fourth_transponder_company_id.clone(),
+            location_id: self.location_id,
+            remote_mgmt: self.remote_mgmt,
+            remote_mgmt_id: "".to_string(),
             requires_own_insurance: self.requires_own_insurance,
         }
     }
@@ -803,25 +847,6 @@ pub struct NewDamageSubmission {
     pub description: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PublishDamageSubmission {
-    pub id: i32,
-    pub reported_by: i32,
-    pub description: String,
-    pub processed: bool,
-}
-
-impl DamageSubmission {
-    pub fn to_publish_damage_submission(&self) -> PublishDamageSubmission {
-        PublishDamageSubmission {
-            id: self.id,
-            reported_by: self.reported_by,
-            description: self.description.clone(),
-            processed: self.processed,
-        }
-    }
-}
-
 #[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
@@ -845,38 +870,6 @@ pub struct Damage {
     pub fixed_date: Option<DateTime<Utc>>,
     pub fixed_amount: Option<f64>,
     pub agreement_id: Option<i32>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PublishDamage {
-    pub id: i32,
-    pub note: String,
-    #[serde(with = "chrono::serde::ts_seconds")]
-    pub record_date: DateTime<Utc>,
-    #[serde(with = "chrono::serde::ts_seconds")]
-    pub occur_date: DateTime<Utc>,
-    pub standard_coordination_x_percentage: i32,
-    pub standard_coordination_y_percentage: i32,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
-    pub fixed_date: Option<DateTime<Utc>>,
-    pub fixed_amount: Option<f64>,
-    pub agreement_id: Option<i32>,
-}
-
-impl Damage {
-    pub fn to_publish_damage(&self) -> PublishDamage {
-        PublishDamage {
-            id: self.id,
-            note: self.note.clone(),
-            record_date: self.record_date,
-            occur_date: self.occur_date,
-            standard_coordination_x_percentage: self.standard_coordination_x_percentage,
-            standard_coordination_y_percentage: self.standard_coordination_y_percentage,
-            fixed_date: self.fixed_date,
-            fixed_amount: self.fixed_amount,
-            agreement_id: self.agreement_id,
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]

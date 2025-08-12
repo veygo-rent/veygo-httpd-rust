@@ -112,8 +112,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .to_publish_access_token();
+                            let object_path: String = format!("user_docs/{}/", user.id);
                             let file_path = integration::gcloud_storage_veygo::upload_file(
-                                "user_docs/".to_string(),
+                                object_path,
                                 field_names[0].0.to_string(),
                                 field_names[0].1.clone(),
                             )
