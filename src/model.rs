@@ -759,7 +759,6 @@ pub struct NewVehicle {
     pub make: String,
     pub model: String,
     pub msrp_factor: f64,
-    pub image_link: Option<String>,
     pub odometer: i32,
     pub tank_size: f64,
     pub tank_level_percentage: i32,
