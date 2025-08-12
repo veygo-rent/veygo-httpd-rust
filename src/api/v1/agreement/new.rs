@@ -6,7 +6,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
-use stripe::{ErrorCode, PaymentIntent, PaymentIntentCaptureMethod, StripeError};
+use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
