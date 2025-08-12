@@ -745,7 +745,7 @@ impl Vehicle {
     }
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -794,7 +794,7 @@ pub struct DamageSubmission {
     pub processed: bool,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = damage_submissions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDamageSubmission {
@@ -915,7 +915,7 @@ pub struct VehicleSnapshot {
     pub back_image: String,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewVehicleSnapshot {
@@ -1179,7 +1179,7 @@ pub struct DoNotRentList {
     pub exp: Option<NaiveDate>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[diesel(table_name = do_not_rent_lists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDoNotRentList {
@@ -1219,7 +1219,7 @@ pub struct NewVerification {
     pub code: String,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = taxes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewTax {
