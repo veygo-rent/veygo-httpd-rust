@@ -115,7 +115,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .get_results::<(model::Vehicle, model::Location)>(&mut pool).unwrap_or_default();
 
                             let start_time_buffered = body.start_time - Duration::minutes(proj_config::RSVP_BUFFER);
-                            let end_time_buffered = body.end_time + Duration::minutes(proj_config::RSVP_BUFFER);
+                            let end_time_buffered = body.start_time + Duration::minutes(proj_config::RSVP_BUFFER) + Duration::days(2);
 
                             #[derive(
                                 Serialize, Deserialize,
