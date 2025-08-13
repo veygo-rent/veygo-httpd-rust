@@ -114,9 +114,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .select((vehicles_query::vehicles::all_columns(), locations_query::locations::all_columns()))
                                 .get_results::<(model::Vehicle, model::Location)>(&mut pool).unwrap_or_default();
 
-                            let start_time_buffered = body.start_time - Duration::hours(1);
+                            let start_time_buffered = body.start_time - Duration::hours(1) - Duration::minutes(proj_config::RSVP_BUFFER);
                             let time_delta = body.end_time - body.start_time;
-                            let end_time_buffered = body.start_time + Duration::days(time_delta.num_days() + 1);
+                            let end_time_buffered = body.start_time + Duration::days(time_delta.num_days() + 1) + Duration::minutes(proj_config::RSVP_BUFFER);
 
                             #[derive(
                                 Serialize, Deserialize,
