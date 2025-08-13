@@ -7,7 +7,8 @@ mod scheduled_tasks;
 mod schema;
 mod proj_config;
 
-use diesel::PgConnection;
+use diesel::{PgConnection, RunQueryDsl};
+use diesel::dsl::{exists, select};
 use diesel::r2d2::{ConnectionManager, Pool};
 use dotenv::dotenv;
 use once_cell::sync::Lazy;
@@ -44,6 +45,33 @@ async fn main() {
         None,
     )
     .await;
+    // delete all objects in bucket if there are NO users (fresh install)
+    {
+        let mut pool = POOL.get().unwrap();
+        use crate::schema::renters::dsl::renters;
+
+        // Efficient: SELECT EXISTS(SELECT 1 FROM renters LIMIT 1)
+        let has_any_renter: Result<bool, diesel::result::Error> =
+            select(exists(renters.limit(1))).get_result(&mut pool);
+
+        match has_any_renter {
+            Ok(false) => {
+                // No users present -> treat as fresh install and wipe prior user storage
+                if let Err(e) = integration::gcloud_storage_veygo::delete_all_objects().await {
+                    eprintln!("Bucket wipe failed: {e}");
+                } else {
+                    eprintln!("Bucket wiped: no renters found (fresh install)");
+                }
+            }
+            Ok(true) => {
+                // At least one user exists; do nothing
+            }
+            Err(e) => {
+                // On DB error, DO NOT delete; just log
+                eprintln!("DB check for renters failed; not deleting bucket: {e}");
+            }
+        }
+    }
     // routing for the server
     let react_app =
         warp::fs::dir("/app/www").or(warp::any().and(warp::fs::file("/app/www/index.html")));
