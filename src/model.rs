@@ -25,6 +25,7 @@ pub enum RemoteMgmtType {
     Revers,
     Smartcar,
     Tesla,
+    Geotab,
     None,
 }
 
@@ -101,6 +102,7 @@ impl ToSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
             RemoteMgmtType::Revers => out.write_all(b"reverse")?,
             RemoteMgmtType::Tesla => out.write_all(b"tesla")?,
             RemoteMgmtType::Smartcar => out.write_all(b"smartcar")?,
+            RemoteMgmtType::Geotab => out.write_all(b"geotab")?,
             RemoteMgmtType::None => out.write_all(b"none")?,
         }
         Ok(serialize::IsNull::No)
@@ -113,6 +115,7 @@ impl FromSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
             b"reverse" => Ok(RemoteMgmtType::Revers),
             b"tesla" => Ok(RemoteMgmtType::Tesla),
             b"smartcar" => Ok(RemoteMgmtType::Smartcar),
+            b"geotab" => Ok(RemoteMgmtType::Geotab),
             b"none" => Ok(RemoteMgmtType::None),
             _ => Err("Unrecognized enum variant".into()),
         }
