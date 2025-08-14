@@ -114,9 +114,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .select((vehicles_query::vehicles::all_columns(), locations_query::locations::all_columns()))
                                 .get_results::<(model::Vehicle, model::Location)>(&mut pool).unwrap_or_default();
 
-                            let start_time_buffered = body.start_time - Duration::hours(1) - Duration::minutes(proj_config::RSVP_BUFFER);
                             let time_delta = body.end_time - body.start_time;
-                            let end_time_buffered = body.start_time + Duration::days(time_delta.num_days() + 1) + Duration::minutes(proj_config::RSVP_BUFFER);
+                            let start_time = body.start_time - Duration::hours(1);
+                            let end_time = body.start_time + Duration::days(time_delta.num_days() + 1);
+
+                            let start_time_buffered = start_time - Duration::minutes(proj_config::RSVP_BUFFER);
+                            let end_time_buffered = end_time + Duration::minutes(proj_config::RSVP_BUFFER);
 
                             #[derive(
                                 Serialize, Deserialize,
@@ -164,17 +167,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     let drop_off_time = agreement.actual_drop_off_time.unwrap_or(agreement.rsvp_drop_off_time) + Duration::minutes(proj_config::RSVP_BUFFER);
 
                                     let blocking_start_time = {
-                                        if pickup_time >= start_time_buffered {
+                                        if pickup_time >= start_time {
                                             pickup_time
                                         } else {
-                                            start_time_buffered
+                                            start_time
                                         }
                                     };
                                     let blocking_end_time = {
-                                        if drop_off_time <= end_time_buffered {
+                                        if drop_off_time <= end_time {
                                             drop_off_time
                                         } else {
-                                            end_time_buffered
+                                            end_time
                                         }
                                     };
 
