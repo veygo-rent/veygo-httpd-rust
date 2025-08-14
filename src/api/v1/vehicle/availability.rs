@@ -1,13 +1,17 @@
 use crate::{POOL, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
-use diesel::sql_types::{Bool, Timestamptz};
+use diesel::sql_types::{Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use diesel::dsl::sql;
 use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply, http::Method};
+use diesel::sql_types::{Nullable};
+define_sql_function! { fn coalesce(x: Nullable<Timestamptz>, y: Timestamptz) -> Timestamptz; }
+define_sql_function! {
+    fn greatest(x: Timestamptz, y: Timestamptz) -> Timestamptz;
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {
@@ -154,11 +158,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .filter(agreements_query::vehicle_id.eq(&vehicle.id))
                                     .filter(agreements_query::status.eq(model::AgreementStatus::Rental))
                                     .filter(
-                                        sql::<Bool>("(COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                            .bind::<Timestamptz, _>(end_time_buffered)
-                                            .sql(") AND (COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                            .sql(")")
+                                        coalesce(agreements_query::actual_pickup_time, agreements_query::rsvp_pickup_time)
+                                            .lt(end_time_buffered)
+                                            .and(
+                                                coalesce(agreements_query::actual_drop_off_time,
+                                                         greatest(agreements_query::rsvp_drop_off_time, diesel::dsl::now)
+                                                )
+                                                    .gt(start_time_buffered)
+                                            )
                                     )
                                     .get_results::<model::Agreement>(&mut pool).unwrap_or_default();
 

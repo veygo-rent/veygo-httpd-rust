@@ -1,15 +1,19 @@
 use crate::{POOL, integration, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
-use diesel::dsl::sql;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Bool, Timestamptz};
+use diesel::sql_types::{Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
+use diesel::sql_types::{Nullable};
+define_sql_function! { fn coalesce(x: Nullable<Timestamptz>, y: Timestamptz) -> Timestamptz; }
+define_sql_function! {
+    fn greatest(x: Timestamptz, y: Timestamptz) -> Timestamptz;
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
@@ -285,11 +289,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
                                     .filter(agreement_query::vehicle_id.eq(&body.vehicle_id))
                                     .filter(
-                                        sql::<Bool>("(COALESCE(actual_pickup_time, rsvp_pickup_time) < ")
-                                            .bind::<Timestamptz, _>(end_time_buffered)
-                                            .sql(") AND (COALESCE(actual_drop_off_time, rsvp_drop_off_time) > ")
-                                            .bind::<Timestamptz, _>(start_time_buffered)
-                                            .sql(")")
+                                        coalesce(agreement_query::actual_pickup_time, agreement_query::rsvp_pickup_time)
+                                            .lt(end_time_buffered)
+                                            .and(
+                                                coalesce(agreement_query::actual_drop_off_time,
+                                                         greatest(agreement_query::rsvp_drop_off_time, diesel::dsl::now)
+                                                )
+                                                    .gt(start_time_buffered)
+                                            )
                                     )
                             )).get_result::<bool>(&mut pool).unwrap();
 
