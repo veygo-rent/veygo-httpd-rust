@@ -72,7 +72,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             use crate::schema::apartments::dsl::*;
                             // get ALL apartments
                             publish_apartments =
-                                apartments.load::<model::Apartment>(&mut pool).unwrap();
+                                apartments.get_results::<model::Apartment>(&mut pool).unwrap_or_default();
                             let msg = serde_json::json!({
                                 "apartments": publish_apartments,
                             });

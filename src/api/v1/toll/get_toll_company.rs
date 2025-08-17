@@ -65,8 +65,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         use crate::schema::transponder_companies::dsl::*;
                         let mut pool = POOL.get().unwrap();
                         let results = transponder_companies
-                            .load::<model::TransponderCompany>(&mut pool)
-                            .unwrap();
+                            .get_results::<model::TransponderCompany>(&mut pool)
+                            .unwrap_or_default();
                         let msg = serde_json::json!({
                             "transponder_companies": results,
                         });

@@ -65,7 +65,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let publish_taxes: Vec<model::Tax>;
                         use crate::schema::taxes::dsl::*;
                         // get ALL taxes
-                        publish_taxes = taxes.load::<model::Tax>(&mut pool).unwrap();
+                        publish_taxes = taxes.get_results::<model::Tax>(&mut pool).unwrap_or_default();
                         let msg = serde_json::json!({
                             "taxes": publish_taxes,
                         });

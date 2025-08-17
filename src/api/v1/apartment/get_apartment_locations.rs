@@ -80,7 +80,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             // get ALL apartments
                             publish_locations = location_query::locations
                                 .filter(location_query::apartment_id.eq(&body.apartment_id))
-                                .load::<model::Location>(&mut pool)
+                                .get_results::<model::Location>(&mut pool)
                                 .unwrap_or_default();
                             let msg = serde_json::json!({
                                 "locations": publish_locations,

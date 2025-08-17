@@ -1,12 +1,11 @@
 use crate::{POOL, methods, model};
-use diesel::RunQueryDsl;
 use diesel::prelude::*;
+use warp::Filter;
 use warp::http::StatusCode;
 use warp::reply::with_status;
-use warp::{Filter, Reply};
 
-pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("get-users")
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path("get")
         .and(warp::path::end())
         .and(warp::get())
         .and(warp::header::<String>("auth"))
@@ -34,8 +33,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     .await;
             return match if_token_valid {
                 Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
-                Ok(token_bool) => {
-                    if !token_bool {
+                Ok(token_is_valid) => {
+                    if !token_is_valid {
                         methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
                         // Token is valid
@@ -46,7 +45,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         methods::tokens::rm_token_by_binary(
                             hex::decode(token_clone.token).unwrap(),
                         )
-                        .await;
+                            .await;
                         let new_token =
                             methods::tokens::gen_token_object(&access_token.user_id, &user_agent)
                                 .await;
@@ -57,34 +56,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
                             .to_publish_access_token();
-                        if !methods::user::user_is_operational_manager(&admin) {
+                        if !methods::user::user_is_operational_admin(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
                                 token_clone,
                             );
                         }
-                        let publish_renters: Vec<model::PublishRenter>;
-                        use crate::schema::renters::dsl::*;
-                        if admin.apartment_id == 1 {
-                            // get ALL users
-                            publish_renters = renters
-                                .load::<model::Renter>(&mut pool)
-                                .unwrap()
-                                .iter()
-                                .map(|x| x.to_publish_renter())
-                                .collect();
-                        } else {
-                            // get Apartments-Specific users
-                            publish_renters = renters
-                                .filter(apartment_id.eq(admin.apartment_id))
-                                .get_results::<model::Renter>(&mut pool)
-                                .unwrap_or_default()
-                                .iter()
-                                .map(|x| x.to_publish_renter())
-                                .collect();
-                        }
+                        use crate::schema::vehicles::dsl as vehicle_query;
+                        let mut pool = POOL.get().unwrap();
+                        let results: Vec<model::PublishAdminVehicle> = vehicle_query::vehicles
+                            .get_results::<model::Vehicle>(&mut pool)
+                            .unwrap_or_default()
+                            .iter().map(|v| v.to_publish_admin_vehicle()).collect();
                         let msg = serde_json::json!({
-                            "renters": publish_renters,
+                            "vehicles": results,
                         });
                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
                             new_token_in_db_publish,
