@@ -3,6 +3,7 @@ mod new;
 mod get;
 mod generate_smartcar_token;
 mod lock_with_sc;
+mod lock_with_tesla;
 
 use warp::Filter;
 
@@ -15,6 +16,7 @@ pub fn api_v1_vehicle()
                 .or(get::main())
                 .or(generate_smartcar_token::main())
                 .or(lock_with_sc::main())
+                .or(lock_with_tesla::main())
         )
         .and(warp::path::end())
 }

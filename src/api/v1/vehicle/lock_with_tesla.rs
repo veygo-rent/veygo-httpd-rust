@@ -1,7 +1,6 @@
 use crate::{POOL, methods, model, integration};
 use diesel::prelude::*;
 use serde_derive::Deserialize;
-use smartcar::vehicle::Vehicle;
 use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
 
 #[derive(Deserialize)]
@@ -11,7 +10,7 @@ struct RequestBody {
 }
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path("lock-with-sc")
+    warp::path("lock-with-tesla")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::body::json())
@@ -31,12 +30,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 return methods::standard_replies::bad_request("Vehicle not found.");
             }
             let vehicle = vehicle_result.unwrap();
-            let vehicle_auth_and_id = vehicle.remote_mgmt_id.split("$").collect::<Vec<&str>>();
-            if vehicle_auth_and_id.len() != 2 {
-                return methods::standard_replies::bad_request("Vehicle sc token issue");
+            if vehicle.remote_mgmt_id != vehicle.vin {
+                return methods::standard_replies::bad_request("Vehicle tesla token issue");
             }
-            let refresh_token = vehicle_auth_and_id[0];
-            let vehicle_sc_id = vehicle_auth_and_id[1];
 
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -64,11 +60,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     if !token_is_valid {
                         methods::tokens::token_invalid_wrapped_return(&access_token.token)
                     } else {
-                        let access_opt = integration::smartcar_veygo::renew_access_token(refresh_token).await;
-                        if access_opt.is_none() {
-                            return methods::standard_replies::bad_request("Vehicle sc token issue");
-                        }
-                        let access = access_opt.unwrap();
                         // Token is valid
                         let admin = methods::user::get_user_by_id(&access_token.user_id)
                             .await
@@ -94,20 +85,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 token_clone,
                             );
                         }
-                        let vehicle = Vehicle::new(vehicle_sc_id, &access.access_token);
-                        let _result = if body.to_lock {
-                            vehicle.lock().await
+
+                        let path = if body.to_lock {
+                            format!("/api/1/vehicles/{}/command/door_lock", vehicle.remote_mgmt_id)
                         } else {
-                            vehicle.unlock().await
+                            format!("/api/1/vehicles/{}/command/door_unlock", vehicle.remote_mgmt_id)
                         };
+                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &path, None).await;
 
-                        let new_token = access.refresh_token + "$" + vehicle_sc_id;
-
-                        let updated_vehicle = diesel::update(vehicle_query::vehicles.filter(vehicle_query::id.eq(&body.vehicle_id)))
-                            .set(vehicle_query::remote_mgmt_id.eq(&new_token))
-                            .get_result::<model::Vehicle>(&mut pool).unwrap().to_publish_admin_vehicle();
-
-                        let msg = serde_json::json!({"updated_vehicle": &updated_vehicle});
+                        let msg = serde_json::json!({"updated_vehicle": vehicle.to_publish_admin_vehicle()});
                         Ok::<_, warp::Rejection>((
                             methods::tokens::wrap_json_reply_with_token(
                                 new_token_in_db_publish,
