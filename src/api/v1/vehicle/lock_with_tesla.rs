@@ -86,6 +86,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             );
                         }
 
+                        let wake_up_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &wake_up_path, None).await;
+
                         let path = if body.to_lock {
                             format!("/api/1/vehicles/{}/command/door_lock", vehicle.remote_mgmt_id)
                         } else {
