@@ -89,7 +89,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
                         let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
-                        for i in 0..10 { // up to ~10s total
+                        for i in 0..16 { // up to ~10s total
                             if let Ok(response) = integration::tesla_curl::tesla_make_request(reqwest::Method::GET, &status_path, None).await {
                                 if let Ok(body_text) = response.text().await {
                                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
