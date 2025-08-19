@@ -1,6 +1,7 @@
 mod availability;
 mod new;
 mod get;
+mod generate_smartcar_token;
 
 use warp::Filter;
 
@@ -11,6 +12,7 @@ pub fn api_v1_vehicle()
             availability::main()
                 .or(new::main())
                 .or(get::main())
+                .or(generate_smartcar_token::main())
         )
         .and(warp::path::end())
 }
