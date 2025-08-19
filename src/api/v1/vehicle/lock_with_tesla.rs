@@ -73,7 +73,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             &user_agent,
                         ).await;
                         use crate::schema::access_tokens::dsl::*;
-                        let mut pool = POOL.get().unwrap();
+
                         let new_token_in_db_publish = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
@@ -86,15 +86,39 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             );
                         }
 
-                        let wake_up_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
-                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &wake_up_path, None).await;
+                        // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                        let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
-                        let path = if body.to_lock {
+                        for i in 0..10 { // up to ~10s total
+                            if let Ok(response) = integration::tesla_curl::tesla_make_request(reqwest::Method::GET, &status_path, None).await {
+                                if let Ok(body_text) = response.text().await {
+                                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                        let state = json
+                                            .get("response")
+                                            .and_then(|r| r.get("state"))
+                                            .and_then(|s| s.as_str())
+                                            .unwrap_or("");
+                                        if state == "online" {
+                                            break;
+                                        }
+                                        // Only on the first iteration, if offline, send wake_up once
+                                        if i == 0 {
+                                            let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                                            let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &wake_path, None).await;
+                                        }
+                                    }
+                                }
+                            }
+                            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        }
+
+                        // 2) Proceed to lock/unlock once online (or after timeout anyway)
+                        let cmd_path = if body.to_lock {
                             format!("/api/1/vehicles/{}/command/door_lock", vehicle.remote_mgmt_id)
                         } else {
                             format!("/api/1/vehicles/{}/command/door_unlock", vehicle.remote_mgmt_id)
                         };
-                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &path, None).await;
+                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &cmd_path, None).await;
 
                         let msg = serde_json::json!({"updated_vehicle": vehicle.to_publish_admin_vehicle()});
                         Ok::<_, warp::Rejection>((
