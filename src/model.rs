@@ -784,7 +784,7 @@ impl Vehicle {
             fourth_transponder_company_id: self.fourth_transponder_company_id.clone(),
             location_id: self.location_id,
             remote_mgmt: self.remote_mgmt,
-            remote_mgmt_id: "".to_string(),
+            remote_mgmt_id: self.remote_mgmt_id.clone(),
             requires_own_insurance: self.requires_own_insurance,
         }
     }

@@ -32,15 +32,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let vehicle = vehicle_result.unwrap();
             let vehicle_token_opt = integration::smartcar_veygo::get_vehicle_complete_token_by(&body.smartcar_token, &vehicle.vin).await;
             return if let Some(vehicle_token) = vehicle_token_opt {
-                let _ = integration::sendgrid_veygo::send_email(
-                    Option::from("Veygo Server"),
-                    integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-                    "token made",
-                    &vehicle_token,
-                    None,
-                    None,
-                )
-                    .await;
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return(&auth);
