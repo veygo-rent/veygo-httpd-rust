@@ -96,7 +96,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     new_token_in_db_publish,
                                     with_status(
                                         warp::reply::json(&msg),
-                                        StatusCode::CREATED,
+                                        StatusCode::OK,
                                     ),
                                 ),
                             ))
