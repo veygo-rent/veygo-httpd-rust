@@ -121,7 +121,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let result = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &cmd_path, None).await;
 
                         let status_code = match result {
-                            Err(_) => StatusCode::BAD_GATEWAY,
+                            Err(_) => StatusCode::TOO_MANY_REQUESTS,
                             Ok(_) => StatusCode::OK,
                         };
 

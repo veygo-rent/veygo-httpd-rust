@@ -108,7 +108,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .get_result::<model::Vehicle>(&mut pool).unwrap().to_publish_admin_vehicle();
 
                         let status_code = match result {
-                            Err(_) => StatusCode::BAD_GATEWAY,
+                            Err(_) => StatusCode::TOO_MANY_REQUESTS,
                             Ok(_) => StatusCode::OK,
                         };
 
