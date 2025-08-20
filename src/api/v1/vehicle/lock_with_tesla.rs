@@ -118,7 +118,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         } else {
                             format!("/api/1/vehicles/{}/command/door_unlock", vehicle.remote_mgmt_id)
                         };
-                        let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &cmd_path, None).await;
+                        let result = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &cmd_path, None).await;
+
+                        let status_code = match result {
+                            Err(_) => StatusCode::BAD_GATEWAY,
+                            Ok(_) => StatusCode::OK,
+                        };
 
                         let msg = serde_json::json!({"updated_vehicle": vehicle.to_publish_admin_vehicle()});
                         Ok::<_, warp::Rejection>((
@@ -126,7 +131,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 new_token_in_db_publish,
                                 with_status(
                                     warp::reply::json(&msg),
-                                    StatusCode::OK,
+                                    status_code,
                                 ),
                             ),
                         ))

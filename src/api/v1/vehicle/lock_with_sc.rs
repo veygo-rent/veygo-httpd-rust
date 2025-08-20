@@ -82,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             &user_agent,
                         ).await;
                         use crate::schema::access_tokens::dsl::*;
-                        
+
                         let new_token_in_db_publish = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
@@ -95,7 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             );
                         }
                         let vehicle = Vehicle::new(vehicle_sc_id, &access.access_token);
-                        let _result = if body.to_lock {
+                        let result = if body.to_lock {
                             vehicle.lock().await
                         } else {
                             vehicle.unlock().await
@@ -107,13 +107,18 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .set(vehicle_query::remote_mgmt_id.eq(&new_token))
                             .get_result::<model::Vehicle>(&mut pool).unwrap().to_publish_admin_vehicle();
 
+                        let status_code = match result {
+                            Err(_) => StatusCode::BAD_GATEWAY,
+                            Ok(_) => StatusCode::OK,
+                        };
+
                         let msg = serde_json::json!({"updated_vehicle": &updated_vehicle});
                         Ok::<_, warp::Rejection>((
                             methods::tokens::wrap_json_reply_with_token(
                                 new_token_in_db_publish,
                                 with_status(
                                     warp::reply::json(&msg),
-                                    StatusCode::OK,
+                                    status_code,
                                 ),
                             ),
                         ))
