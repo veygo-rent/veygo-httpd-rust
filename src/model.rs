@@ -652,7 +652,7 @@ pub struct NewTransponderCompany {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable, Identifiable, Associations, AsChangeset, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Location))]
 #[diesel(table_name = vehicles)]
