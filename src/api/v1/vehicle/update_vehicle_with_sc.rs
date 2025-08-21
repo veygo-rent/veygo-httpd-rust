@@ -9,6 +9,15 @@ struct RequestBody {
     vehicle_id: i32,
 }
 
+#[derive(diesel::AsChangeset)]
+#[diesel(table_name = crate::schema::vehicles)]
+struct VehicleScUpdate {
+    odometer: Option<i32>,
+    tank_size: Option<f64>,
+    tank_level_percentage: Option<i32>,
+    remote_mgmt_id: String,
+}
+
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("update-vehicle-with-sc")
         .and(warp::path::end())
@@ -103,18 +112,29 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         if tant.is_ok() {
                             let tank_info = tant.unwrap().0;
                             let percentage = tank_info.percent_remaining;
-                            let tank_size = tank_info.amount_remaining / percentage * 0.2641720524;
-                            vehicle_db.tank_size = tank_size as f64;
+                            if percentage > 0.0 {
+                                let tank_size = (tank_info.amount_remaining / percentage) * 0.2641720524;
+                                vehicle_db.tank_size = tank_size as f64;
+                            }
                             vehicle_db.tank_level_percentage = (percentage * 100.0) as i32;
                         }
 
                         let new_token = access.refresh_token + "$" + vehicle_sc_id;
 
-                        vehicle_db.remote_mgmt_id = new_token;
+                        // Prepare a narrow changeset so we don't touch unique fields like VIN
+                        let changes = VehicleScUpdate {
+                            odometer: Some(vehicle_db.odometer),
+                            tank_size: Some(vehicle_db.tank_size),
+                            tank_level_percentage: Some(vehicle_db.tank_level_percentage),
+                            remote_mgmt_id: new_token.clone(),
+                        };
 
-                        let updated_vehicle = diesel::update(vehicle_query::vehicles)
-                            .set(&vehicle_db).get_result::<model::Vehicle>(&mut pool)
-                            .unwrap().to_publish_admin_vehicle();
+                        // Update only the targeted row (by primary key) instead of the whole table
+                        let updated_vehicle = diesel::update(vehicle_query::vehicles.find(vehicle_db.id))
+                            .set(&changes)
+                            .get_result::<model::Vehicle>(&mut pool)
+                            .unwrap()
+                            .to_publish_admin_vehicle();
 
                         let msg = serde_json::json!({"updated_vehicle": &updated_vehicle});
                         Ok::<_, warp::Rejection>((
