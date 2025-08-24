@@ -63,12 +63,6 @@ diesel::table! {
         pcdw_ext_protection_rate -> Float8,
         rsa_protection_rate -> Float8,
         pai_protection_rate -> Float8,
-        actual_pickup_time -> Nullable<Timestamptz>,
-        pickup_odometer -> Nullable<Int4>,
-        pickup_level -> Nullable<Int4>,
-        actual_drop_off_time -> Nullable<Timestamptz>,
-        drop_off_odometer -> Nullable<Int4>,
-        drop_off_level -> Nullable<Int4>,
         msrp_factor -> Float8,
         duration_rate -> Float8,
         vehicle_id -> Int4,
@@ -80,6 +74,8 @@ diesel::table! {
         promo_id -> Nullable<Varchar>,
         taxes -> Array<Nullable<Int4>>,
         location_id -> Int4,
+        actual_pickup_time -> Nullable<Timestamptz>,
+        actual_drop_off_time -> Nullable<Timestamptz>,
     }
 }
 
@@ -322,6 +318,10 @@ diesel::table! {
         right_image -> Varchar,
         front_image -> Varchar,
         back_image -> Varchar,
+        time -> Timestamptz,
+        odometer -> Int4,
+        level -> Int4,
+        vehicle_id -> Int4,
     }
 }
 
@@ -389,6 +389,7 @@ diesel::joinable!(payments -> payment_methods (payment_method_id));
 diesel::joinable!(payments -> renters (renter_id));
 diesel::joinable!(rental_transactions -> agreements (agreement_id));
 diesel::joinable!(renters -> apartments (apartment_id));
+diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));
 diesel::joinable!(verifications -> renters (renter_id));
 

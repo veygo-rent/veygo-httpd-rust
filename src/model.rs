@@ -898,6 +898,7 @@ pub struct NewDamage {
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(belongs_to(Vehicle))]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct VehicleSnapshot {
@@ -906,9 +907,14 @@ pub struct VehicleSnapshot {
     pub right_image: String,
     pub front_image: String,
     pub back_image: String,
+    pub time: DateTime<Utc>,
+    pub odometer: i32,
+    pub level: i32,
+    pub vehicle_id: i32,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(belongs_to(Vehicle))]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewVehicleSnapshot {
@@ -916,6 +922,10 @@ pub struct NewVehicleSnapshot {
     pub right_image: String,
     pub front_image: String,
     pub back_image: String,
+    pub time: DateTime<Utc>,
+    pub odometer: i32,
+    pub level: i32,
+    pub vehicle_id: i32,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -970,14 +980,6 @@ pub struct Agreement {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
-    pub actual_pickup_time: Option<DateTime<Utc>>,
-    pub pickup_odometer: Option<i32>,
-    pub pickup_level: Option<i32>,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
-    pub actual_drop_off_time: Option<DateTime<Utc>>,
-    pub drop_off_odometer: Option<i32>,
-    pub drop_off_level: Option<i32>,
     pub msrp_factor: f64,
     pub duration_rate: f64,
     pub vehicle_id: i32,
@@ -989,6 +991,10 @@ pub struct Agreement {
     pub promo_id: Option<String>,
     pub taxes: Vec<Option<i32>>,
     pub location_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub actual_pickup_time: Option<DateTime<Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub actual_drop_off_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
