@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use reqwest::Response;
 use sendgrid::error::SendgridError;
 use sendgrid::v3::*;

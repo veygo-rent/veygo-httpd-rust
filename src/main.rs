@@ -9,7 +9,7 @@ mod proj_config;
 
 use diesel::{PgConnection, RunQueryDsl};
 use diesel::r2d2::{ConnectionManager, Pool};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
 use tokio::spawn;
@@ -83,9 +83,6 @@ async fn main() {
     spawn(scheduled_tasks::nightly_task());
     // starting the server
     warp::serve(httpd)
-        .tls()
-        .cert_path("/app/cert/httpd/veygo.rent.pem")
-        .key_path("/app/cert/httpd/veygo.rent.key")
         .run((addr, port))
         .await;
 }

@@ -1,5 +1,5 @@
 use crate::model::{NewPaymentMethod, PaymentType};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use std::env;
 use std::str::FromStr;
 use stripe::{

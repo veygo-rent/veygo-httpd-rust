@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use std::env;
 use twilio::{Call, Client, Message, OutboundCall, OutboundMessage, TwilioError};
 

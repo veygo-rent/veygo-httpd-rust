@@ -1,5 +1,5 @@
 use std::env;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use smartcar::*;
 use smartcar::response::Access;
 use smartcar::auth_client::AuthClient;
