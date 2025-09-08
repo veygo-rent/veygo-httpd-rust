@@ -980,6 +980,10 @@ pub struct Agreement {
     pub pcdw_ext_protection_rate: f64,
     pub rsa_protection_rate: f64,
     pub pai_protection_rate: f64,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub actual_pickup_time: Option<DateTime<Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    pub actual_drop_off_time: Option<DateTime<Utc>>,
     pub msrp_factor: f64,
     pub duration_rate: f64,
     pub vehicle_id: i32,
@@ -991,10 +995,6 @@ pub struct Agreement {
     pub promo_id: Option<String>,
     pub taxes: Vec<Option<i32>>,
     pub location_id: i32,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
-    pub actual_pickup_time: Option<DateTime<Utc>>,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
-    pub actual_drop_off_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]

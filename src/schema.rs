@@ -63,6 +63,8 @@ diesel::table! {
         pcdw_ext_protection_rate -> Float8,
         rsa_protection_rate -> Float8,
         pai_protection_rate -> Float8,
+        actual_pickup_time -> Nullable<Timestamptz>,
+        actual_drop_off_time -> Nullable<Timestamptz>,
         msrp_factor -> Float8,
         duration_rate -> Float8,
         vehicle_id -> Int4,
@@ -74,8 +76,6 @@ diesel::table! {
         promo_id -> Nullable<Varchar>,
         taxes -> Array<Nullable<Int4>>,
         location_id -> Int4,
-        actual_pickup_time -> Nullable<Timestamptz>,
-        actual_drop_off_time -> Nullable<Timestamptz>,
     }
 }
 
