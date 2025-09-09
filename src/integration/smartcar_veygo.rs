@@ -1,5 +1,4 @@
 use std::env;
-use dotenvy::dotenv;
 use smartcar::*;
 use smartcar::response::Access;
 use smartcar::auth_client::AuthClient;
@@ -7,8 +6,6 @@ use smartcar::vehicle::Vehicle;
 
 #[allow(dead_code)]
 pub async fn get_vehicle_complete_token_by(exchange_code: &str, vehicle_vin: &str) -> Option<String> {
-    dotenv().ok();
-
     let sc_client_id = env::var("SMARTCAR_CLIENT_ID").ok()?;
     let sc_client_secret = env::var("SMARTCAR_CLIENT_SECRET").ok()?;
     // NOTE: last param: false = live; true = sandbox. Match your Connect flow env.
@@ -62,8 +59,6 @@ pub async fn get_vehicle_complete_token_by(exchange_code: &str, vehicle_vin: &st
 
 #[allow(dead_code)]
 pub async fn renew_access_token(refresh_token: &str) -> Option<Access> {
-    dotenv().ok();
-
     let sc_client_id = env::var("SMARTCAR_CLIENT_ID").ok()?;
     let sc_client_secret = env::var("SMARTCAR_CLIENT_SECRET").ok()?;
     // NOTE: last param: false = live; true = sandbox. Match your Connect flow env.

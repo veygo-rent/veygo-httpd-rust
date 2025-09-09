@@ -1,4 +1,3 @@
-use dotenvy::dotenv;
 use reqwest::Response;
 use sendgrid::error::SendgridError;
 use sendgrid::v3::*;
@@ -12,7 +11,6 @@ pub async fn send_email(
     reply_to: Option<Email>,
     attachment: Option<Attachment>,
 ) -> Result<Response, SendgridError> {
-    dotenv().ok();
     let sg_api_key = env::var("SENDGRID_API_KEY").expect("SENDGRID_API_KEY must be set");
     let p = Personalization::new(to);
 

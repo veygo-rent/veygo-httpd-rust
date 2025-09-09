@@ -1,10 +1,8 @@
-use dotenvy::dotenv;
 use std::env;
 use twilio::{Call, Client, Message, OutboundCall, OutboundMessage, TwilioError};
 
 #[allow(dead_code)]
 pub async fn send_text(to: &str, msg: &str) -> Result<Message, TwilioError> {
-    dotenv().ok();
     let tw_acc_sid = env::var("TWILIO_SID").expect("TWILIO_SID must be set");
     let tw_token = env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set");
     let client = Client::new(&*tw_acc_sid, &*tw_token);
@@ -16,7 +14,6 @@ pub async fn send_text(to: &str, msg: &str) -> Result<Message, TwilioError> {
 
 #[allow(dead_code)]
 pub async fn call_otp(to: &str, otp: &str) -> Result<Call, TwilioError> {
-    dotenv().ok();
     let tw_acc_sid = env::var("TWILIO_SID").expect("TWILIO_SID must be set");
     let tw_token = env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set");
     let client = Client::new(&*tw_acc_sid, &*tw_token);

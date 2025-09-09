@@ -9,7 +9,6 @@ mod proj_config;
 
 use diesel::{PgConnection, RunQueryDsl};
 use diesel::r2d2::{ConnectionManager, Pool};
-use dotenvy::dotenv;
 use once_cell::sync::Lazy;
 use std::env;
 use tokio::spawn;
@@ -21,7 +20,6 @@ use diesel::query_builder::AsQuery;
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
 fn get_connection_pool() -> PgPool {
-    dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     Pool::builder()

@@ -1,5 +1,4 @@
 use crate::model::{NewPaymentMethod, PaymentType};
-use dotenvy::dotenv;
 use std::env;
 use std::str::FromStr;
 use stripe::{
@@ -20,7 +19,6 @@ pub async fn create_new_payment_method(
     renter_id: &i32,          // Must be provided
     nickname: &Option<String>, // Optional user-defined alias
 ) -> Result<NewPaymentMethod, StripeError> {
-    dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     let payment_id = PaymentMethodId::from_str(pm_id).unwrap();
@@ -58,7 +56,6 @@ pub async fn create_stripe_customer(
     phone_data: &String,
     email_data: &String,
 ) -> Result<Customer, StripeError> {
-    dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     Customer::create(
@@ -78,7 +75,6 @@ pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: &String,
     pm_id: &String,
 ) -> Result<SetupIntent, StripeError> {
-    dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     let payment_method_id = PaymentMethodId::from_str(pm_id.as_str()).unwrap();
@@ -111,7 +107,6 @@ pub async fn create_payment_intent(
     capture_method: PaymentIntentCaptureMethod,
     statement_descriptor_suffix: Option<&str>,
 ) -> Result<PaymentIntent, StripeError> {
-    dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     let customer_id = CustomerId::from_str(customer_id_data).unwrap();
@@ -180,7 +175,6 @@ impl PaymentType {
 }
 
 pub async fn drop_auth(intent: &PaymentIntent) -> Result<PaymentIntent, StripeError> {
-    dotenv().ok();
     let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
     let client = Client::new(stripe_secret_key);
     PaymentIntent::cancel(

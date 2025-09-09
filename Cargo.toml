@@ -9,7 +9,6 @@ warp = { version = "0.4.2", features = ["multipart", "server"] }
 csv = "1.3.1"
 bcrypt = "0.17.0"
 diesel = { version = "2.2.12", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
-dotenvy = "0.15.7"
 serde_derive = "1.0.219"
 regex = "1.11.1"
 chrono = { version = "0.4.41", features = ["serde"] }
