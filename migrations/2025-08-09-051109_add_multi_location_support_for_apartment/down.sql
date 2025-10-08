@@ -19,7 +19,7 @@ ALTER TABLE vehicles
 
 ALTER TABLE vehicles
     ADD CONSTRAINT vehicles_apartment_id_fkey
-    FOREIGN KEY (apartment_id) REFERENCES apartments(id) ON DELETE CASCADE;
+    FOREIGN KEY (apartment_id) REFERENCES apartments(id);
 
 ALTER TABLE vehicles
     DROP COLUMN IF EXISTS location_id,
