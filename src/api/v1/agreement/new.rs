@@ -174,19 +174,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
 
-                    if vehicle_with_location.2.liability_protection_rate <= 0.0 {
+                    if vehicle_with_location.2.liability_protection_rate.is_none() {
                         body.liability = false;
                     }
-                    if vehicle_with_location.2.pcdw_protection_rate <= 0.0 {
+                    if vehicle_with_location.2.pcdw_protection_rate.is_none() {
                         body.pcdw = false;
                     }
-                    if vehicle_with_location.2.pcdw_ext_protection_rate <= 0.0 {
+                    if vehicle_with_location.2.pcdw_ext_protection_rate.is_none() {
                         body.pcdw_ext = false;
                     }
-                    if vehicle_with_location.2.rsa_protection_rate <= 0.0 {
+                    if vehicle_with_location.2.rsa_protection_rate.is_none() {
                         body.rsa = false;
                     }
-                    if vehicle_with_location.2.pai_protection_rate <= 0.0 {
+                    if vehicle_with_location.2.pai_protection_rate.is_none() {
                         body.pai = false;
                     }
 
@@ -316,11 +316,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 user_billing_address: billing_address,
                                 rsvp_pickup_time: body.start_time,
                                 rsvp_drop_off_time: body.end_time,
-                                liability_protection_rate: if body.liability { vehicle_with_location.2.liability_protection_rate } else { 0.00 },
-                                pcdw_protection_rate: if body.pcdw { vehicle_with_location.2.pcdw_protection_rate * vehicle_with_location.0.msrp_factor } else { 0.00 },
-                                pcdw_ext_protection_rate: if body.pcdw_ext { vehicle_with_location.2.pcdw_ext_protection_rate * vehicle_with_location.0.msrp_factor } else { 0.00 },
-                                rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { 0.00 },
-                                pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { 0.00 },
+                                liability_protection_rate: if body.liability { vehicle_with_location.2.liability_protection_rate } else { None },
+                                pcdw_protection_rate: if body.pcdw { Some(vehicle_with_location.2.pcdw_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
+                                pcdw_ext_protection_rate: if body.pcdw_ext { Some(vehicle_with_location.2.pcdw_ext_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
+                                rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { None },
+                                pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { None },
                                 taxes: local_tax_id,
                                 msrp_factor: vehicle_with_location.0.msrp_factor,
                                 duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
