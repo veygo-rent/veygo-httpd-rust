@@ -27,10 +27,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install dependency
+      - name: Install dependencies
         run: |
-          apt update && apt install curl pkg-config git libssl-dev libsodium-dev libpq-dev -y
-          cargo install diesel_cli --no-default-features --features postgres
+         sudo apt-get update
+         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+         curl pkg-config git libssl-dev libsodium-dev libpq-dev build-essential
+         cargo install diesel_cli --no-default-features --features postgres
 
       - name: Build (x86_64-unknown-linux-gnu)
         run: |
