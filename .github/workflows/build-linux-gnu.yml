@@ -27,6 +27,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Install dependency
+        run: |
+          apt update && apt install curl pkg-config git libssl-dev libsodium-dev libpq-dev -y
+          cargo install diesel_cli --no-default-features --features postgres
+
       - name: Build (x86_64-unknown-linux-gnu)
         run: |
           rustup target add x86_64-unknown-linux-gnu
