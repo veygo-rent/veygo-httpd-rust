@@ -1,0 +1,52 @@
+# .github/workflows/build-linux-gnu.yml
+name: build-linux-gnu
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-gnu
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build (x86_64-unknown-linux-gnu)
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          cargo build --locked --release --target x86_64-unknown-linux-gnu
+
+      # Auto-detect your crate's bin name, then rename to veygo-httpd-rust
+      - name: Determine bin name and package artifact
+        id: pack
+        run: |
+          BIN_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].targets[] | select(.kind[]=="bin") | .name')
+          SRC="target/x86_64-unknown-linux-gnu/release/${BIN_NAME}"
+          cp "$SRC" veygo-httpd-rust
+          # Optional: strip to reduce size
+          strip veygo-httpd-rust || true
+          echo "artifact=veygo-httpd-rust" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: veygo-httpd-rust-linux-gnu
+          path: ${{ steps.pack.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 14
