@@ -11,27 +11,9 @@ use warp::reply::{Json, WithStatus, with_header};
 use warp::{Rejection, Reply};
 
 async fn generate_unique_token() -> Vec<u8> {
-    loop {
-        // Generate a secure random 32-byte token
-        let token_vec = Secret::<[u8; 32]>::random(|s| s.to_vec());
-
-        let token_to_return = token_vec.clone();
-
-        let mut pool = POOL.get().unwrap();
-        // Wrap in a block for error handling.
-        let token_exists_result = diesel::select(diesel::dsl::exists(
-            crate::schema::access_tokens::table.filter(token.eq(token_vec)),
-        ))
-        .get_result::<bool>(&mut pool);
-
-        let token_exists = token_exists_result.unwrap();
-
-        // If the token does not exist, return it
-        if !token_exists {
-            // Expose the secret and clone to return owned value
-            return token_to_return;
-        }
-    }
+    // Generate a secure random 32-byte token
+    let token_vec = Secret::<[u8; 32]>::random(|s| s.to_vec());
+    token_vec
 }
 
 pub async fn gen_token_object(_user_id: &i32, user_agent: &String) -> NewAccessToken {
