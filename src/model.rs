@@ -88,13 +88,6 @@ pub enum Gender {
     PNTS,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
-#[diesel(sql_type = sql_types::TransactionTypeEnum)]
-pub enum TransactionType {
-    Credit,
-    Cash,
-}
-
 //This is for postgres. For other databases the type might be different.
 impl ToSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
@@ -139,25 +132,6 @@ impl FromSql<sql_types::AgreementStatusEnum, Pg> for AgreementStatus {
             b"Rental" => Ok(AgreementStatus::Rental),
             b"Void" => Ok(AgreementStatus::Void),
             b"Canceled" => Ok(AgreementStatus::Canceled),
-            _ => Err("Unrecognized enum variant".into()),
-        }
-    }
-}
-impl ToSql<sql_types::TransactionTypeEnum, Pg> for TransactionType {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
-        match *self {
-            TransactionType::Credit => out.write_all(b"Credit")?,
-            TransactionType::Cash => out.write_all(b"Cash")?,
-        }
-        Ok(serialize::IsNull::No)
-    }
-}
-
-impl FromSql<sql_types::TransactionTypeEnum, Pg> for TransactionType {
-    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        match bytes.as_bytes() {
-            b"Credit" => Ok(TransactionType::Credit),
-            b"Cash" => Ok(TransactionType::Cash),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -286,12 +260,11 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Agreement))]
-#[diesel(table_name = rental_transactions)]
+#[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct RentalTransaction {
     pub id: i32,
     pub agreement_id: i32,
-    pub transaction_type: TransactionType,
     pub duration: f64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
@@ -301,11 +274,10 @@ pub struct RentalTransaction {
     Insertable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Agreement))]
-#[diesel(table_name = rental_transactions)]
+#[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRentalTransaction {
     pub agreement_id: i32,
-    pub transaction_type: TransactionType,
     pub duration: f64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
@@ -480,7 +452,7 @@ pub struct PaymentMethod {
     pub network: String,
     pub expiration: String,
     pub token: String,
-    pub md5: String,
+    pub fingerprint: String,
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
@@ -531,7 +503,7 @@ pub struct NewPaymentMethod {
     pub network: String,
     pub expiration: String,
     pub token: String,
-    pub md5: String,
+    pub fingerprint: String,
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
@@ -550,7 +522,6 @@ pub struct Apartment {
     pub address: String,
     pub accepted_school_email_domain: String,
     pub free_tier_hours: f64,
-    pub free_tier_rate: f64,
     pub silver_tier_hours: f64,
     pub silver_tier_rate: f64,
     pub gold_tier_hours: f64,
@@ -565,8 +536,7 @@ pub struct Apartment {
     pub pai_protection_rate: Option<f64>,
     pub is_operating: bool,
     pub is_public: bool,
-    pub uni_id: i32,
-    pub taxes: Vec<Option<i32>>,
+    pub uni_id: Option<i32>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -579,7 +549,6 @@ pub struct NewApartment {
     pub address: String,
     pub accepted_school_email_domain: String,
     pub free_tier_hours: f64,
-    pub free_tier_rate: f64,
     pub silver_tier_hours: f64,
     pub silver_tier_rate: f64,
     pub gold_tier_hours: f64,
@@ -592,10 +561,9 @@ pub struct NewApartment {
     pub pcdw_ext_protection_rate: Option<f64>,
     pub rsa_protection_rate: Option<f64>,
     pub pai_protection_rate: Option<f64>,
-    pub taxes: Vec<Option<i32>>,
     pub is_operating: bool,
     pub is_public: bool,
-    pub uni_id: i32,
+    pub uni_id: Option<i32>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -989,11 +957,10 @@ pub struct Agreement {
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
-    pub damage_ids: Vec<Option<i32>>,
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
     pub promo_id: Option<String>,
-    pub taxes: Vec<Option<i32>>,
+    pub manual_discount: Option<f64>,
     pub location_id: i32,
 }
 
@@ -1027,7 +994,7 @@ pub struct NewAgreement {
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub promo_id: Option<String>,
-    pub taxes: Vec<Option<i32>>,
+    pub manual_discount: Option<f64>,
     pub location_id: i32,
 }
 
@@ -1235,4 +1202,36 @@ pub struct Tax {
     pub name: String,
     pub multiplier: f64,
     pub is_effective: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
+#[diesel(table_name = agreements_damages)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct AgreementDamage {
+    pub agreement_id: i32,
+    pub damage_id: i32,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
+#[diesel(table_name = agreements_taxes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct AgreementTax {
+    pub agreement_id: i32,
+    pub tax_id: i32,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
+#[diesel(table_name = apartments_taxes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct ApartmentTax {
+    pub apartment_id: i32,
+    pub tax_id: i32,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
+#[diesel(table_name = charges_taxes)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct ChargeTax {
+    pub charge_id: i32,
+    pub tax_id: i32,
 }

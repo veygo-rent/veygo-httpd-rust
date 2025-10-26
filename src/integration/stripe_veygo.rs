@@ -40,7 +40,7 @@ pub async fn create_new_payment_method(
                 network,
                 expiration,
                 token: pm_id.to_string(),
-                md5: card.fingerprint.unwrap(),
+                fingerprint: card.fingerprint.unwrap(),
                 nickname: nickname.clone(),
                 is_enabled: true,
                 renter_id: renter_id.clone(),

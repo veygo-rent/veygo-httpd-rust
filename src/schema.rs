@@ -26,10 +26,6 @@ pub mod sql_types {
     pub struct RemoteMgmtEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "transaction_type_enum"))]
-    pub struct TransactionTypeEnum;
-
-    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "verification_type_enum"))]
     pub struct VerificationTypeEnum;
 }
@@ -70,12 +66,25 @@ diesel::table! {
         vehicle_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Int4,
-        damage_ids -> Array<Nullable<Int4>>,
         vehicle_snapshot_before -> Nullable<Int4>,
         vehicle_snapshot_after -> Nullable<Int4>,
         promo_id -> Nullable<Varchar>,
-        taxes -> Array<Nullable<Int4>>,
+        manual_discount -> Nullable<Float8>,
         location_id -> Int4,
+    }
+}
+
+diesel::table! {
+    agreements_damages (agreement_id, damage_id) {
+        agreement_id -> Int4,
+        damage_id -> Int4,
+    }
+}
+
+diesel::table! {
+    agreements_taxes (agreement_id, tax_id) {
+        agreement_id -> Int4,
+        tax_id -> Int4,
     }
 }
 
@@ -88,7 +97,6 @@ diesel::table! {
         address -> Varchar,
         accepted_school_email_domain -> Varchar,
         free_tier_hours -> Float8,
-        free_tier_rate -> Float8,
         silver_tier_hours -> Float8,
         silver_tier_rate -> Float8,
         gold_tier_hours -> Float8,
@@ -103,8 +111,14 @@ diesel::table! {
         pai_protection_rate -> Nullable<Float8>,
         is_operating -> Bool,
         is_public -> Bool,
-        uni_id -> Int4,
-        taxes -> Array<Nullable<Int4>>,
+        uni_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    apartments_taxes (apartment_id, tax_id) {
+        apartment_id -> Int4,
+        tax_id -> Int4,
     }
 }
 
@@ -120,7 +134,13 @@ diesel::table! {
         checksum -> Varchar,
         transponder_company_id -> Nullable<Int4>,
         vehicle_identifier -> Nullable<Varchar>,
-        taxes -> Array<Nullable<Int4>>,
+    }
+}
+
+diesel::table! {
+    charges_taxes (charge_id, tax_id) {
+        charge_id -> Int4,
+        tax_id -> Int4,
     }
 }
 
@@ -133,7 +153,7 @@ diesel::table! {
         third_image -> Nullable<Varchar>,
         fourth_image -> Nullable<Varchar>,
         description -> Varchar,
-        processed -> Bool,
+        processed_by -> Nullable<Int4>,
     }
 }
 
@@ -187,7 +207,7 @@ diesel::table! {
         network -> Varchar,
         expiration -> Varchar,
         token -> Varchar,
-        md5 -> Varchar,
+        fingerprint -> Varchar,
         nickname -> Nullable<Varchar>,
         is_enabled -> Bool,
         renter_id -> Int4,
@@ -227,19 +247,6 @@ diesel::table! {
         user_id -> Int4,
         apt_id -> Int4,
         uni_id -> Int4,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::TransactionTypeEnum;
-
-    rental_transactions (id) {
-        id -> Int4,
-        agreement_id -> Int4,
-        transaction_type -> TransactionTypeEnum,
-        duration -> Float8,
-        transaction_time -> Timestamptz,
     }
 }
 
@@ -285,6 +292,15 @@ diesel::table! {
         subscription_payment_method_id -> Nullable<Int4>,
         apple_apns -> Nullable<Varchar>,
         admin_apple_apns -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    reward_transactions (id) {
+        id -> Int4,
+        agreement_id -> Int4,
+        duration -> Float8,
+        transaction_time -> Timestamptz,
     }
 }
 
@@ -376,19 +392,30 @@ diesel::table! {
 diesel::joinable!(access_tokens -> renters (user_id));
 diesel::joinable!(agreements -> locations (location_id));
 diesel::joinable!(agreements -> payment_methods (payment_method_id));
+diesel::joinable!(agreements -> promos (promo_id));
 diesel::joinable!(agreements -> renters (renter_id));
 diesel::joinable!(agreements -> vehicles (vehicle_id));
+diesel::joinable!(agreements_damages -> agreements (agreement_id));
+diesel::joinable!(agreements_damages -> damages (damage_id));
+diesel::joinable!(agreements_taxes -> agreements (agreement_id));
+diesel::joinable!(agreements_taxes -> taxes (tax_id));
+diesel::joinable!(apartments_taxes -> apartments (apartment_id));
+diesel::joinable!(apartments_taxes -> taxes (tax_id));
 diesel::joinable!(charges -> agreements (agreement_id));
+diesel::joinable!(charges -> transponder_companies (transponder_company_id));
 diesel::joinable!(charges -> vehicles (vehicle_id));
-diesel::joinable!(damage_submissions -> renters (reported_by));
+diesel::joinable!(charges_taxes -> charges (charge_id));
+diesel::joinable!(charges_taxes -> taxes (tax_id));
+diesel::joinable!(damage_submissions -> agreements (reported_by));
+diesel::joinable!(damage_submissions -> renters (processed_by));
 diesel::joinable!(damages -> agreements (agreement_id));
 diesel::joinable!(locations -> apartments (apartment_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
 diesel::joinable!(payments -> agreements (agreement_id));
 diesel::joinable!(payments -> payment_methods (payment_method_id));
 diesel::joinable!(payments -> renters (renter_id));
-diesel::joinable!(rental_transactions -> agreements (agreement_id));
 diesel::joinable!(renters -> apartments (apartment_id));
+diesel::joinable!(reward_transactions -> agreements (agreement_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));
 diesel::joinable!(verifications -> renters (renter_id));
@@ -396,8 +423,12 @@ diesel::joinable!(verifications -> renters (renter_id));
 diesel::allow_tables_to_appear_in_same_query!(
     access_tokens,
     agreements,
+    agreements_damages,
+    agreements_taxes,
     apartments,
+    apartments_taxes,
     charges,
+    charges_taxes,
     damage_submissions,
     damages,
     do_not_rent_lists,
@@ -405,8 +436,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_methods,
     payments,
     promos,
-    rental_transactions,
     renters,
+    reward_transactions,
     taxes,
     transponder_companies,
     vehicle_snapshots,

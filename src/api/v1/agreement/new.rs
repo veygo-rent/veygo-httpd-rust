@@ -1,5 +1,6 @@
 use crate::{POOL, integration, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
+use diesel::associations::HasTable;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use diesel::sql_types::{Timestamptz};
@@ -10,6 +11,7 @@ use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
 use diesel::sql_types::{Nullable};
+
 define_sql_function! { fn coalesce(x: Nullable<Timestamptz>, y: Timestamptz) -> Timestamptz; }
 define_sql_function! {
     fn greatest(x: Timestamptz, y: Timestamptz) -> Timestamptz;
@@ -146,6 +148,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .inner_join(apartment_query::apartments)
                         )
                         .filter(apartment_query::id.ne(1))
+                        .filter(apartment_query::uni_id.is_not_null())
                         .filter(apartment_query::is_operating)
                         .filter(location_query::is_operational)
                         .filter(vehicle_query::id.eq(&body.vehicle_id))
@@ -169,7 +172,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
 
-                    if vehicle_with_location.2.uni_id != 1 && !(user_in_request.employee_tier == model::EmployeeTier::Admin || user_in_request.apartment_id == vehicle_with_location.2.id) {
+                    if vehicle_with_location.2.uni_id != Some(1) && !(user_in_request.employee_tier == model::EmployeeTier::Admin || user_in_request.apartment_id == vehicle_with_location.2.id) {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
@@ -246,7 +249,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let start_time_buffered = body.start_time - Duration::minutes(proj_config::RSVP_BUFFER);
                     let end_time_buffered = body.end_time + Duration::minutes(proj_config::RSVP_BUFFER);
 
-                    let tax_ids: Vec<i32> = vehicle_with_location.2.taxes.clone().into_iter().flatten().collect();
+                    use crate::schema::apartments_taxes::dsl as apartments_taxes_query;
+
+                    let tax_ids: Vec<i32> = apartments_taxes_query::apartments_taxes::table().select(apartments_taxes_query::tax_id)
+                        .filter(apartments_taxes_query::apartment_id.eq(&vehicle_with_location.2.id))
+                        .get_results::<i32>(&mut pool)
+                        .unwrap_or_default();
+
                     use crate::schema::taxes::dsl as tax_query;
                     let tax_objs = tax_query::taxes
                         .filter(tax_query::id.eq_any(tax_ids))
@@ -321,13 +330,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 pcdw_ext_protection_rate: if body.pcdw_ext && vehicle_with_location.2.pcdw_ext_protection_rate.is_some() { Some(vehicle_with_location.2.pcdw_ext_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
                                 rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { None },
                                 pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { None },
-                                taxes: local_tax_id,
                                 msrp_factor: vehicle_with_location.0.msrp_factor,
                                 duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
                                 vehicle_id: vehicle_with_location.0.id,
                                 renter_id: user_in_request.id,
                                 payment_method_id: body.payment_id,
                                 promo_id: None,
+                                manual_discount: None,
                                 location_id: vehicle_with_location.1.id,
                             };
 

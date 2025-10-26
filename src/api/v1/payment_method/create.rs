@@ -58,7 +58,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         match new_pm_result {
                             Ok(new_pm) => {
                                 use crate::schema::payment_methods::dsl::*;
-                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(md5.eq(&new_pm.md5)))).get_result::<bool>(&mut pool)
+                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(fingerprint.eq(&new_pm.fingerprint)))).get_result::<bool>(&mut pool)
                                     .unwrap();
                                 if card_in_db {
                                     let error_msg = serde_json::json!({"error": "PaymentMethods existed"});

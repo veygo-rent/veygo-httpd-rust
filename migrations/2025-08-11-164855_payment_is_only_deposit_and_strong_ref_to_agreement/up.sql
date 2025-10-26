@@ -1,2 +1,0 @@
-ALTER TABLE payments
-ADD COLUMN is_deposit BOOLEAN NOT NULL;

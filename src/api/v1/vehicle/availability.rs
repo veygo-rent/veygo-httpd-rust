@@ -96,13 +96,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             let user = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             use crate::schema::apartments::dsl as apartments_query;
-                            let apt_in_request = apartments_query::apartments.filter(apartments_query::id.eq(&body.apartment_id)).get_result::<model::Apartment>(&mut pool);
+                            let apt_in_request = apartments_query::apartments
+                                .filter(crate::schema::apartments::dsl::id.ne(1))
+                                .filter(crate::schema::apartments::dsl::uni_id.is_not_null())
+                                .filter(apartments_query::id.eq(&body.apartment_id))
+                                .get_result::<model::Apartment>(&mut pool);
                             if apt_in_request.is_err() {
                                 // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }
                             let apt = apt_in_request.unwrap();
-                            if apt.uni_id != 1 && (user.employee_tier != model::EmployeeTier::Admin || user.apartment_id != body.apartment_id) {
+                            if apt.uni_id != Some(1) && (user.employee_tier != model::EmployeeTier::Admin || user.apartment_id != body.apartment_id) {
                                 // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
                             }

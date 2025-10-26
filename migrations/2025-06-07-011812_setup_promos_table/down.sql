@@ -1,4 +1,0 @@
-ALTER TABLE agreements
-    DROP COLUMN IF EXISTS promo_id;
-
-DROP TABLE IF EXISTS promos;

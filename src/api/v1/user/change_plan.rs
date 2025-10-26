@@ -85,8 +85,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     if user.plan_tier == model::PlanTier::Free {
                                         // TODO if the old plan is free, setting up a brand new plan
 
-                                        let plan_cost = match request_body.plan {
-                                            model::PlanTier::Free => apartment.free_tier_rate,
+                                        let plan_cost: f64 = match request_body.plan {
+                                            model::PlanTier::Free => 0.00,
                                             model::PlanTier::Gold => apartment.gold_tier_rate,
                                             model::PlanTier::Silver => apartment.silver_tier_rate,
                                             model::PlanTier::Platinum => apartment.platinum_tier_rate,

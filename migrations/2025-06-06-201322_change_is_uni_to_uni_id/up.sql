@@ -1,4 +1,0 @@
-ALTER TABLE apartments
-DROP COLUMN IF EXISTS is_uni;
-ALTER TABLE apartments
-    ADD COLUMN uni_id INTEGER NOT NULL DEFAULT 0;
