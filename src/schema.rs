@@ -417,6 +417,12 @@ diesel::table! {
         vin -> Varchar,
         #[max_length = 18]
         name -> Varchar,
+        capacity -> Int4,
+        doors -> Int4,
+        small_bags -> Int4,
+        large_bags -> Int4,
+        carplay -> Bool,
+        lane_keep -> Bool,
         available -> Bool,
         #[max_length = 10]
         license_number -> Varchar,
