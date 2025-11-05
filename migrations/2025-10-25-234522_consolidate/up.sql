@@ -39,6 +39,9 @@ create table transponder_companies
     constraint transponder_companies_name_uk unique (name)
 );
 
+create index transponder_companies_name_idx
+    on transponder_companies (name);
+
 create table apartments
 (
     id                           serial,

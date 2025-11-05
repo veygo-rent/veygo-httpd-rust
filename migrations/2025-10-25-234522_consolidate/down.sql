@@ -42,6 +42,7 @@ drop index if exists apartments_email_idx;
 drop index if exists apartments_phone_idx;
 drop table if exists apartments;
 
+drop index if exists transponder_companies_name_idx;
 drop table if exists transponder_companies;
 
 drop index if exists do_not_rent_lists_name_idx;
