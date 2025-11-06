@@ -1000,6 +1000,7 @@ pub struct Agreement {
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
     pub mileage_rate: Option<f64>,
+    pub mileage_conversion: f64,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -1036,6 +1037,7 @@ pub struct NewAgreement {
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
     pub mileage_rate: Option<f64>,
+    pub mileage_conversion: f64,
 }
 
 #[derive(

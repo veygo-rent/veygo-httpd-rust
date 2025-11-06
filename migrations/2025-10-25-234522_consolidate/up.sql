@@ -278,6 +278,7 @@ create table agreements
     location_id               integer                               not null,
     mileage_package_id        integer,
     mileage_rate              double precision,
+    mileage_conversion        double precision                      not null,
     constraint agreements_pk primary key (id),
     constraint agreements_confirmation_uk unique (confirmation),
     constraint agreements_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),

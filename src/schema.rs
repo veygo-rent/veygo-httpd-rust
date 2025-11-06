@@ -79,6 +79,7 @@ diesel::table! {
         location_id -> Int4,
         mileage_package_id -> Nullable<Int4>,
         mileage_rate -> Nullable<Float8>,
+        mileage_conversion -> Float8,
     }
 }
 
