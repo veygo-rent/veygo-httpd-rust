@@ -222,6 +222,31 @@ create table promos
     constraint promos_pk primary key (code)
 );
 
+create table mileage_packages
+(
+    id                  serial,
+    miles               integer                 not null,
+    discounted_rate     integer                 not null,
+    is_active           boolean default true    not null,
+    constraint mileage_packages_pk primary key (id),
+    constraint mileage_packages_discounted_rate_range check (discounted_rate > 0 and discounted_rate < 100)
+);
+
+create table vehicle_snapshots
+(
+    id          serial,
+    left_image  varchar(255)                           not null,
+    right_image varchar(255)                           not null,
+    front_image varchar(255)                           not null,
+    back_image  varchar(255)                           not null,
+    time        timestamp with time zone default now() not null,
+    odometer    integer                                not null,
+    level       integer                                not null,
+    vehicle_id  integer                                not null,
+    constraint vehicle_snapshots_pk primary key (id),
+    constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id)
+);
+
 create table agreements
 (
     id                        serial,
@@ -251,13 +276,19 @@ create table agreements
     promo_id                  varchar(16),
     manual_discount           double precision,
     location_id               integer                               not null,
+    mileage_package_id        integer,
+    mileage_rate              double precision,
     constraint agreements_pk primary key (id),
     constraint agreements_confirmation_uk unique (confirmation),
     constraint agreements_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
     constraint agreements_renter_id_fk foreign key (renter_id) references renters(id),
     constraint agreements_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
     constraint agreements_location_id_fk foreign key (location_id) references locations(id),
-    constraint agreements_promo_id_fk foreign key (promo_id) references promos(code)
+    constraint agreements_promo_id_fk foreign key (promo_id) references promos(code),
+    constraint agreements_mileage_package_id_fk foreign key (mileage_package_id) references mileage_packages(id),
+    constraint agreements_vehicle_snapshot_before_fk foreign key (vehicle_snapshot_before) references vehicle_snapshots(id),
+    constraint agreements_vehicle_snapshot_after_fk foreign key (vehicle_snapshot_after) references vehicle_snapshots(id),
+    constraint agreements_mileage_rate_range check (mileage_rate >= 0.0)
 );
 
 create table damage_submissions
@@ -367,21 +398,6 @@ create table reward_transactions
     transaction_time timestamp with time zone default CURRENT_TIMESTAMP not null,
     constraint reward_transactions_pk primary key (id),
     constraint reward_transactions_agreement_id_fk foreign key (agreement_id) references agreements(id)
-);
-
-create table vehicle_snapshots
-(
-    id          serial,
-    left_image  varchar(255)                           not null,
-    right_image varchar(255)                           not null,
-    front_image varchar(255)                           not null,
-    back_image  varchar(255)                           not null,
-    time        timestamp with time zone default now() not null,
-    odometer    integer                                not null,
-    level       integer                                not null,
-    vehicle_id  integer                                not null,
-    constraint vehicle_snapshots_pk primary key (id),
-    constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id)
 );
 
 create table agreements_taxes

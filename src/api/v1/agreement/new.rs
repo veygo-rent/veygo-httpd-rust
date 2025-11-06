@@ -338,6 +338,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 promo_id: None,
                                 manual_discount: None,
                                 location_id: vehicle_with_location.1.id,
+                                mileage_package_id: None,
+                                mileage_rate: None,
                             };
 
                             let new_publish_agreement_result = diesel::insert_into(agreement_query::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);

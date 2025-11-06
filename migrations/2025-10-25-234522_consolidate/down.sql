@@ -3,8 +3,6 @@ drop table if exists apartments_taxes;
 drop table if exists charges_taxes;
 drop table if exists agreements_damages;
 
-drop table if exists vehicle_snapshots;
-
 drop table if exists reward_transactions;
 
 drop table if exists payments;
@@ -22,6 +20,10 @@ drop table if exists verifications;
 drop table if exists damage_submissions;
 
 drop table if exists agreements;
+
+drop table if exists vehicle_snapshots;
+
+drop table if exists mileage_packages;
 
 drop table if exists promos;
 

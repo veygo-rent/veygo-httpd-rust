@@ -998,6 +998,8 @@ pub struct Agreement {
     pub promo_id: Option<String>,
     pub manual_discount: Option<f64>,
     pub location_id: i32,
+    pub mileage_package_id: Option<i32>,
+    pub mileage_rate: Option<f64>,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -1032,6 +1034,8 @@ pub struct NewAgreement {
     pub promo_id: Option<String>,
     pub manual_discount: Option<f64>,
     pub location_id: i32,
+    pub mileage_package_id: Option<i32>,
+    pub mileage_rate: Option<f64>,
 }
 
 #[derive(
@@ -1238,6 +1242,26 @@ pub struct Tax {
     pub name: String,
     pub multiplier: f64,
     pub is_effective: bool,
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[diesel(table_name = mileage_packages)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewMileagePackage {
+    pub id: i32,
+    pub miles: i32,
+    pub discounted_rate: i32,
+    pub is_active: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[diesel(table_name = mileage_packages)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct MileagePackage {
+    pub id: i32,
+    pub miles: i32,
+    pub discounted_rate: i32,
+    pub is_active: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]

@@ -77,6 +77,8 @@ diesel::table! {
         promo_id -> Nullable<Varchar>,
         manual_discount -> Nullable<Float8>,
         location_id -> Int4,
+        mileage_package_id -> Nullable<Int4>,
+        mileage_rate -> Nullable<Float8>,
     }
 }
 
@@ -221,6 +223,15 @@ diesel::table! {
         latitude -> Float8,
         longitude -> Float8,
         is_operational -> Bool,
+    }
+}
+
+diesel::table! {
+    mileage_packages (id) {
+        id -> Int4,
+        miles -> Int4,
+        discounted_rate -> Int4,
+        is_active -> Bool,
     }
 }
 
@@ -476,6 +487,7 @@ diesel::table! {
 
 diesel::joinable!(access_tokens -> renters (user_id));
 diesel::joinable!(agreements -> locations (location_id));
+diesel::joinable!(agreements -> mileage_packages (mileage_package_id));
 diesel::joinable!(agreements -> payment_methods (payment_method_id));
 diesel::joinable!(agreements -> promos (promo_id));
 diesel::joinable!(agreements -> renters (renter_id));
@@ -518,6 +530,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     damages,
     do_not_rent_lists,
     locations,
+    mileage_packages,
     payment_methods,
     payments,
     promos,
