@@ -231,7 +231,8 @@ create table promos
     user_id     integer default 0        not null,
     apt_id      integer default 0        not null,
     uni_id      integer default 0        not null,
-    constraint promos_pk primary key (code)
+    constraint promos_pk primary key (code),
+    constraint promos_amount_range check (amount > 0.0)
 );
 
 create table mileage_packages
@@ -241,7 +242,8 @@ create table mileage_packages
     discounted_rate     integer                 not null,
     is_active           boolean default true    not null,
     constraint mileage_packages_pk primary key (id),
-    constraint mileage_packages_discounted_rate_range check (discounted_rate > 0 and discounted_rate < 100)
+    constraint mileage_packages_discounted_rate_range check (discounted_rate > 0 and discounted_rate < 100),
+    constraint mileage_packages_miles_range check (miles > 0)
 );
 
 create table vehicle_snapshots
@@ -256,7 +258,9 @@ create table vehicle_snapshots
     level       integer                                not null,
     vehicle_id  integer                                not null,
     constraint vehicle_snapshots_pk primary key (id),
-    constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id)
+    constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
+    constraint vehicle_snapshots_odometer_range check (odometer > 0),
+    constraint vehicle_snapshots_level_range check (level >= 0 and level <= 100)
 );
 
 create table agreements
@@ -339,7 +343,8 @@ create table taxes
     name         varchar(32)      not null,
     multiplier   double precision not null,
     is_effective boolean          not null,
-    constraint taxes_pk primary key (id)
+    constraint taxes_pk primary key (id),
+    constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0)
 );
 
 create index taxes_name_idx
@@ -361,7 +366,8 @@ create table charges
     constraint charges_checksum_uk unique (checksum),
     constraint charges_transponder_company_id_fk foreign key (transponder_company_id) references transponder_companies(id),
     constraint charges_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
-    constraint charges_agreement_id_fk foreign key (agreement_id) references agreements(id)
+    constraint charges_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint charges_amount_range check (amount >= 0.0)
 );
 
 create table damages
@@ -409,7 +415,8 @@ create table payments
     constraint payments_pk primary key (id),
     constraint payments_renter_id_fk foreign key (renter_id) references renters(id),
     constraint payments_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
-    constraint payments_agreement_id_fk foreign key (agreement_id) references agreements(id)
+    constraint payments_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint payments_amount_range check (amount > 0.0)
 );
 
 create table reward_transactions
