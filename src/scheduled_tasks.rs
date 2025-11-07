@@ -57,15 +57,15 @@ pub async fn nightly_task() {
                     model::PlanTier::Free => { 0.0 }
                     model::PlanTier::Silver => {
                         description = description + "Silver Tier Subscription";
-                        apartment.silver_tier_rate
+                        apartment.silver_tier_rate.unwrap()
                     }
                     model::PlanTier::Gold => {
                         description = description + "Gold Tier Subscription";
-                        apartment.gold_tier_rate
+                        apartment.gold_tier_rate.unwrap()
                     }
                     model::PlanTier::Platinum => {
                         description = description + "Platinum Tier Subscription";
-                        apartment.platinum_tier_rate
+                        apartment.platinum_tier_rate.unwrap()
                     }
                 };
                 if renter.is_plan_annual {

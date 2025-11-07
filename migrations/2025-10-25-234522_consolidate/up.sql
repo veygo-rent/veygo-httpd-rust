@@ -51,12 +51,12 @@ create table apartments
     address                      varchar(128)      not null,
     accepted_school_email_domain varchar(16)      not null,
     free_tier_hours              double precision not null,
-    silver_tier_hours            double precision not null,
-    silver_tier_rate             double precision not null,
-    gold_tier_hours              double precision not null,
-    gold_tier_rate               double precision not null,
-    platinum_tier_hours          double precision not null,
-    platinum_tier_rate           double precision not null,
+    silver_tier_hours            double precision,
+    silver_tier_rate             double precision,
+    gold_tier_hours              double precision,
+    gold_tier_rate               double precision,
+    platinum_tier_hours          double precision,
+    platinum_tier_rate           double precision,
     duration_rate                double precision not null,
     liability_protection_rate    double precision,
     pcdw_protection_rate         double precision,
@@ -68,7 +68,19 @@ create table apartments
     uni_id                       integer,
     constraint apartments_pk primary key (id),
     constraint apartments_name_uk unique (name),
-    constraint apartments_uni_id_fk foreign key (uni_id) references apartments(id)
+    constraint apartments_uni_id_fk foreign key (uni_id) references apartments(id),
+    constraint apartments_free_tier_range check (free_tier_hours >= 0.0),
+    constraint apartments_silver_tier_range check (silver_tier_hours > 0.0 and silver_tier_rate > 0.0),
+    constraint apartments_gold_tier_range check (gold_tier_hours > 0.0 and gold_tier_rate > 0.0),
+    constraint apartments_platinum_tier_range check (platinum_tier_hours > 0.0 and platinum_tier_rate > 0.0),
+    constraint apartments_duration_rate_range check (duration_rate >= 0.0),
+    constraint apartments_protection_range check (
+        liability_protection_rate > 0.0
+        and pcdw_protection_rate > 0.0
+        and pcdw_ext_protection_rate > 0.0
+        and rsa_protection_rate > 0.0
+        and pai_protection_rate > 0.0
+    )
 );
 
 create index apartments_name_idx
@@ -366,9 +378,18 @@ create table damages
     fourth_image                       varchar(255),
     fixed_date                         timestamp with time zone,
     fixed_amount                       double precision,
+    depreciation                       double precision,
+    lost_of_use                        double precision,
+    admin_fee                          double precision,
+    tow_charge                         double precision,
     agreement_id                       integer,
     constraint damages_pk primary key (id),
-    constraint damages_agreement_id_fk foreign key (agreement_id) references agreements(id)
+    constraint damages_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint damages_fixed_amount_range check (fixed_amount >= 0.0),
+    constraint damages_depreciation_range check (depreciation >= 0.0),
+    constraint damages_lost_of_use_range check (lost_of_use >= 0.0),
+    constraint damages_admin_fee_range check (admin_fee >= 0.0),
+    constraint damages_tow_charge_range check (tow_charge >= 0.0)
 );
 
 create table payments
@@ -465,15 +486,15 @@ values ('Veygo HQ',
         '101 Foundry Dr, Ste 1200, West Lafayette, IN 47906',
         'veygo.rent',
         0.0,
-        0.0, 0.0,
-        0.0, 0.0,
-        0.0, 0.0,
+        NULL, NULL,
+        NULL, NULL,
+        NULL, NULL,
         0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
         TRUE,
         TRUE,
         NULL),
