@@ -111,7 +111,6 @@ diesel::table! {
         #[max_length = 16]
         accepted_school_email_domain -> Varchar,
         free_tier_hours -> Float8,
-        platinum_tier_rate -> Float8,
         silver_tier_hours -> Nullable<Float8>,
         silver_tier_rate -> Nullable<Float8>,
         gold_tier_hours -> Nullable<Float8>,
