@@ -13,6 +13,15 @@ use diesel::{AsExpression, FromSqlRow};
 use std::io::Write;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::AuditActionEnum)]
+pub enum AuditActionType {
+    Create,
+    Update,
+    Read,
+    Delete,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::VerificationTypeEnum)]
 pub enum VerificationType {
     Email,
@@ -90,6 +99,30 @@ pub enum Gender {
 }
 
 //This is for postgres. For other databases the type might be different.
+impl ToSql<sql_types::AuditActionEnum, Pg> for AuditActionType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            AuditActionType::Create => out.write_all(b"create")?,
+            AuditActionType::Update => out.write_all(b"update")?,
+            AuditActionType::Read => out.write_all(b"read")?,
+            AuditActionType::Delete => out.write_all(b"delete")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::AuditActionEnum, Pg> for AuditActionType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"create" => Ok(AuditActionType::Create),
+            b"update" => Ok(AuditActionType::Update),
+            b"read" => Ok(AuditActionType::Read),
+            b"delete" => Ok(AuditActionType::Delete),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
 impl ToSql<sql_types::RemoteMgmtEnum, Pg> for RemoteMgmtType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
@@ -260,7 +293,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset,
 )]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
@@ -540,6 +573,8 @@ pub struct Apartment {
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: Option<i32>,
+    pub mileage_rate_overwrite: Option<f64>,
+    pub mileage_package_overwrite: Option<f64>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -567,6 +602,8 @@ pub struct NewApartment {
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: Option<i32>,
+    pub mileage_rate_overwrite: Option<f64>,
+    pub mileage_package_overwrite: Option<f64>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1025,8 +1062,9 @@ pub struct Agreement {
     pub manual_discount: Option<f64>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
-    pub mileage_rate: Option<f64>,
     pub mileage_conversion: f64,
+    pub mileage_rate_overwrite: Option<f64>,
+    pub mileage_package_overwrite: Option<f64>,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -1062,8 +1100,9 @@ pub struct NewAgreement {
     pub manual_discount: Option<f64>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
-    pub mileage_rate: Option<f64>,
     pub mileage_conversion: f64,
+    pub mileage_rate_overwrite: Option<f64>,
+    pub mileage_package_overwrite: Option<f64>,
 }
 
 #[derive(
@@ -1315,10 +1354,23 @@ pub struct ApartmentTax {
     pub tax_id: i32,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
-#[diesel(table_name = charges_taxes)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[diesel(table_name = audits)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct ChargeTax {
-    pub charge_id: i32,
-    pub tax_id: i32,
+pub struct Audit {
+    pub id: i32,
+    pub renter_id: Option<i32>,
+    pub action: AuditActionType,
+    pub path: String,
+    pub time: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Insertable)]
+#[diesel(table_name = audits)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewAudit {
+    pub renter_id: Option<i32>,
+    pub action: AuditActionType,
+    pub path: String,
+    pub time: DateTime<Utc>,
 }

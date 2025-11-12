@@ -1,3 +1,5 @@
+drop table if exists audits;
+
 drop table if exists agreements_taxes;
 drop table if exists apartments_taxes;
 drop table if exists charges_taxes;
@@ -61,3 +63,4 @@ drop type if exists verification_type_enum;
 drop type if exists remote_mgmt_enum;
 drop type if exists agreement_status_enum;
 drop type if exists payment_type_enum;
+drop type if exists audit_action_enum;

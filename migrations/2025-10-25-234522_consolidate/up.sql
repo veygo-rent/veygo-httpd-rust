@@ -5,6 +5,7 @@ create type verification_type_enum as enum ('email', 'phone');
 create type remote_mgmt_enum as enum ('revers',  'geotab', 'smartcar', 'tesla', 'none');
 create type agreement_status_enum as enum ('Rental', 'Void', 'Canceled');
 create type payment_type_enum as enum ('canceled', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation', 'requires_payment_method', 'succeeded', 'veygo.bad_debt');
+create type audit_action_enum as enum('create', 'read', 'update', 'delete');
 
 create table do_not_rent_lists
 (
@@ -45,27 +46,29 @@ create index transponder_companies_name_idx
 create table apartments
 (
     id                           serial,
-    name                         varchar(26)      not null,
-    email                        varchar(36)      not null,
-    phone                        varchar(10)      not null,
-    address                      varchar(128)      not null,
-    accepted_school_email_domain varchar(16)      not null,
-    free_tier_hours              double precision not null,
-    silver_tier_hours            double precision,
-    silver_tier_rate             double precision,
-    gold_tier_hours              double precision,
-    gold_tier_rate               double precision,
-    platinum_tier_hours          double precision,
-    platinum_tier_rate           double precision,
-    duration_rate                double precision not null,
-    liability_protection_rate    double precision,
-    pcdw_protection_rate         double precision,
-    pcdw_ext_protection_rate     double precision,
-    rsa_protection_rate          double precision,
-    pai_protection_rate          double precision,
-    is_operating                 boolean          not null,
-    is_public                    boolean          not null,
-    uni_id                       integer,
+    name                            varchar(26)         not null,
+    email                           varchar(36)         not null,
+    phone                           varchar(10)         not null,
+    address                         varchar(128)        not null,
+    accepted_school_email_domain    varchar(16)         not null,
+    free_tier_hours                 double precision    not null,
+    silver_tier_hours               double precision,
+    silver_tier_rate                double precision,
+    gold_tier_hours                 double precision,
+    gold_tier_rate                  double precision,
+    platinum_tier_hours             double precision,
+    platinum_tier_rate              double precision,
+    duration_rate                   double precision    not null,
+    liability_protection_rate       double precision,
+    pcdw_protection_rate            double precision,
+    pcdw_ext_protection_rate        double precision,
+    rsa_protection_rate             double precision,
+    pai_protection_rate             double precision,
+    is_operating                    boolean             not null,
+    is_public                       boolean             not null,
+    uni_id                          integer,
+    mileage_rate_overwrite          double precision,
+    mileage_package_overwrite       double precision,
     constraint apartments_pk primary key (id),
     constraint apartments_name_uk unique (name),
     constraint apartments_uni_id_fk foreign key (uni_id) references apartments(id),
@@ -74,6 +77,8 @@ create table apartments
     constraint apartments_gold_tier_range check (gold_tier_hours > 0.0 and gold_tier_rate > 0.0),
     constraint apartments_platinum_tier_range check (platinum_tier_hours > 0.0 and platinum_tier_rate > 0.0),
     constraint apartments_duration_rate_range check (duration_rate >= 0.0),
+    constraint apartments_mileage_rate_overwrite_range check (mileage_rate_overwrite >= 0.0),
+    constraint apartments_mileage_package_overwrite_range check (mileage_package_overwrite >= 0.0),
     constraint apartments_protection_range check (
         liability_protection_rate > 0.0
         and pcdw_protection_rate > 0.0
@@ -293,8 +298,9 @@ create table agreements
     manual_discount           double precision,
     location_id               integer                               not null,
     mileage_package_id        integer,
-    mileage_rate              double precision,
     mileage_conversion        double precision                      not null,
+    mileage_rate_overwrite    double precision,
+    mileage_package_overwrite double precision,
     constraint agreements_pk primary key (id),
     constraint agreements_confirmation_uk unique (confirmation),
     constraint agreements_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
@@ -305,7 +311,8 @@ create table agreements
     constraint agreements_mileage_package_id_fk foreign key (mileage_package_id) references mileage_packages(id),
     constraint agreements_vehicle_snapshot_before_fk foreign key (vehicle_snapshot_before) references vehicle_snapshots(id),
     constraint agreements_vehicle_snapshot_after_fk foreign key (vehicle_snapshot_after) references vehicle_snapshots(id),
-    constraint agreements_mileage_rate_range check (mileage_rate >= 0.0)
+    constraint agreements_mileage_rate_overwrite_range check (mileage_rate_overwrite >= 0.0),
+    constraint agreements_mileage_package_overwrite_range check (mileage_package_overwrite >= 0.0)
 );
 
 create table damage_submissions
@@ -459,15 +466,6 @@ create table apartments_taxes
     constraint apartments_taxes_tax_id_fk foreign key (tax_id) references taxes(id)
 );
 
-create table charges_taxes
-(
-    charge_id integer not null,
-    tax_id    integer not null,
-    constraint charges_taxes_pk primary key (charge_id, tax_id),
-    constraint charges_taxes_charge_id_fk foreign key (charge_id) references charges(id),
-    constraint charges_taxes_tax_id_fk foreign key (tax_id) references taxes(id)
-);
-
 create table agreements_damages
 (
     agreement_id integer not null,
@@ -475,6 +473,17 @@ create table agreements_damages
     constraint agreements_damages_pk primary key (agreement_id, damage_id),
     constraint agreements_damages_agreement_id_fk foreign key (agreement_id) references agreements(id),
     constraint agreements_damages_damage_id_fk foreign key (damage_id) references damages(id)
+);
+
+create table audits
+(
+    id          serial,
+    renter_id   integer,
+    action      audit_action_enum                                   not null,
+    path        varchar(64)                                         not null,
+    time        timestamp with time zone default CURRENT_TIMESTAMP  not null,
+    constraint audits_pk primary key (id),
+    constraint audits_renter_id_fk foreign key (renter_id) references renters(id)
 );
 
 insert into taxes (name, multiplier, is_effective)
@@ -498,7 +507,9 @@ insert into apartments (name,
                         pai_protection_rate,
                         is_operating,
                         is_public,
-                        uni_id)
+                        uni_id,
+                        mileage_rate_overwrite,
+                        mileage_package_overwrite)
 values ('Veygo HQ',
         'admin@veygo.rent',
         '8334683946',
@@ -516,6 +527,8 @@ values ('Veygo HQ',
         NULL,
         TRUE,
         TRUE,
+        NULL,
+        NULL,
         NULL),
        ('Purdue University',
         'newres@purdue.edu',
@@ -534,7 +547,9 @@ values ('Veygo HQ',
         NULL,
         TRUE,
         TRUE,
-        1);
+        1,
+        NULL,
+        NULL);
 
 insert into apartments_taxes (apartment_id, tax_id)
 values (1, 1),

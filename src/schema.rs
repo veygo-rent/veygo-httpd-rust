@@ -6,6 +6,10 @@ pub mod sql_types {
     pub struct AgreementStatusEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "audit_action_enum"))]
+    pub struct AuditActionEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "employee_tier_enum"))]
     pub struct EmployeeTierEnum;
 
@@ -78,8 +82,9 @@ diesel::table! {
         manual_discount -> Nullable<Float8>,
         location_id -> Int4,
         mileage_package_id -> Nullable<Int4>,
-        mileage_rate -> Nullable<Float8>,
         mileage_conversion -> Float8,
+        mileage_rate_overwrite -> Nullable<Float8>,
+        mileage_package_overwrite -> Nullable<Float8>,
     }
 }
 
@@ -126,6 +131,8 @@ diesel::table! {
         is_operating -> Bool,
         is_public -> Bool,
         uni_id -> Nullable<Int4>,
+        mileage_rate_overwrite -> Nullable<Float8>,
+        mileage_package_overwrite -> Nullable<Float8>,
     }
 }
 
@@ -133,6 +140,20 @@ diesel::table! {
     apartments_taxes (apartment_id, tax_id) {
         apartment_id -> Int4,
         tax_id -> Int4,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::AuditActionEnum;
+
+    audits (id) {
+        id -> Int4,
+        renter_id -> Nullable<Int4>,
+        action -> AuditActionEnum,
+        #[max_length = 64]
+        path -> Varchar,
+        time -> Timestamptz,
     }
 }
 
@@ -151,13 +172,6 @@ diesel::table! {
         transponder_company_id -> Nullable<Int4>,
         #[max_length = 26]
         vehicle_identifier -> Nullable<Varchar>,
-    }
-}
-
-diesel::table! {
-    charges_taxes (charge_id, tax_id) {
-        charge_id -> Int4,
-        tax_id -> Int4,
     }
 }
 
@@ -513,11 +527,10 @@ diesel::joinable!(agreements_taxes -> agreements (agreement_id));
 diesel::joinable!(agreements_taxes -> taxes (tax_id));
 diesel::joinable!(apartments_taxes -> apartments (apartment_id));
 diesel::joinable!(apartments_taxes -> taxes (tax_id));
+diesel::joinable!(audits -> renters (renter_id));
 diesel::joinable!(charges -> agreements (agreement_id));
 diesel::joinable!(charges -> transponder_companies (transponder_company_id));
 diesel::joinable!(charges -> vehicles (vehicle_id));
-diesel::joinable!(charges_taxes -> charges (charge_id));
-diesel::joinable!(charges_taxes -> taxes (tax_id));
 diesel::joinable!(claims -> agreements (agreement_id));
 diesel::joinable!(damage_submissions -> agreements (reported_by));
 diesel::joinable!(damage_submissions -> renters (processed_by));
@@ -541,8 +554,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     agreements_taxes,
     apartments,
     apartments_taxes,
+    audits,
     charges,
-    charges_taxes,
     claims,
     damage_submissions,
     damages,
