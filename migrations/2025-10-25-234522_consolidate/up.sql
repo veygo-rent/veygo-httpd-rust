@@ -4,7 +4,7 @@ create type employee_tier_enum as enum ('User', 'GeneralEmployee', 'Maintenance'
 create type verification_type_enum as enum ('email', 'phone');
 create type remote_mgmt_enum as enum ('revers',  'geotab', 'smartcar', 'tesla', 'none');
 create type agreement_status_enum as enum ('Rental', 'Void', 'Canceled');
-create type payment_type_enum as enum ('canceled', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation', 'requires_payment_method', 'succeeded');
+create type payment_type_enum as enum ('canceled', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation', 'requires_payment_method', 'succeeded', 'veygo.bad_debt');
 
 create table do_not_rent_lists
 (
@@ -370,6 +370,20 @@ create table charges
     constraint charges_amount_range check (amount >= 0.0)
 );
 
+create table claims
+(
+    id                serial,
+    note              text,
+    time              timestamp with time zone default CURRENT_TIMESTAMP not null,
+    agreement_id      integer not null,
+    admin_fee         double precision,
+    tow_charge        double precision,
+    constraint claims_pk primary key (id),
+    constraint claims_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint claims_admin_fee_range check (admin_fee >= 0.0),
+    constraint claims_tow_charge_range check (tow_charge >= 0.0)
+);
+
 create table damages
 (
     id                                 serial,
@@ -386,16 +400,14 @@ create table damages
     fixed_amount                       double precision,
     depreciation                       double precision,
     lost_of_use                        double precision,
-    admin_fee                          double precision,
-    tow_charge                         double precision,
-    agreement_id                       integer,
+    claim_id                           integer not null,
+    vehicle_id                         integer not null,
     constraint damages_pk primary key (id),
-    constraint damages_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint damages_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
+    constraint damages_claim_id_fk foreign key (claim_id) references claims(id),
     constraint damages_fixed_amount_range check (fixed_amount >= 0.0),
     constraint damages_depreciation_range check (depreciation >= 0.0),
-    constraint damages_lost_of_use_range check (lost_of_use >= 0.0),
-    constraint damages_admin_fee_range check (admin_fee >= 0.0),
-    constraint damages_tow_charge_range check (tow_charge >= 0.0)
+    constraint claims_lost_of_use_range check (lost_of_use >= 0.0)
 );
 
 create table payments
@@ -510,11 +522,11 @@ values ('Veygo HQ',
         '7654944600',
         '610 Purdue Mall, West Lafayette, IN 47907',
         'purdue.edu',
-        0.5,
-        2.0, 71.99,
-        5.0, 192.88,
-        10.0, 305.49,
-        10.5,
+        1.0,
+        5.0, 71.99,
+        10.0, 192.88,
+        20.0, 305.49,
+        6.5,
         NULL,
         NULL,
         NULL,
@@ -529,3 +541,8 @@ values (1, 1),
        (1, 2),
        (2, 1),
        (2, 2);
+
+insert into mileage_packages (miles, discounted_rate, is_active)
+values (20, 95, true),
+       (150, 80, true),
+       (270, 70, true);

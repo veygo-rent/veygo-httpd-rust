@@ -9,6 +9,8 @@ drop table if exists payments;
 
 drop table if exists damages;
 
+drop table if exists claims;
+
 drop table if exists charges;
 
 drop index if exists taxes_name_idx;

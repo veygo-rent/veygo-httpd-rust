@@ -56,6 +56,7 @@ pub enum PaymentType {
     RequiresConfirmation,
     RequiresPaymentMethod,
     Succeeded,
+    VeygoBadDebt
 }
 
 #[derive(
@@ -190,6 +191,7 @@ impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
             PaymentType::RequiresConfirmation => out.write_all(b"requires_confirmation")?,
             PaymentType::RequiresPaymentMethod => out.write_all(b"requires_payment_method")?,
             PaymentType::Succeeded => out.write_all(b"succeeded")?,
+            PaymentType::VeygoBadDebt => out.write_all(b"veygo.bad_debt")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -205,6 +207,7 @@ impl FromSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
             b"requires_confirmation" => Ok(PaymentType::RequiresConfirmation),
             b"requires_payment_method" => Ok(PaymentType::RequiresPaymentMethod),
             b"succeeded" => Ok(PaymentType::Succeeded),
+            b"veygo.bad_debt" => Ok(PaymentType::VeygoBadDebt),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -858,6 +861,22 @@ pub struct NewDamageSubmission {
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
 )]
 #[diesel(belongs_to(Agreement))]
+#[diesel(table_name = claims)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Claim {
+    pub id: i32,
+    pub note: Option<String>,
+    pub time: DateTime<Utc>,
+    pub agreement_id: i32,
+    pub admin_fee: Option<f64>,
+    pub tow_charge: Option<f64>,
+}
+
+#[derive(
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+)]
+#[diesel(belongs_to(Claim))]
+#[diesel(belongs_to(Vehicle))]
 #[diesel(table_name = damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Damage {
@@ -878,13 +897,13 @@ pub struct Damage {
     pub fixed_amount: Option<f64>,
     pub depreciation: Option<f64>,
     pub lost_of_use: Option<f64>,
-    pub admin_fee: Option<f64>,
-    pub tow_charge: Option<f64>,
-    pub agreement_id: Option<i32>,
+    pub claim_id: i32,
+    pub vehicle_id: i32,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
-#[diesel(belongs_to(Apartment))]
+#[diesel(belongs_to(Claim))]
+#[diesel(belongs_to(Vehicle))]
 #[diesel(table_name = damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDamage {
@@ -904,9 +923,8 @@ pub struct NewDamage {
     pub fixed_amount: Option<f64>,
     pub depreciation: Option<f64>,
     pub lost_of_use: Option<f64>,
-    pub admin_fee: Option<f64>,
-    pub tow_charge: Option<f64>,
-    pub agreement_id: Option<i32>,
+    pub claim_id: i32,
+    pub vehicle_id: i32,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1258,7 +1276,6 @@ pub struct Tax {
 #[diesel(table_name = mileage_packages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewMileagePackage {
-    pub id: i32,
     pub miles: i32,
     pub discounted_rate: i32,
     pub is_active: bool,
