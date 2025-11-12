@@ -1,6 +1,6 @@
-pub mod create;
+mod create;
 mod delete;
-pub mod get;
+mod get;
 
 use warp::Filter;
 

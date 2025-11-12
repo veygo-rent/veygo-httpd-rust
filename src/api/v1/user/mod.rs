@@ -1,7 +1,7 @@
 mod change_plan;
 mod create;
 mod get_files;
-pub mod get_users;
+mod get_users;
 mod login;
 mod retrieve;
 mod rm_token;

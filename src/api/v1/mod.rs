@@ -6,6 +6,7 @@ mod toll;
 mod user;
 mod vehicle;
 mod verification;
+mod policy;
 
 use warp::Filter;
 
@@ -19,7 +20,8 @@ pub fn api_v1() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reje
                 .or(agreement::api_v1_agreement())
                 .or(toll::api_v1_toll())
                 .or(verification::api_v1_verification())
-                .or(admin::api_v1_admin()),
+                .or(admin::api_v1_admin())
+                .or(policy::api_v1_policy()),
         )
         .and(warp::path::end())
 }
