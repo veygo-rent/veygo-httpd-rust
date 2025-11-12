@@ -22,4 +22,4 @@ Cargo.lock
 .env
 
 # Diesel
-src/schema.rs
+# src/schema.rs
