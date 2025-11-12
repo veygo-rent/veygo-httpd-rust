@@ -1,4 +1,8 @@
+drop index if exists policies_policy_type_idx;
+drop index if exists policies_policy_effective_date_idx;
 drop table if exists audits;
+
+drop table if exists policies;
 
 drop table if exists agreements_taxes;
 drop table if exists apartments_taxes;
@@ -64,3 +68,4 @@ drop type if exists remote_mgmt_enum;
 drop type if exists agreement_status_enum;
 drop type if exists payment_type_enum;
 drop type if exists audit_action_enum;
+drop type if exists policy_enum;

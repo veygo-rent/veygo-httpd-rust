@@ -26,6 +26,10 @@ pub mod sql_types {
     pub struct PlanTierEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "policy_enum"))]
+    pub struct PolicyEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "remote_mgmt_enum"))]
     pub struct RemoteMgmtEnum;
 
@@ -310,6 +314,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PolicyEnum;
+
+    policies (id) {
+        id -> Int4,
+        policy_type -> PolicyEnum,
+        policy_effective_date -> Date,
+        content -> Text,
+    }
+}
+
+diesel::table! {
     promos (code) {
         #[max_length = 16]
         code -> Varchar,
@@ -564,6 +580,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     mileage_packages,
     payment_methods,
     payments,
+    policies,
     promos,
     renters,
     reward_transactions,

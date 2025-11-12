@@ -6,6 +6,7 @@ create type remote_mgmt_enum as enum ('revers',  'geotab', 'smartcar', 'tesla', 
 create type agreement_status_enum as enum ('Rental', 'Void', 'Canceled');
 create type payment_type_enum as enum ('canceled', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation', 'requires_payment_method', 'succeeded', 'veygo.bad_debt');
 create type audit_action_enum as enum('create', 'read', 'update', 'delete');
+create type policy_enum as enum('rental', 'privacy', 'web', 'ios', 'android');
 
 create table do_not_rent_lists
 (
@@ -485,6 +486,20 @@ create table audits
     constraint audits_pk primary key (id),
     constraint audits_renter_id_fk foreign key (renter_id) references renters(id)
 );
+
+create table policies
+(
+    id                      serial,
+    policy_type             policy_enum     not null,
+    policy_effective_date   date            not null,
+    content                 text            not null,
+    constraint policies_pk primary key (id)
+);
+
+create index policies_policy_type_idx
+    on policies (policy_type);
+create index policies_policy_effective_date_idx
+    on policies (policy_effective_date);
 
 insert into taxes (name, multiplier, is_effective)
 values ('IN Sales Tax', 0.07, true),
