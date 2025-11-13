@@ -13,6 +13,13 @@ use diesel::{AsExpression, FromSqlRow};
 use std::io::Write;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::PolicyEnum)]
+pub enum PolicyType {
+    Rental,
+    Privacy,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::AuditActionEnum)]
 pub enum AuditActionType {
     Create,
@@ -99,6 +106,26 @@ pub enum Gender {
 }
 
 //This is for postgres. For other databases the type might be different.
+impl ToSql<sql_types::PolicyEnum, Pg> for PolicyType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            PolicyType::Rental => out.write_all(b"rental")?,
+            PolicyType::Privacy => out.write_all(b"privacy")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::PolicyEnum, Pg> for PolicyType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"rental" => Ok(PolicyType::Rental),
+            b"privacy" => Ok(PolicyType::Privacy),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
 impl ToSql<sql_types::AuditActionEnum, Pg> for AuditActionType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
@@ -1373,4 +1400,24 @@ pub struct NewAudit {
     pub action: AuditActionType,
     pub path: String,
     pub time: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Queryable, Identifiable)]
+#[diesel(table_name = policies)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Policy {
+    pub id: i32,
+    pub policy_type: PolicyType,
+    pub policy_effective_date: NaiveDate,
+    pub content: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Insertable)]
+#[diesel(table_name = policies)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewPolicy {
+    pub id: i32,
+    pub policy_type: PolicyType,
+    pub policy_effective_date: NaiveDate,
+    pub content: String,
 }
