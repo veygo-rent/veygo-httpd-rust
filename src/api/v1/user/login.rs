@@ -1,5 +1,4 @@
-use crate::model::{AccessToken, Renter};
-use crate::{POOL, methods};
+use crate::{POOL, methods, model};
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use serde_derive::{Deserialize, Serialize};
@@ -22,7 +21,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(async move |login_data: LoginData, user_agent: String| {
             use crate::schema::renters::dsl::*;
             let mut pool = POOL.get().unwrap();
-            let result = renters.filter(student_email.eq(&login_data.email)).get_result::<Renter>(&mut pool);
+            let result = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);
 
             match result {
                 Ok(renter) => {
@@ -34,7 +33,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         use crate::schema::access_tokens::dsl::*;
                         let insert_token_result = diesel::insert_into(access_tokens)
                             .values(&new_access_token)
-                            .get_result::<AccessToken>(&mut pool) // Get the inserted Renter 
+                            .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 
                             .unwrap();
 
                         let pub_token = insert_token_result.to_publish_access_token();
