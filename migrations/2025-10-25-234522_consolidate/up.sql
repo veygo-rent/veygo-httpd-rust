@@ -493,7 +493,8 @@ create table policies
     policy_type             policy_enum     not null,
     policy_effective_date   date            not null,
     content                 text            not null,
-    constraint policies_pk primary key (id)
+    constraint policies_pk primary key (id),
+    constraint policies_type_effective_date_uk unique (policy_type, policy_effective_date)
 );
 
 create index policies_policy_type_idx
