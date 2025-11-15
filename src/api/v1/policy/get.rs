@@ -17,8 +17,8 @@ struct GetPolicyData {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     let cors = warp::cors()
         .allow_any_origin()
-        .allow_headers(vec!["content-type", "accept"])
-        .allow_methods(&[Method::POST, Method::OPTIONS]);
+        .allow_methods(&[Method::POST, Method::OPTIONS])
+        .build();
     warp::path("get")
         .and(warp::path::end())
         .and(warp::post())
@@ -49,9 +49,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
             }
         })
+        .with(&cors)
         .or(warp::path("get")
             .and(warp::path::end())
             .and(warp::options())
-            .map(warp::reply).with(cors)
+            .map(warp::reply).with(&cors)
         )
 }
