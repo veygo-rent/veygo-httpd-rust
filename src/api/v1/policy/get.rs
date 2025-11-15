@@ -21,7 +21,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .allow_headers(vec![
             http::header::AUTHORIZATION,
             http::header::ACCEPT,
-            http::header::CONTENT_TYPE
+            http::header::CONTENT_TYPE,
+            http::header::ORIGIN,
         ])
         .build();
     warp::path("get")
