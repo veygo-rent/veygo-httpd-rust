@@ -4,9 +4,8 @@ use chrono::NaiveDate;
 use diesel::{ExpressionMethods, RunQueryDsl};
 use crate::{POOL, model, schema};
 use warp::http::StatusCode;
-use warp::http::Method;
 use warp::reply::with_status;
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, hyper::Method};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -16,20 +15,8 @@ struct GetPolicyData {
 }
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    let cors = warp::cors()
-        .allow_any_origin()
-        .allow_methods([Method::POST, Method::OPTIONS])
-        .allow_headers(["Content-Type", "Accept"]);
-
-    // Preflight handler: only responds to OPTIONS for this path
-    let options_preflight = warp::path("get")
-        .and(warp::path::end())
-        .and(warp::options())
-        .map(|| with_status(warp::reply(), StatusCode::NO_CONTENT))
-        .with(cors.clone());
-
-    // Actual POST handler
-    let post_route = warp::path("get")
+    let cors = warp::cors().allow_methods(&[Method::POST, Method::OPTIONS]);
+    warp::path("get")
         .and(warp::path::end())
         .and(warp::post())
         .and(warp::body::json())
@@ -59,7 +46,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
             }
         })
-        .with(cors.clone());
-
-    options_preflight.or(post_route)
+        .or(warp::path::end()
+            .and(warp::options())
+            .map(warp::reply).with(cors)
+        )
 }
