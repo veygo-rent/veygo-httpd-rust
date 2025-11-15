@@ -18,6 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(&[Method::POST, Method::OPTIONS])
+        .allow_headers(vec!["*"])
         .build();
     warp::path("get")
         .and(warp::path::end())
