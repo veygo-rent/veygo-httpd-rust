@@ -17,6 +17,7 @@ use std::io::Write;
 pub enum PolicyType {
     Rental,
     Privacy,
+    Membership,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
@@ -111,6 +112,7 @@ impl ToSql<sql_types::PolicyEnum, Pg> for PolicyType {
         match *self {
             PolicyType::Rental => out.write_all(b"rental")?,
             PolicyType::Privacy => out.write_all(b"privacy")?,
+            PolicyType::Membership => out.write_all(b"membership")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -121,6 +123,7 @@ impl FromSql<sql_types::PolicyEnum, Pg> for PolicyType {
         match bytes.as_bytes() {
             b"rental" => Ok(PolicyType::Rental),
             b"privacy" => Ok(PolicyType::Privacy),
+            b"membership" => Ok(PolicyType::Membership),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
