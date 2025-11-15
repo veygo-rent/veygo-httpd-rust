@@ -17,7 +17,7 @@ struct GetPolicyData {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("get")
         .and(warp::path::end())
-        .and(warp::get())
+        .and(warp::post())
         .and(warp::body::json())
         .and_then(async move |get_policy_data: GetPolicyData| {
             let mut pool = POOL.get().unwrap();
