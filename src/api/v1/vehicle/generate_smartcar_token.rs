@@ -73,11 +73,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             ).await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             if !methods::user::user_is_operational_admin(&admin) {
                                 let token_clone = new_token_in_db_publish.clone();
                                 return methods::standard_replies::user_not_admin_wrapped_return(
@@ -85,9 +85,9 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 );
                             }
 
-                            let updated_vehicle = diesel::update(vehicle_query::vehicles.filter(vehicle_query::id.eq(&body.vehicle_id)))
+                            let updated_vehicle: model::PublishAdminVehicle = diesel::update(vehicle_query::vehicles.filter(vehicle_query::id.eq(&body.vehicle_id)))
                                 .set(vehicle_query::remote_mgmt_id.eq(&vehicle_token))
-                                .get_result::<model::Vehicle>(&mut pool).unwrap().to_publish_admin_vehicle();
+                                .get_result::<model::Vehicle>(&mut pool).unwrap().into();
 
 
                             let msg = serde_json::json!({"updated_vehicle": &updated_vehicle});

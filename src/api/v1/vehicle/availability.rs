@@ -8,6 +8,7 @@ use warp::http::StatusCode;
 use warp::reply::with_status;
 use warp::{Filter, Reply, http::Method};
 use diesel::sql_types::{Nullable};
+
 define_sql_function! { fn coalesce(x: Nullable<Timestamptz>, y: Timestamptz) -> Timestamptz; }
 define_sql_function! {
     fn greatest(x: Timestamptz, y: Timestamptz) -> Timestamptz;
@@ -84,11 +85,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                                 .await;
                             use crate::schema::access_tokens::dsl::*;
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
 
                             if body.apartment_id <= 1 {
                                 // RETURN: FORBIDDEN
@@ -142,7 +143,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 Serialize, Deserialize,
                             )]
                             struct VehicleWithBlockedDurations {
-                                vehicle: model::PublishVehicle,
+                                vehicle: model::PublishRenterVehicle,
                                 blocked_durations: Vec<BlockedRange>,
                             }
                             #[derive(
@@ -198,7 +199,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     location,
                                     vehicles: Vec::new(),
                                 });
-                                (&mut entry.vehicles).push(VehicleWithBlockedDurations { vehicle: vehicle.to_publish_vehicle(), blocked_durations });
+                                (&mut entry.vehicles).push(VehicleWithBlockedDurations { vehicle: vehicle.into(), blocked_durations });
                             }
                             let locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
                             let msg = serde_json::json!({"vehicles": locations_with_vehicles});

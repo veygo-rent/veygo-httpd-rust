@@ -29,7 +29,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             if vehicle_result.is_err() {
                 return methods::standard_replies::bad_request("Vehicle not found.");
             }
-            let vehicle = vehicle_result.unwrap();
+            let vehicle: model::PublishAdminVehicle = vehicle_result.unwrap().into();
             if vehicle.remote_mgmt_id != vehicle.vin {
                 return methods::standard_replies::bad_request("Vehicle tesla token issue");
             }
@@ -74,11 +74,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         ).await;
                         use crate::schema::access_tokens::dsl::*;
 
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
-                            .to_publish_access_token();
+                            .into();
                         if !methods::user::user_is_operational_admin(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
@@ -125,7 +125,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             Ok(_) => StatusCode::OK,
                         };
 
-                        let msg = serde_json::json!({"updated_vehicle": vehicle.to_publish_admin_vehicle()});
+                        let msg = serde_json::json!({"updated_vehicle": vehicle});
                         Ok::<_, warp::Rejection>((
                             methods::tokens::wrap_json_reply_with_token(
                                 new_token_in_db_publish,

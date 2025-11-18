@@ -59,11 +59,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             // check if the pm in question exists as an active pm
                             let if_pm_in_question_exists = {
                                 use crate::schema::payment_methods::dsl::*;
@@ -125,7 +125,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let publish_payment_methods: Vec<model::PublishPaymentMethod> =
                                 payment_method_query_result
                                     .iter()
-                                    .map(|x| x.to_public_payment_method())
+                                    .map(|x| model::PublishPaymentMethod::from(x.clone()))
                                     .collect();
                             let msg = serde_json::json!({
                                 "payment_methods": publish_payment_methods,

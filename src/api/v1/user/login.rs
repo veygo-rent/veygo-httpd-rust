@@ -36,8 +36,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 
                             .unwrap();
 
-                        let pub_token = insert_token_result.to_publish_access_token();
-                        let pub_renter = renter.to_publish_renter();
+                        let pub_token: model::PublishAccessToken = insert_token_result.into();
+                        let pub_renter: model::PublishRenter = renter.into();
                         let renter_msg = serde_json::json!({
                             "renter": pub_renter,
                         });

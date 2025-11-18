@@ -1,5 +1,5 @@
 use crate::methods::tokens::wrap_json_reply_with_token;
-use crate::model::{PublishAccessToken, PublishRenter};
+use crate::model;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -19,7 +19,7 @@ pub fn internal_server_error_response_without_token() -> Result<(warp::reply::Re
 }
 
 pub fn internal_server_error_response(
-    token_data: PublishAccessToken
+    token_data: model::PublishAccessToken
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Internal Server Error"});
     let with_status = warp::reply::with_status(
@@ -42,7 +42,7 @@ pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejecti
 }
 
 pub fn card_declined_wrapped(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Credit card declined"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -52,7 +52,7 @@ pub fn card_declined_wrapped(
 }
 
 pub fn card_invalid_wrapped(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Credit card invalid"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -62,7 +62,7 @@ pub fn card_invalid_wrapped(
 }
 
 pub fn apartment_not_operational_wrapped(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "Location is not operational"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -72,7 +72,7 @@ pub fn apartment_not_operational_wrapped(
 }
 
 pub fn user_not_admin_wrapped_return(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let error_msg = serde_json::json!({"error": "You do not have administrator privileges"});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -82,8 +82,8 @@ pub fn user_not_admin_wrapped_return(
 }
 
 pub fn renter_wrapped(
-    token_data: PublishAccessToken,
-    renter: &PublishRenter,
+    token_data: model::PublishAccessToken,
+    renter: &model::PublishRenter,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let msg = serde_json::json!({"renter": renter});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -93,8 +93,8 @@ pub fn renter_wrapped(
 }
 
 pub fn admin_wrapped(
-    token_data: PublishAccessToken,
-    renter: &PublishRenter,
+    token_data: model::PublishAccessToken,
+    renter: &model::PublishRenter,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let msg = serde_json::json!({"admin": renter});
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -114,7 +114,7 @@ pub fn not_implemented_response() -> Result<(warp::reply::Response,), Rejection>
 }
 
 pub fn apartment_not_allowed_response(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
     apartment: i32,
 ) -> Result<(warp::reply::Response,), Rejection> {
     let msg = serde_json::json!({"apartment": apartment, "error": "renting at this location is not permitted"});

@@ -87,11 +87,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             let toll_id_int: i32 = match toll_id.parse() {
                                 Ok(int) => int,
                                 Err(_) => {

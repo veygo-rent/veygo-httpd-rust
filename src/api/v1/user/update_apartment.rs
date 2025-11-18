@@ -1,4 +1,3 @@
-use crate::model::Renter;
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
@@ -81,11 +80,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             ).await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             use crate::schema::apartments::dsl::*;
                             let apartment_result = apartments.find(&body.apartment_id).get_result::<model::Apartment>(&mut pool);
                             match apartment_result {
@@ -112,8 +111,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     user_update.drivers_license_image = None;
                                     user_update.drivers_license_image_secondary = None;
                                     user_update.drivers_license_expiration = None;
-                                    let renter_updated = diesel::update(renters.find(&access_token.user_id))
-                                        .set(&user_update).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
+                                    let renter_updated: model::PublishRenter = diesel::update(renters.find(&access_token.user_id))
+                                        .set(&user_update).get_result::<model::Renter>(&mut pool).unwrap().into();
                                     return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                                 }
                             }

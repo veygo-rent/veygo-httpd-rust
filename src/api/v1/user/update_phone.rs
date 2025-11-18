@@ -1,4 +1,3 @@
-use crate::model::Renter;
 use crate::schema::renters::dsl::renters;
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
@@ -75,16 +74,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             let mut usr_in_question = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                             usr_in_question.phone = body.phone_number.clone();
                             usr_in_question.phone_is_verified = false;
-                            let renter_updated = diesel::update(renters.find(&access_token.user_id))
-                                .set(&usr_in_question).get_result::<Renter>(&mut pool).unwrap().to_publish_renter();
+                            let renter_updated: model::PublishRenter = diesel::update(renters.find(&access_token.user_id))
+                                .set(&usr_in_question).get_result::<model::Renter>(&mut pool).unwrap().into();
                             return methods::standard_replies::renter_wrapped(new_token_in_db_publish, &renter_updated);
                         }
                     }

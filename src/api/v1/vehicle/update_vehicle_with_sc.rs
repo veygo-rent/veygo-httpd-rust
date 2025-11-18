@@ -91,11 +91,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         ).await;
                         use crate::schema::access_tokens::dsl::*;
 
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
-                            .to_publish_access_token();
+                            .into();
                         if !methods::user::user_is_operational_admin(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
@@ -130,11 +130,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         };
 
                         // Update only the targeted row (by primary key) instead of the whole table
-                        let updated_vehicle = diesel::update(vehicle_query::vehicles.find(vehicle_db.id))
+                        let updated_vehicle: model::PublishAdminVehicle = diesel::update(vehicle_query::vehicles.find(vehicle_db.id))
                             .set(&changes)
                             .get_result::<model::Vehicle>(&mut pool)
                             .unwrap()
-                            .to_publish_admin_vehicle();
+                            .into();
 
                         let msg = serde_json::json!({"updated_vehicle": &updated_vehicle});
                         Ok::<_, warp::Rejection>((

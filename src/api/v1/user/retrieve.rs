@@ -51,15 +51,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
                             use schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
-                            let user = methods::user::get_user_by_id(&access_token.user_id)
+                                .into();
+                            let user: model::PublishRenter = methods::user::get_user_by_id(&access_token.user_id)
                                 .await
                                 .unwrap()
-                                .to_publish_renter();
+                                .into();
                             methods::standard_replies::renter_wrapped(
                                 new_token_in_db_publish,
                                 &user,

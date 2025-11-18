@@ -404,43 +404,44 @@ pub struct Renter {
     pub admin_apple_apns: Option<String>,
 }
 
-impl Renter {
-    pub fn to_publish_renter(&self) -> PublishRenter {
+impl From<Renter> for PublishRenter {
+    fn from(renter: Renter) -> Self {
         PublishRenter {
-            id: self.id,
-            name: self.name.clone(),
-            student_email: self.student_email.clone(),
-            student_email_expiration: self.student_email_expiration,
-            phone: self.phone.clone(),
-            phone_is_verified: self.phone_is_verified,
-            date_of_birth: self.date_of_birth.clone(),
-            profile_picture: self.profile_picture.clone(),
-            gender: self.gender.clone(),
-            date_of_registration: self.date_of_registration,
-            drivers_license_number: self.drivers_license_number.clone(),
-            drivers_license_state_region: self.drivers_license_state_region.clone(),
-            drivers_license_image: self.drivers_license_image.clone(),
-            drivers_license_image_secondary: self.drivers_license_image_secondary.clone(),
-            drivers_license_expiration: self.drivers_license_expiration.clone(),
-            insurance_id_image: self.insurance_id_image.clone(),
-            insurance_liability_expiration: self.insurance_liability_expiration.clone(),
-            insurance_collision_expiration: self.insurance_collision_expiration.clone(),
-            lease_agreement_image: self.lease_agreement_image.clone(),
-            apartment_id: self.apartment_id,
-            lease_agreement_expiration: self.lease_agreement_expiration,
-            billing_address: self.billing_address.clone(),
-            signature_image: self.signature_image.clone(),
-            signature_datetime: self.signature_datetime.clone(),
-            plan_tier: self.plan_tier.clone(),
-            plan_renewal_day: self.plan_renewal_day.clone(),
-            plan_expire_month_year: self.plan_expire_month_year.clone(),
-            plan_available_duration: self.plan_available_duration,
-            is_plan_annual: self.is_plan_annual,
-            employee_tier: self.employee_tier.clone(),
-            subscription_payment_method_id: self.subscription_payment_method_id,
+            id: renter.id,
+            name: renter.name,
+            student_email: renter.student_email,
+            student_email_expiration: renter.student_email_expiration,
+            phone: renter.phone,
+            phone_is_verified: renter.phone_is_verified,
+            date_of_birth: renter.date_of_birth,
+            profile_picture: renter.profile_picture,
+            gender: renter.gender,
+            date_of_registration: renter.date_of_registration,
+            drivers_license_number: renter.drivers_license_number,
+            drivers_license_state_region: renter.drivers_license_state_region,
+            drivers_license_image: renter.drivers_license_image,
+            drivers_license_image_secondary: renter.drivers_license_image_secondary,
+            drivers_license_expiration: renter.drivers_license_expiration,
+            insurance_id_image: renter.insurance_id_image,
+            insurance_liability_expiration: renter.insurance_liability_expiration,
+            insurance_collision_expiration: renter.insurance_collision_expiration,
+            lease_agreement_image: renter.lease_agreement_image,
+            apartment_id: renter.apartment_id,
+            lease_agreement_expiration: renter.lease_agreement_expiration,
+            billing_address: renter.billing_address,
+            signature_image: renter.signature_image,
+            signature_datetime: renter.signature_datetime,
+            plan_tier: renter.plan_tier,
+            plan_renewal_day: renter.plan_renewal_day,
+            plan_expire_month_year: renter.plan_expire_month_year,
+            plan_available_duration: renter.plan_available_duration,
+            is_plan_annual: renter.is_plan_annual,
+            employee_tier: renter.employee_tier,
+            subscription_payment_method_id: renter.subscription_payment_method_id,
         }
     }
 }
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublishRenter {
     pub id: i32,
@@ -542,19 +543,19 @@ pub struct PublishPaymentMethod {
     pub cdw_enabled: bool,
 }
 
-impl PaymentMethod {
-    pub fn to_public_payment_method(&self) -> PublishPaymentMethod {
+impl From<PaymentMethod> for PublishPaymentMethod {
+    fn from(pm: PaymentMethod) -> Self {
         PublishPaymentMethod {
-            id: self.id,
-            cardholder_name: self.cardholder_name.clone(),
-            masked_card_number: self.masked_card_number.clone(),
-            network: self.network.clone(),
-            expiration: self.expiration.clone(),
-            nickname: self.nickname.clone(),
-            is_enabled: self.is_enabled,
-            renter_id: self.renter_id,
-            last_used_date_time: self.last_used_date_time.clone(),
-            cdw_enabled: self.cdw_enabled,
+            id: pm.id,
+            cardholder_name: pm.cardholder_name,
+            masked_card_number: pm.masked_card_number,
+            network: pm.network,
+            expiration: pm.expiration,
+            nickname: pm.nickname,
+            is_enabled: pm.is_enabled,
+            renter_id: pm.renter_id,
+            last_used_date_time: pm.last_used_date_time,
+            cdw_enabled: pm.cdw_enabled,
         }
     }
 }
@@ -731,7 +732,7 @@ pub struct Vehicle {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PublishVehicle {
+pub struct PublishRenterVehicle {
     pub id: i32,
     pub vin: String,
     pub name: String,
@@ -792,68 +793,70 @@ pub struct PublishAdminVehicle {
     pub requires_own_insurance: bool,
 }
 
-impl Vehicle {
-    pub fn to_publish_vehicle(&self) -> PublishVehicle {
-        PublishVehicle {
-            id: self.id,
-            vin: self.vin.clone(),
-            name: self.name.clone(),
-            capacity: self.capacity,
-            doors: self.doors,
-            small_bags: self.small_bags,
-            large_bags: self.large_bags,
-            carplay: self.carplay,
-            lane_keep: self.lane_keep,
-            license_number: self.license_number.clone(),
-            license_state: self.license_state.clone(),
-            year: self.year.clone(),
-            make: self.make.clone(),
-            model: self.model.clone(),
-            msrp_factor: self.msrp_factor,
-            image_link: self.image_link.clone(),
-            odometer: self.odometer,
-            tank_size: self.tank_size,
-            tank_level_percentage: self.tank_level_percentage,
-            location_id: self.location_id,
-            remote_mgmt: self.remote_mgmt,
-            requires_own_insurance: self.requires_own_insurance,
+impl From<Vehicle> for PublishRenterVehicle {
+    fn from(v: Vehicle) -> Self {
+        PublishRenterVehicle {
+            id: v.id,
+            vin: v.vin,
+            name: v.name,
+            capacity: v.capacity,
+            doors: v.doors,
+            small_bags: v.small_bags,
+            large_bags: v.large_bags,
+            carplay: v.carplay,
+            lane_keep: v.lane_keep,
+            license_number: v.license_number,
+            license_state: v.license_state,
+            year: v.year,
+            make: v.make,
+            model: v.model,
+            msrp_factor: v.msrp_factor,
+            image_link: v.image_link,
+            odometer: v.odometer,
+            tank_size: v.tank_size,
+            tank_level_percentage: v.tank_level_percentage,
+            location_id: v.location_id,
+            remote_mgmt: v.remote_mgmt,
+            requires_own_insurance: v.requires_own_insurance,
         }
     }
+}
 
-    pub fn to_publish_admin_vehicle(&self) -> PublishAdminVehicle {
+impl From<Vehicle> for PublishAdminVehicle {
+    fn from(v: Vehicle) -> Self {
         PublishAdminVehicle {
-            id: self.id,
-            vin: self.vin.clone(),
-            capacity: self.capacity,
-            doors: self.doors,
-            small_bags: self.small_bags,
-            large_bags: self.large_bags,
-            carplay: self.carplay,
-            lane_keep: self.lane_keep,
-            name: self.name.clone(),
-            available: self.available,
-            license_number: self.license_number.clone(),
-            license_state: self.license_state.clone(),
-            year: self.year.clone(),
-            make: self.make.clone(),
-            model: self.model.clone(),
-            msrp_factor: self.msrp_factor,
-            image_link: self.image_link.clone(),
-            odometer: self.odometer,
-            tank_size: self.tank_size,
-            tank_level_percentage: self.tank_level_percentage,
-            first_transponder_number: self.first_transponder_number.clone(),
-            first_transponder_company_id: self.first_transponder_company_id.clone(),
-            second_transponder_number: self.second_transponder_number.clone(),
-            second_transponder_company_id: self.second_transponder_company_id.clone(),
-            third_transponder_number: self.third_transponder_number.clone(),
-            third_transponder_company_id: self.third_transponder_company_id.clone(),
-            fourth_transponder_number: self.fourth_transponder_number.clone(),
-            fourth_transponder_company_id: self.fourth_transponder_company_id.clone(),
-            location_id: self.location_id,
-            remote_mgmt: self.remote_mgmt,
-            remote_mgmt_id: self.remote_mgmt_id.clone(),
-            requires_own_insurance: self.requires_own_insurance,
+            id: v.id,
+            vin: v.vin,
+            capacity: v.capacity,
+            doors: v.doors,
+            small_bags: v.small_bags,
+            large_bags: v.large_bags,
+            carplay: v.carplay,
+            lane_keep: v.lane_keep,
+            name: v.name,
+            available: v.available,
+            license_number: v.license_number,
+            license_state: v.license_state,
+            year: v.year,
+            make: v.make,
+            model: v.model,
+            msrp_factor: v.msrp_factor,
+            image_link: v.image_link,
+            odometer: v.odometer,
+            tank_size: v.tank_size,
+            tank_level_percentage: v.tank_level_percentage,
+            first_transponder_number: v.first_transponder_number,
+            first_transponder_company_id: v.first_transponder_company_id,
+            second_transponder_number: v.second_transponder_number,
+            second_transponder_company_id: v.second_transponder_company_id,
+            third_transponder_number: v.third_transponder_number,
+            third_transponder_company_id: v.third_transponder_company_id,
+            fourth_transponder_number: v.fourth_transponder_number,
+            fourth_transponder_company_id: v.fourth_transponder_company_id,
+            location_id: v.location_id,
+            remote_mgmt: v.remote_mgmt,
+            remote_mgmt_id: v.remote_mgmt_id,
+            requires_own_insurance: v.requires_own_insurance,
         }
     }
 }
@@ -1243,23 +1246,26 @@ pub struct NewAccessToken {
 }
 
 impl AccessToken {
-    pub fn to_publish_access_token(&self) -> PublishAccessToken {
-        let token_string = hex::encode(self.token.clone());
-        PublishAccessToken {
-            token: token_string,
-            exp: self.exp,
-        }
-    }
     pub fn to_header_map(&self) -> HeaderMap {
         let mut header_map = HeaderMap::new();
         let token_string = hex::encode(self.token.clone());
         let exp_string = self.exp.to_string();
-        header_map.insert(
+        (&mut header_map).insert(
             "token",
             HeaderValue::from_str(token_string.as_str()).unwrap(),
         );
-        header_map.insert("exp", HeaderValue::from_str(exp_string.as_str()).unwrap());
+        (&mut header_map).insert("exp", HeaderValue::from_str(exp_string.as_str()).unwrap());
         header_map
+    }
+}
+
+impl From<AccessToken> for PublishAccessToken {
+    fn from(at: AccessToken) -> Self {
+        let token_string = hex::encode(at.token.clone());
+        PublishAccessToken {
+            token: token_string,
+            exp: at.exp,
+        }
     }
 }
 
@@ -1360,6 +1366,25 @@ pub struct MileagePackage {
     pub is_active: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishMileagePackage {
+    pub id: i32,
+    pub miles: i32,
+    pub discounted_rate: i32,
+    pub is_active: bool,
+}
+
+impl From<MileagePackage> for PublishMileagePackage {
+    fn from(mp: MileagePackage) -> Self {
+        PublishMileagePackage {
+            id: mp.id,
+            miles: mp.miles,
+            discounted_rate: mp.discounted_rate,
+            is_active: mp.is_active,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
 #[diesel(table_name = agreements_damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1419,7 +1444,6 @@ pub struct Policy {
 #[diesel(table_name = policies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPolicy {
-    pub id: i32,
     pub policy_type: PolicyType,
     pub policy_effective_date: NaiveDate,
     pub content: String,

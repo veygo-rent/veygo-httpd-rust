@@ -58,11 +58,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             ).await;
                             use schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             let mut user = methods::user::get_user_by_id(&access_token.user_id)
                                 .await
                                 .unwrap();
@@ -78,7 +78,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             if request_body.plan == model::PlanTier::Free {
                                 // request downgrade will be automatically executed when the old plan expires
                                 user.subscription_payment_method_id = None;
-                                let pub_user = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().to_publish_renter();
+                                let pub_user: model::PublishRenter = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().into();
                                 methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
                             } else {
                                 if let Some(_pm_id) = request_body.payment_method_id {

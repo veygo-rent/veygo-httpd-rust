@@ -1,4 +1,3 @@
-use crate::model::Renter;
 use crate::{POOL, integration, methods, model};
 use bytes::BufMut;
 use diesel::prelude::*;
@@ -107,11 +106,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             let object_path: String = format!("user_docs/{}/", user.id);
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 object_path,
@@ -161,11 +160,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             use crate::schema::renters::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let renter_updated = diesel::update(renters.find(access_token.user_id))
+                            let renter_updated: model::PublishRenter = diesel::update(renters.find(access_token.user_id))
                                 .set(&user)
-                                .get_result::<Renter>(&mut pool)
+                                .get_result::<model::Renter>(&mut pool)
                                 .unwrap()
-                                .to_publish_renter();
+                                .into();
                             let renter_msg = serde_json::json!({
                                 "renter": renter_updated,
                             });

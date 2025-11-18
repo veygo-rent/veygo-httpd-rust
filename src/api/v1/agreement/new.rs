@@ -89,11 +89,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         &user_agent,
                     ).await;
                     use crate::schema::access_tokens::dsl::*;
-                    let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                    let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                         .values(&new_token)
                         .get_result::<model::AccessToken>(&mut pool)
                         .unwrap()
-                        .to_publish_access_token();
+                        .into();
 
                     let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
                     // Check if Renter has an address

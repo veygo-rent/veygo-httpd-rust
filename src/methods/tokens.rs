@@ -1,5 +1,5 @@
 use crate::POOL;
-use crate::model::{AccessToken, NewAccessToken, PublishAccessToken};
+use crate::model;
 use crate::schema::access_tokens::dsl::*;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
@@ -16,12 +16,12 @@ async fn generate_unique_token() -> Vec<u8> {
     token_vec
 }
 
-pub async fn gen_token_object(_user_id: &i32, user_agent: &String) -> NewAccessToken {
+pub async fn gen_token_object(_user_id: &i32, user_agent: &String) -> model::NewAccessToken {
     let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
     if user_agent.contains("veygo") {
         _exp = Utc::now().add(chrono::Duration::days(28));
     }
-    NewAccessToken {
+    model::NewAccessToken {
         user_id: *_user_id,
         token: generate_unique_token().await,
         exp: _exp,
@@ -48,7 +48,7 @@ pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bo
                 let token_in_db_result = access_tokens
                     .filter(user_id.eq(_user_id))
                     .filter(token.eq(token_clone_again))
-                    .first::<AccessToken>(&mut pool)
+                    .first::<model::AccessToken>(&mut pool)
                     .unwrap();
                 let token_exp = token_in_db_result.exp;
                 if token_exp >= Utc::now() {
@@ -66,7 +66,7 @@ pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bo
 pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
     let mut pool = POOL.get().unwrap();
     let _ = diesel::delete(access_tokens.filter(token.eq(token_bit)))
-        .get_result::<AccessToken>(&mut pool);
+        .get_result::<model::AccessToken>(&mut pool);
 }
 
 pub fn token_not_hex_warp_return(
@@ -92,7 +92,7 @@ pub fn token_invalid_wrapped_return(
 }
 
 pub fn wrap_json_reply_with_token(
-    token_data: PublishAccessToken,
+    token_data: model::PublishAccessToken,
     reply: WithStatus<Json>,
 ) -> warp::reply::Response {
     let reply = with_header(reply, "token", token_data.token);

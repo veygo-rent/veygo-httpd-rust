@@ -52,7 +52,11 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         let new_token = methods::tokens::gen_token_object(&access_token.user_id, &user_agent).await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.get().unwrap();
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens).values(&new_token).get_result::<model::AccessToken>(&mut pool).unwrap().to_publish_access_token();
+                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
+                            .values(&new_token)
+                            .get_result::<model::AccessToken>(&mut pool)
+                            .unwrap()
+                            .into();
 
                         let new_pm_result = stripe_veygo::create_new_payment_method(&request_body.pm_id, &request_body.cardholder_name, &access_token.user_id, &request_body.nickname).await;
                         match new_pm_result {
@@ -70,7 +74,11 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 match attach_result {
                                     Ok(_) => {
                                         use crate::schema::payment_methods::dsl::*;
-                                        let inserted_pm_card = diesel::insert_into(payment_methods).values(&new_pm).get_result::<model::PaymentMethod>(&mut pool).unwrap().to_public_payment_method();
+                                        let inserted_pm_card: model::PublishPaymentMethod = diesel::insert_into(payment_methods)
+                                            .values(&new_pm)
+                                            .get_result::<model::PaymentMethod>(&mut pool)
+                                            .unwrap()
+                                            .into();
 
                                         let msg = serde_json::json!({
                                             "new_payment_method": inserted_pm_card,

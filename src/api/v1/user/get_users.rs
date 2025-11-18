@@ -52,11 +52,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .await;
                         use crate::schema::access_tokens::dsl::*;
                         let mut pool = POOL.get().unwrap();
-                        let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                             .values(&new_token)
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
-                            .to_publish_access_token();
+                            .into();
                         if !methods::user::user_is_operational_manager(&admin) {
                             let token_clone = new_token_in_db_publish.clone();
                             return methods::standard_replies::user_not_admin_wrapped_return(
@@ -71,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .load::<model::Renter>(&mut pool)
                                 .unwrap()
                                 .iter()
-                                .map(|x| x.to_publish_renter())
+                                .map(|x| model::PublishRenter::from(x.clone()))
                                 .collect();
                         } else {
                             // get Apartments-Specific users
@@ -80,7 +80,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .get_results::<model::Renter>(&mut pool)
                                 .unwrap_or_default()
                                 .iter()
-                                .map(|x| x.to_publish_renter())
+                                .map(|x| model::PublishRenter::from(x.clone()))
                                 .collect();
                         }
                         let msg = serde_json::json!({

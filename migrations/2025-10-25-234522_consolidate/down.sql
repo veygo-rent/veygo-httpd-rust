@@ -6,7 +6,6 @@ drop table if exists policies;
 
 drop table if exists agreements_taxes;
 drop table if exists apartments_taxes;
-drop table if exists charges_taxes;
 drop table if exists agreements_damages;
 
 drop table if exists reward_transactions;
@@ -42,6 +41,7 @@ drop table if exists locations;
 
 drop table if exists payment_methods;
 
+drop index if exists access_tokens_token_idx;
 drop table if exists access_tokens;
 
 drop index if exists renters_name_idx;

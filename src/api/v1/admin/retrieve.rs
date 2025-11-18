@@ -1,6 +1,7 @@
 use crate::{POOL, methods, model, schema};
 use diesel::prelude::*;
 use warp::{Filter, Reply, http::Method};
+use crate::model::{PublishAccessToken, PublishRenter};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("retrieve")
@@ -51,11 +52,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
                             use schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .to_publish_access_token();
+                                .unwrap();
+                            let new_token_in_db_publish = PublishAccessToken::from(new_token_in_db);
                             let user = methods::user::get_user_by_id(&access_token.user_id)
                                 .await
                                 .unwrap();
@@ -67,7 +68,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             methods::standard_replies::admin_wrapped(
                                 new_token_in_db_publish,
-                                &user.to_publish_renter(),
+                                &PublishRenter::from(user),
                             )
                         }
                     }

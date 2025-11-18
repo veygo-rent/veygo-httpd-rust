@@ -1,5 +1,4 @@
-use crate::model::{AccessToken, Renter};
-use crate::{POOL, methods};
+use crate::{POOL, methods, model};
 use bcrypt::verify;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -26,7 +25,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
             let mut pool = POOL.get().unwrap();
             use crate::schema::renters::dsl::*;
-            let result: QueryResult<Renter> = renters.filter(student_email.eq(&login_data.email)).get_result::<Renter>(&mut pool);
+            let result: QueryResult<model::Renter> = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);
             return match result {
                 Ok(admin) => {
                     if !methods::user::user_is_manager(&admin) {
@@ -41,11 +40,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         use crate::schema::access_tokens::dsl::*;
                         let insert_token_result = diesel::insert_into(access_tokens)
                             .values(&new_access_token)
-                            .get_result::<AccessToken>(&mut pool) // Get the inserted Renter 
+                            .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 
                             .unwrap();
 
-                        let pub_token = insert_token_result.to_publish_access_token();
-                        let pub_renter = admin.to_publish_renter();
+                        let pub_token = model::PublishAccessToken::from(insert_token_result);
+                        let pub_renter: model::PublishRenter = admin.into();
                         let renter_msg = serde_json::json!({
                             "admin": pub_renter,
                         });

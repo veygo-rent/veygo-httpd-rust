@@ -152,6 +152,9 @@ create table access_tokens
     constraint access_tokens_user_id_fk foreign key (user_id) references renters(id)
 );
 
+create index access_tokens_token_idx
+    on access_tokens (token);
+
 create table payment_methods
 (
     id                  serial,

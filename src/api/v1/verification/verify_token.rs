@@ -63,11 +63,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .await;
                             use crate::schema::access_tokens::dsl::*;
                             let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish = diesel::insert_into(access_tokens)
+                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
                                 .values(&new_token)
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
-                                .to_publish_access_token();
+                                .into();
                             let mut renter = methods::user::get_user_by_id(&access_token.user_id)
                                 .await
                                 .unwrap();
@@ -102,7 +102,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 };
                                 use crate::schema::renters::dsl::*;
-                                let new_renter = diesel::update(renters.find(&renter.id.clone())).set(renter).get_result::<model::Renter>(&mut pool).unwrap().to_publish_renter();
+                                let new_renter: model::PublishRenter = diesel::update(renters.find(&renter.id.clone()))
+                                    .set(renter)
+                                    .get_result::<model::Renter>(&mut pool)
+                                    .unwrap()
+                                    .into();
                                 let msg = serde_json::json!({"verified_renter": new_renter});
                                 Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,
