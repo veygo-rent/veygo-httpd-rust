@@ -1040,9 +1040,18 @@ pub struct Promo {
     pub is_one_time: bool,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
-    pub user_id: i32,
-    pub apt_id: i32,
-    pub uni_id: i32,
+    pub user_id: Option<i32>,
+    pub apt_id: Option<i32>,
+    pub uni_id: Option<i32>,
+}
+
+pub struct PublishPromo {
+    pub code: String,
+    pub name: String,
+    pub amount: f64,
+    pub is_enabled: bool,
+    pub is_one_time: bool,
+    pub exp: DateTime<Utc>,
 }
 
 #[derive(

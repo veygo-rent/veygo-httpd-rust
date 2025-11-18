@@ -237,10 +237,13 @@ create table promos
     is_enabled  boolean default true     not null,
     is_one_time boolean default false    not null,
     exp         timestamp with time zone not null,
-    user_id     integer default 0        not null,
-    apt_id      integer default 0        not null,
-    uni_id      integer default 0        not null,
+    user_id     integer,
+    apt_id      integer,
+    uni_id      integer,
     constraint promos_pk primary key (code),
+    constraint promos_apt_id_fk foreign key (apt_id) references apartments(id),
+    constraint promos_uni_id_fk foreign key (uni_id) references apartments(id),
+    constraint promos_user_id_fk foreign key (user_id) references renters(id),
     constraint promos_amount_range check (amount > 0.0)
 );
 

@@ -335,9 +335,9 @@ diesel::table! {
         is_enabled -> Bool,
         is_one_time -> Bool,
         exp -> Timestamptz,
-        user_id -> Int4,
-        apt_id -> Int4,
-        uni_id -> Int4,
+        user_id -> Nullable<Int4>,
+        apt_id -> Nullable<Int4>,
+        uni_id -> Nullable<Int4>,
     }
 }
 
@@ -557,6 +557,7 @@ diesel::joinable!(payment_methods -> renters (renter_id));
 diesel::joinable!(payments -> agreements (agreement_id));
 diesel::joinable!(payments -> payment_methods (payment_method_id));
 diesel::joinable!(payments -> renters (renter_id));
+diesel::joinable!(promos -> renters (user_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(reward_transactions -> agreements (agreement_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
