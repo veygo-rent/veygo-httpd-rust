@@ -5,6 +5,7 @@ mod generate_smartcar_token;
 mod lock_with_sc;
 mod lock_with_tesla;
 mod update_vehicle_with_sc;
+mod get_mileage_packages;
 
 use warp::Filter;
 
@@ -19,6 +20,7 @@ pub fn api_v1_vehicle()
                 .or(lock_with_sc::main())
                 .or(lock_with_tesla::main())
                 .or(update_vehicle_with_sc::main())
+                .or(get_mileage_packages::main())
         )
         .and(warp::path::end())
 }

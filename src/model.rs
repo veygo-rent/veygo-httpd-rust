@@ -1366,25 +1366,6 @@ pub struct MileagePackage {
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PublishMileagePackage {
-    pub id: i32,
-    pub miles: i32,
-    pub discounted_rate: i32,
-    pub is_active: bool,
-}
-
-impl From<MileagePackage> for PublishMileagePackage {
-    fn from(mp: MileagePackage) -> Self {
-        PublishMileagePackage {
-            id: mp.id,
-            miles: mp.miles,
-            discounted_rate: mp.discounted_rate,
-            is_active: mp.is_active,
-        }
-    }
-}
-
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable, Insertable)]
 #[diesel(table_name = agreements_damages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
