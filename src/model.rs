@@ -1457,3 +1457,9 @@ pub struct NewPolicy {
     pub policy_effective_date: NaiveDate,
     pub content: String,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ErrorResponse {
+    pub title: String,
+    pub message: String,
+}

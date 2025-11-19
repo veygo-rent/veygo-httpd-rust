@@ -4,16 +4,22 @@ use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
 pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": err_msg});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Bad Request"),
+        message: err_msg.to_string(),
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::BAD_REQUEST,
     ).into_response(),))
 }
 pub fn internal_server_error_response_without_token() -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Internal Server Error"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Internal Server Error"),
+        message: String::from("Please try again later."),
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::INTERNAL_SERVER_ERROR,
     ).into_response(),))
 }
@@ -21,9 +27,12 @@ pub fn internal_server_error_response_without_token() -> Result<(warp::reply::Re
 pub fn internal_server_error_response(
     token_data: model::PublishAccessToken
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Internal Server Error"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Internal Server Error"),
+        message: String::from("Please try again later."),
+    };
     let with_status = warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::INTERNAL_SERVER_ERROR,
     );
     Ok::<_, Rejection>((wrap_json_reply_with_token(
@@ -33,9 +42,12 @@ pub fn internal_server_error_response(
 }
 
 pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Method Not Allowed"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Method Not Allowed"),
+        message: String::from("Using third party applications is not encouraged. And Veygo will not guarantee the product. "),
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::METHOD_NOT_ALLOWED,
     )
     .into_response(),))
@@ -44,40 +56,52 @@ pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejecti
 pub fn card_declined_wrapped(
     token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Credit card declined"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Credit Card Declined"),
+        message: String::from("Please check your card details and try again."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED),
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::PAYMENT_REQUIRED),
     ),))
 }
 
 pub fn card_invalid_wrapped(
     token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Credit card invalid"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Credit Card Invalid"),
+        message: String::from("Please check your card details and try again."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE),
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::PAYMENT_REQUIRED),
     ),))
 }
 
 pub fn apartment_not_operational_wrapped(
     token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Location is not operational"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Booking Not Allowed"),
+        message: String::from("This location is not currently available for booking."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
     ),))
 }
 
 pub fn user_not_admin_wrapped_return(
     token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "You do not have administrator privileges"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Permission Denied"),
+        message: String::from("You are not an admin."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
-        warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN),
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
     ),))
 }
 
@@ -105,9 +129,12 @@ pub fn admin_wrapped(
 
 #[allow(dead_code)]
 pub fn not_implemented_response() -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"error": "Not Implemented"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Not Implemented"),
+        message: String::from("Don't get too excited. We are working on it."),
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::NOT_IMPLEMENTED,
     )
     .into_response(),))
@@ -117,7 +144,10 @@ pub fn apartment_not_allowed_response(
     token_data: model::PublishAccessToken,
     apartment: i32,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let msg = serde_json::json!({"apartment": apartment, "error": "renting at this location is not permitted"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Booking Not Allowed"),
+        message: String::from("This apartment is not currently available for booking."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
         warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
@@ -128,7 +158,10 @@ pub fn promo_code_not_allowed_response(
     token_data: model::PublishAccessToken,
     code: &str,
 ) -> Result<(warp::reply::Response,), Rejection> {
-    let msg = serde_json::json!({"apartment": code, "error": "this promo code is not allowed"});
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Promo Code Not Allowed"),
+        message: String::from("Please try another promo code."),
+    };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
         warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
