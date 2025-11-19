@@ -1,6 +1,7 @@
 use crate::{POOL, methods, model};
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use http::Method;
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::reply::with_status;
@@ -15,10 +16,13 @@ struct LoginData {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("login")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |login_data: LoginData, user_agent: String| {
+        .and_then(async move |method: Method, login_data: LoginData, user_agent: String| {
+            if method != Method::POST {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             use crate::schema::renters::dsl::*;
             let mut pool = POOL.get().unwrap();
             let result = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);

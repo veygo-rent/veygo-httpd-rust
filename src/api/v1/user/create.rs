@@ -4,6 +4,7 @@ use crate::{POOL, methods};
 use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
+use http::Method;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
@@ -66,10 +67,13 @@ fn is_valid_phone_number(phone: &str) -> bool {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("create")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |mut renter_create_data: CreateUserData, user_agent: String| {
+        .and_then(async move |method: Method, mut renter_create_data: CreateUserData, user_agent: String| {
+            if method != Method::POST {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             use crate::schema::renters::dsl::*;
             let mut pool = POOL.get().unwrap();
 
@@ -86,22 +90,39 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 match result {
                     Ok(_user) => {
                         // credential existed
-                        let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "phone": &renter_create_data.phone, "error": "Invalid email or phone number"});
-                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
+                        let error_msg = model::ErrorResponse{
+                            title: String::from("Conflict"),
+                            message: String::from("Email or phone number already exists"),
+                        };
+                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT).into_response(),))
                     }
                     Err(_) => {
                         // new customer
                         if !is_at_least_18(&renter_create_data.date_of_birth) {
                             // Renter is NOT old enough
-                            let error_msg = serde_json::json!({"date_of_birth": &renter_create_data.date_of_birth, "error": "Please make sure you are at least 18 years old"});
-                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
+                            let error_msg = model::ErrorResponse{
+                                title: String::from("Age Restriction"),
+                                message: String::from("You have to be at least 18 years old to use Veygo."),
+                            };
+                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN).into_response(),))
                         } else {
                             // Renter is old enough
                             use crate::schema::apartments::dsl::*;
 
                             let input_email_domain = get_email_domain(&email_clone).unwrap();
                             let result;
-                            result = if input_email_domain != "veygo.rent" { apartments.filter(uni_id.eq(0)).filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) } else { apartments.filter(accepted_school_email_domain.eq(&input_email_domain)).get_result::<model::Apartment>(&mut pool) };
+                            result = if input_email_domain != "veygo.rent" {
+                                apartments
+                                    .filter(uni_id.eq(0))
+                                    .filter(accepted_school_email_domain
+                                        .eq(&input_email_domain))
+                                    .get_result::<model::Apartment>(&mut pool)
+                            } else {
+                                apartments
+                                    .filter(accepted_school_email_domain
+                                        .eq(&input_email_domain))
+                                    .get_result::<model::Apartment>(&mut pool)
+                            };
                             match result {
                                 // Matched Apartment Found
                                 Ok(apartment) => {
@@ -177,8 +198,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                                 Err(_) => {
                                     // Matched Apartment Not Found
-                                    let error_msg = serde_json::json!({"email": &renter_create_data.student_email, "error": "Email not accepted"});
-                                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),))
+                                    let error_msg = model::ErrorResponse{
+                                        title: String::from("Email Error"),
+                                        message: String::from("Your email is not accepted by Veygo. "),
+                                    };
+                                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN).into_response(),))
                                 }
                             }
                         }
