@@ -112,6 +112,8 @@ diesel::table! {
         #[max_length = 26]
         name -> Varchar,
         #[max_length = 36]
+        timezone -> Varchar,
+        #[max_length = 36]
         email -> Varchar,
         #[max_length = 10]
         phone -> Varchar,

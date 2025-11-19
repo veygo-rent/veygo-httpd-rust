@@ -584,6 +584,7 @@ pub struct NewPaymentMethod {
 pub struct Apartment {
     pub id: i32,
     pub name: String,
+    pub timezone: String,
     pub email: String,
     pub phone: String,
     pub address: String,
@@ -613,6 +614,7 @@ pub struct Apartment {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewApartment {
     pub name: String,
+    pub timezone: String,
     pub email: String,
     pub phone: String,
     pub address: String,
