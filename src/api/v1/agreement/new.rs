@@ -148,7 +148,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .inner_join(apartment_query::apartments)
                         )
                         .filter(apartment_query::id.ne(1))
-                        .filter(apartment_query::uni_id.is_not_null())
                         .filter(apartment_query::is_operating)
                         .filter(location_query::is_operational)
                         .filter(vehicle_query::id.eq(&body.vehicle_id))
@@ -165,14 +164,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
                     }
-                    let vehicle_with_location = vehicle_result.unwrap();
+                    let vehicle_with_location: (model::Vehicle, model::Location, model::Apartment) = vehicle_result.unwrap();
 
                     if vehicle_with_location.2.id <= 1 {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
 
-                    if vehicle_with_location.2.uni_id != Some(1) && !(user_in_request.employee_tier == model::EmployeeTier::Admin || user_in_request.apartment_id == vehicle_with_location.2.id) {
+                    if vehicle_with_location.2.uni_id.is_some() && user_in_request.employee_tier != model::EmployeeTier::Admin && user_in_request.apartment_id != vehicle_with_location.2.id {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }

@@ -9,6 +9,7 @@ mod update_apartment;
 mod update_apns;
 mod update_phone;
 mod upload_file;
+mod verify_promo;
 
 use warp::Filter;
 
@@ -26,7 +27,8 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                 .or(retrieve::main())
                 .or(rm_token::main())
                 .or(update_apns::main())
-                .or(get_users::main()),
+                .or(get_users::main())
+                .or(verify_promo::main())
         )
         .and(warp::path::end())
 }

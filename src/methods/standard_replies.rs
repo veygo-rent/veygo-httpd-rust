@@ -123,3 +123,14 @@ pub fn apartment_not_allowed_response(
         warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
     ),))
 }
+
+pub fn promo_code_not_allowed_response(
+    token_data: model::PublishAccessToken,
+    code: &str,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg = serde_json::json!({"apartment": code, "error": "this promo code is not allowed"});
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
+    ),))
+}

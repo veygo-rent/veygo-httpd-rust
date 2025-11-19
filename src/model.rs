@@ -1045,13 +1045,28 @@ pub struct Promo {
     pub uni_id: Option<i32>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublishPromo {
     pub code: String,
     pub name: String,
     pub amount: f64,
     pub is_enabled: bool,
     pub is_one_time: bool,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
+}
+
+impl From<Promo> for PublishPromo {
+    fn from(p: Promo) -> Self {
+        PublishPromo {
+            code: p.code,
+            name: p.name,
+            amount: p.amount,
+            is_enabled: p.is_enabled,
+            is_one_time: p.is_one_time,
+            exp: p.exp,
+        }
+    }
 }
 
 #[derive(
@@ -1407,6 +1422,7 @@ pub struct Audit {
     pub renter_id: Option<i32>,
     pub action: AuditActionType,
     pub path: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
 }
 
@@ -1417,6 +1433,7 @@ pub struct NewAudit {
     pub renter_id: Option<i32>,
     pub action: AuditActionType,
     pub path: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
 }
 

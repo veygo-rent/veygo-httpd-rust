@@ -244,7 +244,15 @@ create table promos
     constraint promos_apt_id_fk foreign key (apt_id) references apartments(id),
     constraint promos_uni_id_fk foreign key (uni_id) references apartments(id),
     constraint promos_user_id_fk foreign key (user_id) references renters(id),
-    constraint promos_amount_range check (amount > 0.0)
+    constraint promos_amount_range check (amount > 0.0),
+    constraint promos_at_most_one_scope_ck
+        check (
+                (
+                    (user_id is not null)::int +
+                    (apt_id  is not null)::int +
+                    (uni_id  is not null)::int
+                ) <= 1
+        )
 );
 
 create table mileage_packages
