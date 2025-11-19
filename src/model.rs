@@ -328,7 +328,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct RentalTransaction {
+pub struct RewardTransaction {
     pub id: i32,
     pub agreement_id: i32,
     pub duration: f64,
@@ -342,7 +342,7 @@ pub struct RentalTransaction {
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewRentalTransaction {
+pub struct NewRewardTransaction {
     pub agreement_id: i32,
     pub duration: f64,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -762,6 +762,7 @@ pub struct PublishRenterVehicle {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublishAdminVehicle {
     pub id: i32,
+    pub name: String,
     pub vin: String,
     pub capacity: i32,
     pub doors: i32,
@@ -769,7 +770,6 @@ pub struct PublishAdminVehicle {
     pub large_bags: i32,
     pub carplay: bool,
     pub lane_keep: bool,
-    pub name: String,
     pub available: bool,
     pub license_number: String,
     pub license_state: String,
