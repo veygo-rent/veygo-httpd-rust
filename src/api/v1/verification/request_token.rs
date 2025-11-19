@@ -25,7 +25,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                    return methods::tokens::token_invalid_wrapped_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -34,7 +34,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         int
                     }
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return(&auth);
+                        return methods::tokens::token_invalid_wrapped_return();
                     }
                 };
 
@@ -45,10 +45,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 )
                 .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(&access_token.token),
+                    Err(_) => methods::tokens::token_not_hex_warp_return(),
                     Ok(token_bool) => {
                         if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return(&access_token.token)
+                            methods::tokens::token_invalid_wrapped_return()
                         } else {
                             // gen new token
                             let token_clone = access_token.clone();

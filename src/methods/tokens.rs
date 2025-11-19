@@ -66,26 +66,28 @@ pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bo
 pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
     let mut pool = POOL.get().unwrap();
     let _ = diesel::delete(access_tokens.filter(token.eq(token_bit)))
-        .get_result::<model::AccessToken>(&mut pool);
+        .execute(&mut pool);
 }
 
-pub fn token_not_hex_warp_return(
-    token_data: &String,
-) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"token": &token_data, "error": "Token not in hex format"});
+pub fn token_not_hex_warp_return() -> Result<(warp::reply::Response,), Rejection> {
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Corrupted Token"),
+        message: String::from("Please login again."),   
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::UNAUTHORIZED,
     )
     .into_response(),))
 }
 
-pub fn token_invalid_wrapped_return(
-    token_data: &str,
-) -> Result<(warp::reply::Response,), Rejection> {
-    let error_msg = serde_json::json!({"token": &token_data, "error": "Token not valid"});
+pub fn token_invalid_wrapped_return() -> Result<(warp::reply::Response,), Rejection> {
+    let msg: model::ErrorResponse = model::ErrorResponse {
+        title: String::from("Invalid Token"),
+        message: String::from("Please login again."),
+    };
     Ok::<_, Rejection>((warp::reply::with_status(
-        warp::reply::json(&error_msg),
+        warp::reply::json(&msg),
         StatusCode::UNAUTHORIZED,
     )
     .into_response(),))

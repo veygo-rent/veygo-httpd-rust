@@ -30,14 +30,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
-                return methods::tokens::token_invalid_wrapped_return(&auth);
+                return methods::tokens::token_invalid_wrapped_return();
             }
             let user_id;
             let user_id_parsed_result = token_and_id[1].parse::<i32>();
             user_id = match user_id_parsed_result {
                 Ok(int) => int,
                 Err(_) => {
-                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                    return methods::tokens::token_invalid_wrapped_return();
                 }
             };
 
@@ -49,11 +49,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                     .await;
             if if_token_valid.is_err() {
-                return methods::tokens::token_not_hex_warp_return(&access_token.token);
+                return methods::tokens::token_not_hex_warp_return();
             }
             let token_is_valid = if_token_valid.unwrap();
             if !token_is_valid {
-                return methods::tokens::token_invalid_wrapped_return(&access_token.token);
+                return methods::tokens::token_invalid_wrapped_return();
             }
 
             // token is valid, proceed to verify promo code

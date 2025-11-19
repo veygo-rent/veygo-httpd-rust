@@ -11,7 +11,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
         .and_then(async move |auth: String| {
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
-                return methods::tokens::token_invalid_wrapped_return(&auth);
+                return methods::tokens::token_invalid_wrapped_return();
             }
             let user_id;
             let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -20,7 +20,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                     int
                 }
                 Err(_) => {
-                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                    return methods::tokens::token_invalid_wrapped_return();
                 }
             };
             let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };

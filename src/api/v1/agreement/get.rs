@@ -21,7 +21,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     // RETURN: UNAUTHORIZED
-                    return methods::tokens::token_invalid_wrapped_return(&auth);
+                    return methods::tokens::token_invalid_wrapped_return();
                 }
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 let user_id = match user_id_parsed_result {
@@ -30,20 +30,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Err(_) => {
                         // RETURN: UNAUTHORIZED
-                        return methods::tokens::token_invalid_wrapped_return(&auth);
+                        return methods::tokens::token_invalid_wrapped_return();
                     }
                 };
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid_result = methods::tokens::verify_user_token(&access_token.user_id, &access_token.token).await;
                 if if_token_valid_result.is_err() {
-                    return methods::tokens::token_not_hex_warp_return(&access_token.token);
+                    return methods::tokens::token_not_hex_warp_return();
                 }
                 let token_bool = if_token_valid_result.unwrap();
 
                 if !token_bool {
                     // RETURN: UNAUTHORIZED
-                    methods::tokens::token_invalid_wrapped_return(&access_token.token)
+                    methods::tokens::token_invalid_wrapped_return()
                 } else {
                     // gen new token
                     let token_clone = access_token.clone();
