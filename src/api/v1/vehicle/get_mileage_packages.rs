@@ -18,7 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 .order(mileage_package_query::miles)
                 .get_results(&mut pool)
                 .unwrap_or_default();
-            let msg = serde_json::json!({"mileage-packages": mps});
+            let msg = serde_json::json!({"mileage_packages": mps});
             Ok::<_, warp::Rejection>((warp::reply::with_status(
                 warp::reply::json(&msg),
                 StatusCode::OK,
