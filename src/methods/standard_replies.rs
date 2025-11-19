@@ -144,9 +144,10 @@ pub fn apartment_not_allowed_response(
     token_data: model::PublishAccessToken,
     apartment: i32,
 ) -> Result<(warp::reply::Response,), Rejection> {
+    let msg_txt = "Apartment ".to_owned() + &apartment.to_string() + " is not allowed.";
     let msg: model::ErrorResponse = model::ErrorResponse {
         title: String::from("Booking Not Allowed"),
-        message: String::from("This apartment is not currently available for booking."),
+        message: msg_txt,
     };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
@@ -158,9 +159,10 @@ pub fn promo_code_not_allowed_response(
     token_data: model::PublishAccessToken,
     code: &str,
 ) -> Result<(warp::reply::Response,), Rejection> {
+    let msg_txt = "Promo code ".to_owned() + code + " is not allowed. Please try another one.";
     let msg: model::ErrorResponse = model::ErrorResponse {
         title: String::from("Promo Code Not Allowed"),
-        message: String::from("Please try another promo code."),
+        message: msg_txt,
     };
     Ok::<_, Rejection>((wrap_json_reply_with_token(
         token_data,
