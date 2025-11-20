@@ -152,8 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                     }
                     let pub_promo: model::PublishPromo = promo.into();
-                    let msg = serde_json::json!({"promo": pub_promo});
-                    let with_status = warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK);
+                    let with_status = warp::reply::with_status(warp::reply::json(&pub_promo), StatusCode::OK);
 
                     Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
                         new_token_in_db_publish,
