@@ -7,6 +7,7 @@ drop table if exists policies;
 drop table if exists agreements_taxes;
 drop table if exists apartments_taxes;
 drop table if exists agreements_damages;
+drop table if exists vehicles_services;
 
 drop table if exists reward_transactions;
 
@@ -36,6 +37,8 @@ drop table if exists promos;
 
 drop index if exists vehicles_license_idx;
 drop table if exists vehicles;
+
+drop table if exists services;
 
 drop table if exists locations;
 

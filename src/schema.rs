@@ -416,6 +416,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    services (id) {
+        id -> Int4,
+        interval -> Int4,
+        note -> Text,
+    }
+}
+
+diesel::table! {
     taxes (id) {
         id -> Int4,
         #[max_length = 32]
@@ -519,6 +527,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    vehicles_services (vehicle_id, service_id) {
+        vehicle_id -> Int4,
+        service_id -> Int4,
+        odometer -> Int4,
+        #[max_length = 255]
+        document -> Varchar,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::VerificationTypeEnum;
 
@@ -564,6 +582,8 @@ diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(reward_transactions -> agreements (agreement_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));
+diesel::joinable!(vehicles_services -> services (service_id));
+diesel::joinable!(vehicles_services -> vehicles (vehicle_id));
 diesel::joinable!(verifications -> renters (renter_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -587,9 +607,11 @@ diesel::allow_tables_to_appear_in_same_query!(
     promos,
     renters,
     reward_transactions,
+    services,
     taxes,
     transponder_companies,
     vehicle_snapshots,
     vehicles,
+    vehicles_services,
     verifications,
 );

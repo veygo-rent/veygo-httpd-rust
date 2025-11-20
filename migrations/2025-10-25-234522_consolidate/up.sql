@@ -188,6 +188,14 @@ create table locations
     constraint locations_apartment_id_fk foreign key (apartment_id) references apartments(id)
 );
 
+create table services
+(
+    id serial,
+    interval integer not null,
+    note text not null,
+    constraint services_pk primary key (id)
+);
+
 create table vehicles
 (
     id                            serial,
@@ -491,6 +499,17 @@ create table agreements_damages
     constraint agreements_damages_damage_id_fk foreign key (damage_id) references damages(id)
 );
 
+create table vehicles_services
+(
+    vehicle_id      integer         not null,
+    service_id      integer         not null,
+    odometer        integer         not null,
+    document        varchar(255)    not null,
+    constraint vehicles_services_pk primary key (vehicle_id, service_id),
+    constraint vehicles_services_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
+    constraint vehicles_services_service_id_fk foreign key (service_id) references services(id)
+);
+
 create table audits
 (
     id          serial,
@@ -595,3 +614,10 @@ insert into mileage_packages (miles, discounted_rate, is_active)
 values (20, 95, true),
        (150, 80, true),
        (270, 70, true);
+
+insert into services (interval, note)
+values (5, 'Tire Check and Rotation'),
+       (10, 'Oil Change, Check Cabin and Engine Filter'),
+       (30, 'Mechanical Inspection'),
+       (50, 'Brake Pads'),
+       (60, 'Spark Plugs, Change Transmission Fluid');
