@@ -523,6 +523,8 @@ diesel::table! {
         #[max_length = 32]
         remote_mgmt_id -> Varchar,
         requires_own_insurance -> Bool,
+        #[max_length = 4]
+        admin_pin -> Nullable<Varchar>,
     }
 }
 

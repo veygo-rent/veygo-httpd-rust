@@ -728,6 +728,7 @@ pub struct Vehicle {
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
     pub requires_own_insurance: bool,
+    pub admin_pin: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -790,6 +791,7 @@ pub struct PublishAdminVehicle {
     pub remote_mgmt: RemoteMgmtType,
     pub remote_mgmt_id: String,
     pub requires_own_insurance: bool,
+    pub admin_pin: Option<String>,
 }
 
 impl From<Vehicle> for PublishRenterVehicle {
@@ -856,6 +858,7 @@ impl From<Vehicle> for PublishAdminVehicle {
             remote_mgmt: v.remote_mgmt,
             remote_mgmt_id: v.remote_mgmt_id,
             requires_own_insurance: v.requires_own_insurance,
+            admin_pin: v.admin_pin,
         }
     }
 }

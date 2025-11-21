@@ -230,6 +230,7 @@ create table vehicles
     remote_mgmt                   remote_mgmt_enum                                  not null,
     remote_mgmt_id                varchar(32)                                       not null,
     requires_own_insurance        boolean                                           not null,
+    admin_pin                     varchar(4),
     constraint vehicles_pk primary key (id),
     constraint vehicles_vin_uk unique (vin),
     constraint vehicles_location_id_fk foreign key (location_id) references locations(id)
