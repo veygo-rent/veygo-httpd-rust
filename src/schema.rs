@@ -34,6 +34,10 @@ pub mod sql_types {
     pub struct RemoteMgmtEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "tax_type_enum"))]
+    pub struct TaxTypeEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "verification_type_enum"))]
     pub struct VerificationTypeEnum;
 }
@@ -424,12 +428,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TaxTypeEnum;
+
     taxes (id) {
         id -> Int4,
         #[max_length = 32]
         name -> Varchar,
         multiplier -> Float8,
         is_effective -> Bool,
+        tax_type -> TaxTypeEnum,
     }
 }
 

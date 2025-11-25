@@ -13,6 +13,14 @@ use diesel::{AsExpression, FromSqlRow};
 use std::io::Write;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::TaxTypeEnum)]
+pub enum TaxType {
+    Percent,
+    Daily,
+    Fixed,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::PolicyEnum)]
 pub enum PolicyType {
     Rental,
@@ -123,6 +131,28 @@ impl FromSql<sql_types::PolicyEnum, Pg> for PolicyType {
             b"rental" => Ok(PolicyType::Rental),
             b"privacy" => Ok(PolicyType::Privacy),
             b"membership" => Ok(PolicyType::Membership),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<sql_types::TaxTypeEnum, Pg> for TaxType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            TaxType::Percent => out.write_all(b"percent")?,
+            TaxType::Daily => out.write_all(b"daily")?,
+            TaxType::Fixed => out.write_all(b"fixed")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::TaxTypeEnum, Pg> for TaxType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"percent" => Ok(TaxType::Percent),
+            b"daily" => Ok(TaxType::Daily),
+            b"fixed" => Ok(TaxType::Fixed),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -1371,6 +1401,7 @@ pub struct Tax {
     pub name: String,
     pub multiplier: f64,
     pub is_effective: bool,
+    pub tax_type: TaxType,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]

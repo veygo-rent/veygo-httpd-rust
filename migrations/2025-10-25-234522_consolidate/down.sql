@@ -72,3 +72,4 @@ drop type if exists agreement_status_enum;
 drop type if exists payment_type_enum;
 drop type if exists audit_action_enum;
 drop type if exists policy_enum;
+drop type if exists tax_type_enum;
