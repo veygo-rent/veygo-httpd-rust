@@ -1391,6 +1391,8 @@ pub struct NewTax {
     pub name: String,
     pub multiplier: f64,
     pub is_effective: bool,
+    pub is_sales_tax: bool,
+    pub tax_type: TaxType,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
@@ -1401,6 +1403,7 @@ pub struct Tax {
     pub name: String,
     pub multiplier: f64,
     pub is_effective: bool,
+    pub is_sales_tax: bool,
     pub tax_type: TaxType,
 }
 

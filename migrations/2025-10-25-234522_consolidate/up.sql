@@ -372,11 +372,12 @@ create index verifications_code_idx
 
 create table taxes
 (
-    id           serial,
-    name         varchar(32)      not null,
-    multiplier   double precision not null,
-    is_effective boolean          not null,
-    tax_type     tax_type_enum    not null,
+    id              serial,
+    name            varchar(32)         not null,
+    multiplier      double precision    not null,
+    is_effective    boolean             not null,
+    is_sales_tax    boolean             not null,
+    tax_type        tax_type_enum       not null,
     constraint taxes_pk primary key (id),
     constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0)
 );
@@ -539,9 +540,9 @@ create index policies_policy_type_idx
 create index policies_policy_effective_date_idx
     on policies (policy_effective_date);
 
-insert into taxes (name, multiplier, is_effective, tax_type)
-values ('IN Sales Tax', 0.07, true, 'percent'),
-       ('IN Car Rental Excise Tax', 0.04, true, 'percent');
+insert into taxes (name, multiplier, is_effective, is_sales_tax, tax_type)
+values ('IN Sales Tax', 0.07, true, true, 'percent'),
+       ('IN Car Rental Excise Tax', 0.04, true, false, 'percent');
 
 insert into apartments (name,
                         timezone,

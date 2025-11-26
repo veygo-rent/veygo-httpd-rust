@@ -437,6 +437,7 @@ diesel::table! {
         name -> Varchar,
         multiplier -> Float8,
         is_effective -> Bool,
+        is_sales_tax -> Bool,
         tax_type -> TaxTypeEnum,
     }
 }
