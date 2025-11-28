@@ -113,7 +113,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let result;
                             result = if input_email_domain != "veygo.rent" {
                                 apartments
-                                    .filter(uni_id.eq(0))
+                                    .filter(uni_id.eq(1))
                                     .filter(accepted_school_email_domain
                                         .eq(&input_email_domain))
                                     .get_result::<model::Apartment>(&mut pool)
