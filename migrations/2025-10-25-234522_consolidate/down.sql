@@ -42,6 +42,7 @@ drop table if exists services;
 
 drop table if exists locations;
 
+drop index if exists payment_methods_fingerprint_enabled_uk;
 drop table if exists payment_methods;
 
 drop index if exists access_tokens_token_idx;

@@ -176,6 +176,10 @@ create table payment_methods
     constraint payment_methods_renter_id_fk foreign key (renter_id) references renters(id)
 );
 
+create unique index payment_methods_fingerprint_enabled_uk
+    on payment_methods(fingerprint)
+    where is_enabled;
+
 create table locations
 (
     id             serial,
