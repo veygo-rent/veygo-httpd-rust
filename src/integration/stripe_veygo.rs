@@ -10,7 +10,7 @@ use stripe::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
     CreateSetupIntentAutomaticPaymentMethods, StripeError, CancelPaymentIntent, Customer,
     CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, PaymentIntentStatus,
-    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession,
+    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession
 };
 
 pub async fn create_new_payment_method(
@@ -27,6 +27,10 @@ pub async fn create_new_payment_method(
     match payment_method {
         Ok(payment_method) => {
             let card = payment_method.card.unwrap();
+            let accepted_cards: &[&str] = &[ "amex", "mastercard", "visa", "discover" ];
+            if !accepted_cards.contains(&card.brand.as_str()) {
+                return Err(StripeError::Stripe(Default::default()))
+            }
             let mut masked_card_number = format!("**** **** **** {}", card.last4);
             if card.brand == "amex" {
                 masked_card_number = format!("**** ****** *{}", card.last4);
