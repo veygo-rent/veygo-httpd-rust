@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use blake3;
 use bytes::BufMut;
 use currency_rs::Currency;
@@ -166,13 +166,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .copied()
                                 .collect();
                             if !missing.is_empty() {
-                                let msg = model::ErrorResponse {
+                                let err_msg = helper_model::ErrorResponse {
                                     title: "Missing Columns".to_string(),
                                     message: "CSV is missing required columns: ".to_string() + missing.join(", ").as_str(),
                                 };
                                 return Ok((methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,
-                                    with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE),
+                                    with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE),
                                 ),));
                             }
 

@@ -6,6 +6,7 @@ mod model;
 mod scheduled_tasks;
 mod schema;
 mod proj_config;
+mod helper_model;
 
 use diesel::{PgConnection, RunQueryDsl};
 use diesel::r2d2::{ConnectionManager, Pool};

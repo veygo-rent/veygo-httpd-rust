@@ -1,6 +1,5 @@
 use crate::integration::stripe_veygo;
-use crate::model;
-use crate::{POOL, methods};
+use crate::{POOL, methods, model, helper_model};
 use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
@@ -90,7 +89,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 match result {
                     Ok(_user) => {
                         // credential existed
-                        let error_msg = model::ErrorResponse{
+                        let error_msg = helper_model::ErrorResponse{
                             title: String::from("Conflict"),
                             message: String::from("Email or phone number already exists"),
                         };
@@ -100,7 +99,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         // new customer
                         if !is_at_least_18(&renter_create_data.date_of_birth) {
                             // Renter is NOT old enough
-                            let error_msg = model::ErrorResponse{
+                            let error_msg = helper_model::ErrorResponse{
                                 title: String::from("Age Restriction"),
                                 message: String::from("You have to be at least 18 years old to use Veygo."),
                             };
@@ -198,7 +197,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                                 Err(_) => {
                                     // Matched Apartment Not Found
-                                    let error_msg = model::ErrorResponse{
+                                    let error_msg = helper_model::ErrorResponse{
                                         title: String::from("Email Error"),
                                         message: String::from("Your email is not accepted by Veygo. "),
                                     };

@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
@@ -67,7 +67,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                     .get_result::<bool>(&mut pool)
                                     .unwrap();
                                 if card_in_db {
-                                    let err_msg = model::ErrorResponse {
+                                    let err_msg = helper_model::ErrorResponse {
                                         title: "Payment Method Existed".to_string(),
                                         message: "Please try a different credit card. ".to_string(),
                                     };
@@ -96,7 +96,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                             if request_error.code == Some(ErrorCode::CardDeclined) {
                                                 return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                             } else if request_error.error_type == InvalidRequest {
-                                                let err_msg = model::ErrorResponse {
+                                                let err_msg = helper_model::ErrorResponse {
                                                     title: "Payment Method Invalid".to_string(),
                                                     message: "Payment method is invalid. Please try a different credit card. ".to_string(),
                                                 };
@@ -108,7 +108,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 }
                             }
                             Err(_) => {
-                                let err_msg = model::ErrorResponse {
+                                let err_msg = helper_model::ErrorResponse {
                                     title: "Payment Method Invalid".to_string(),
                                     message: "Payment method is invalid. Please try a different credit card. ".to_string(),
                                 };

@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use diesel::prelude::*;
 use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
 
@@ -83,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::Location>(&mut pool);
                             return match insert_result {
                                 Err(_) => {
-                                    let err_msg = model::ErrorResponse {
+                                    let err_msg = helper_model::ErrorResponse {
                                         title: "Bad Location".to_string(),
                                         message: "Bad location data provided. ".to_string(),
                                     };

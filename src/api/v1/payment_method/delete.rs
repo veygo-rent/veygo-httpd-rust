@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
@@ -77,7 +77,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             }
                             .unwrap();
                             if !if_pm_in_question_exists {
-                                let err_msg = model::ErrorResponse {
+                                let err_msg = helper_model::ErrorResponse {
                                     title: "Invalid Payment Method".to_string(),
                                     message: "Please try a different credit card. ".to_string(),
                                 };
@@ -99,7 +99,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 .get_result::<model::PaymentMethod>(&mut pool)
                                 .unwrap();
                             if pm.renter_id != access_token.user_id {
-                                let err_msg = model::ErrorResponse {
+                                let err_msg = helper_model::ErrorResponse {
                                     title: "Invalid Payment Method".to_string(),
                                     message: "Please try a different credit card. ".to_string(),
                                 };

@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use bcrypt::verify;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -29,7 +29,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             return match result {
                 Ok(admin) => {
                     if !methods::user::user_is_manager(&admin) {
-                        let error_msg = model::ErrorResponse {
+                        let error_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         });
                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
                     } else {
-                        let error_msg = model::ErrorResponse {
+                        let error_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
@@ -61,7 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                 },
                 Err(_) => {
-                    let error_msg = model::ErrorResponse {
+                    let error_msg = helper_model::ErrorResponse {
                         title: "Credentials Invalid".to_string(),
                         message: "Please check your credentials again. ".to_string(),
                     };

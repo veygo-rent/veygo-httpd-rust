@@ -1,5 +1,4 @@
-use crate::POOL;
-use crate::model;
+use crate::{model, helper_model, POOL};
 use crate::schema::access_tokens::dsl::*;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
@@ -70,7 +69,7 @@ pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
 }
 
 pub fn token_not_hex_warp_return() -> Result<(warp::reply::Response,), Rejection> {
-    let msg: model::ErrorResponse = model::ErrorResponse {
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Corrupted Token"),
         message: String::from("Please login again."),   
     };
@@ -82,7 +81,7 @@ pub fn token_not_hex_warp_return() -> Result<(warp::reply::Response,), Rejection
 }
 
 pub fn token_invalid_wrapped_return() -> Result<(warp::reply::Response,), Rejection> {
-    let msg: model::ErrorResponse = model::ErrorResponse {
+    let msg: helper_model::ErrorResponse = helper_model ::ErrorResponse {
         title: String::from("Invalid Token"),
         message: String::from("Please login again."),
     };

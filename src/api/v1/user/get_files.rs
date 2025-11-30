@@ -1,4 +1,4 @@
-use crate::{POOL, integration, methods, model};
+use crate::{POOL, integration, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -108,7 +108,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        let msg = model::ErrorResponse {
+                                        let err_msg = helper_model::ErrorResponse {
                                             title: "Upload Failed".to_string(),
                                             message: "Cannot upload drivers license. ".to_string(),
                                         };
@@ -116,7 +116,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
                                                 with_status(
-                                                    warp::reply::json(&msg),
+                                                    warp::reply::json(&err_msg),
                                                     StatusCode::NOT_ACCEPTABLE,
                                                 ),
                                             ),
@@ -143,7 +143,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        let msg = model::ErrorResponse {
+                                        let err_msg = helper_model::ErrorResponse {
                                             title: "Upload Failed".to_string(),
                                             message: "Cannot upload secondary drivers license. ".to_string(),
                                         };
@@ -151,7 +151,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
                                                 with_status(
-                                                    warp::reply::json(&msg),
+                                                    warp::reply::json(&err_msg),
                                                     StatusCode::NOT_ACCEPTABLE,
                                                 ),
                                             ),
@@ -178,7 +178,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        let msg = model::ErrorResponse {
+                                        let err_msg = helper_model::ErrorResponse {
                                             title: "Upload Failed".to_string(),
                                             message: "Cannot upload lease agreement. ".to_string(),
                                         };
@@ -186,7 +186,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
                                                 with_status(
-                                                    warp::reply::json(&msg),
+                                                    warp::reply::json(&err_msg),
                                                     StatusCode::NOT_ACCEPTABLE,
                                                 ),
                                             ),
@@ -213,7 +213,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        let msg = model::ErrorResponse {
+                                        let err_msg = helper_model::ErrorResponse {
                                             title: "Upload Failed".to_string(),
                                             message: "Cannot upload proof of insurance. ".to_string(),
                                         };
@@ -221,7 +221,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
                                                 with_status(
-                                                    warp::reply::json(&msg),
+                                                    warp::reply::json(&err_msg),
                                                     StatusCode::NOT_ACCEPTABLE,
                                                 ),
                                             ),

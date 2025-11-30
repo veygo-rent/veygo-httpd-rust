@@ -1,21 +1,14 @@
-use crate::{POOL, integration, methods, model, proj_config};
+use crate::{POOL, integration, methods, model, proj_config, helper_model};
 use chrono::{DateTime, Duration, Utc};
 use diesel::associations::HasTable;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Timestamptz};
 use serde_derive::{Deserialize, Serialize};
 use stripe::ErrorType::InvalidRequest;
 use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
-use diesel::sql_types::{Nullable};
-
-define_sql_function! { fn coalesce(x: Nullable<Timestamptz>, y: Timestamptz) -> Timestamptz; }
-define_sql_function! {
-    fn greatest(x: Timestamptz, y: Timestamptz) -> Timestamptz;
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
@@ -283,7 +276,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if request_error.code == Some(ErrorCode::CardDeclined) {
                                     return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                 } else if request_error.error_type == InvalidRequest {
-                                    let err_msg = model::ErrorResponse {
+                                    let err_msg = helper_model::ErrorResponse {
                                         title: "Payment Method Invalid".to_string(),
                                         message: "Payment method is invalid. Please try a different credit card. ".to_string(),
                                     };
@@ -300,21 +293,24 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
                                     .filter(agreement_query::vehicle_id.eq(&body.vehicle_id))
                                     .filter(
-                                        coalesce(agreement_query::actual_pickup_time, agreement_query::rsvp_pickup_time)
+                                        methods::diesel_fn::coalesce(agreement_query::actual_pickup_time, agreement_query::rsvp_pickup_time)
                                             .lt(end_time_buffered)
                                             .and(
-                                                coalesce(agreement_query::actual_drop_off_time,
-                                                         greatest(agreement_query::rsvp_drop_off_time, diesel::dsl::now)
-                                                )
-                                                    .gt(start_time_buffered)
+                                                methods::diesel_fn::coalesce(
+                                                    agreement_query::actual_drop_off_time,
+                                                    methods::diesel_fn::greatest(agreement_query::rsvp_drop_off_time, diesel::dsl::now)
+                                                ).gt(start_time_buffered)
                                             )
                                     )
                             )).get_result::<bool>(&mut pool).unwrap();
 
                             if if_conflict {
                                 let _result = integration::stripe_veygo::drop_auth(&pmi).await;
-                                let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
+                                let err_msg = helper_model::ErrorResponse {
+                                    title: "Vehicle Unavailable".to_string(),
+                                    message: "Please try again later. ".to_string(),
+                                };
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::CONFLICT)),));
                             }
 
                             let new_agreement = model::NewAgreement {
