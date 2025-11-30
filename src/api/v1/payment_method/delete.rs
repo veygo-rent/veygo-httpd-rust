@@ -77,13 +77,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             }
                             .unwrap();
                             if !if_pm_in_question_exists {
-                                let error_msg =
-                                    serde_json::json!({"error": "Invalid Payment Method"});
+                                let msg = model::ErrorResponse {
+                                    title: "Invalid Payment Method".to_string(),
+                                    message: "Please try a different credit card. ".to_string(),
+                                };
                                 return Ok::<_, Rejection>((
                                     methods::tokens::wrap_json_reply_with_token(
                                         new_token_in_db_publish,
                                         warp::reply::with_status(
-                                            warp::reply::json(&error_msg),
+                                            warp::reply::json(&msg),
                                             StatusCode::NOT_ACCEPTABLE,
                                         ),
                                     ),
@@ -97,13 +99,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 .get_result::<model::PaymentMethod>(&mut pool)
                                 .unwrap();
                             if pm.renter_id != access_token.user_id {
-                                let error_msg =
-                                    serde_json::json!({"error": "Invalid Payment Method"});
+                                let msg = model::ErrorResponse {
+                                    title: "Invalid Payment Method".to_string(),
+                                    message: "Please try a different credit card. ".to_string(),
+                                };
                                 return Ok::<_, Rejection>((
                                     methods::tokens::wrap_json_reply_with_token(
                                         new_token_in_db_publish,
                                         warp::reply::with_status(
-                                            warp::reply::json(&error_msg),
+                                            warp::reply::json(&msg),
                                             StatusCode::NOT_ACCEPTABLE,
                                         ),
                                     ),
