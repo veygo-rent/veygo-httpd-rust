@@ -10,7 +10,8 @@ use stripe::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
     CreateSetupIntentAutomaticPaymentMethods, StripeError, CancelPaymentIntent, Customer,
     CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, PaymentIntentStatus,
-    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession
+    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, CreateRefund, Refund,
+    RefundReasonFilter, PaymentIntentId
 };
 
 pub async fn create_new_payment_method(
@@ -73,6 +74,35 @@ pub async fn create_stripe_customer(
         },
     )
     .await
+}
+
+#[allow(dead_code)]
+pub async fn create_stripe_refund(
+    customer_id_str: &String,
+    payment_intent_id_str: &String,
+    amount: &i64,
+) -> Result<Refund, StripeError> {
+    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
+    let client = Client::new(stripe_secret_key);
+    let payment_intent_id = PaymentIntentId::from_str(payment_intent_id_str.as_str()).unwrap();
+    let customer_id = CustomerId::from_str(customer_id_str.as_str()).unwrap();
+    Refund::create(
+        &client,
+        CreateRefund {
+            amount: Some(amount.clone()),
+            charge: None,
+            currency: Some(Currency::USD),
+            customer: Some(customer_id),
+            expand: &[],
+            instructions_email: None,
+            metadata: None,
+            origin: None,
+            payment_intent: Some(payment_intent_id),
+            reason: Some(RefundReasonFilter::RequestedByCustomer),
+            refund_application_fee: None,
+            reverse_transfer: None,
+        }
+    ).await
 }
 
 pub async fn attach_payment_method_to_stripe_customer(

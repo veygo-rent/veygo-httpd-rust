@@ -87,7 +87,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .into();
-                            let msg;
                             return match content_type_parsed_result.unwrap() {
                                 UploadedFileType::DriversLicense => {
                                     if let Some(file) = user.drivers_license_image {
@@ -96,7 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        msg = serde_json::json!({
+                                        let msg = serde_json::json!({
                                             "drivers_license": link,
                                         });
                                         Ok::<_, warp::Rejection>((
@@ -109,9 +108,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        msg = serde_json::json!({
-                                            "drivers_license": None::<Option<String>>,
-                                        });
+                                        let msg = model::ErrorResponse {
+                                            title: "Upload Failed".to_string(),
+                                            message: "Cannot upload drivers license. ".to_string(),
+                                        };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -130,7 +130,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        msg = serde_json::json!({
+                                        let msg = serde_json::json!({
                                             "drivers_license_secondary": link,
                                         });
                                         Ok::<_, warp::Rejection>((
@@ -143,9 +143,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        msg = serde_json::json!({
-                                            "drivers_license_secondary": None::<Option<String>>,
-                                        });
+                                        let msg = model::ErrorResponse {
+                                            title: "Upload Failed".to_string(),
+                                            message: "Cannot upload secondary drivers license. ".to_string(),
+                                        };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -164,7 +165,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        msg = serde_json::json!({
+                                        let msg = serde_json::json!({
                                             "lease_agreement": link,
                                         });
                                         Ok::<_, warp::Rejection>((
@@ -177,9 +178,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        msg = serde_json::json!({
-                                            "lease_agreement": None::<Option<String>>,
-                                        });
+                                        let msg = model::ErrorResponse {
+                                            title: "Upload Failed".to_string(),
+                                            message: "Cannot upload lease agreement. ".to_string(),
+                                        };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -198,7 +200,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        msg = serde_json::json!({
+                                        let msg = serde_json::json!({
                                             "insurance_id": link,
                                         });
                                         Ok::<_, warp::Rejection>((
@@ -211,9 +213,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                             ),
                                         ))
                                     } else {
-                                        msg = serde_json::json!({
-                                            "insurance_id": None::<Option<String>>,
-                                        });
+                                        let msg = model::ErrorResponse {
+                                            title: "Upload Failed".to_string(),
+                                            message: "Cannot upload proof of insurance. ".to_string(),
+                                        };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,

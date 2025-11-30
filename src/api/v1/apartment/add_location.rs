@@ -83,13 +83,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::Location>(&mut pool);
                             return match insert_result {
                                 Err(_) => {
-                                    let msg =
-                                        serde_json::json!({"error": "Bad location data provided"});
+                                    let err_msg = model::ErrorResponse {
+                                        title: "Bad Location".to_string(),
+                                        message: "Bad location data provided. ".to_string(),
+                                    };
                                     Ok::<_, warp::Rejection>((
                                         methods::tokens::wrap_json_reply_with_token(
                                             new_token_in_db_publish,
                                             with_status(
-                                                warp::reply::json(&msg),
+                                                warp::reply::json(&err_msg),
                                                 StatusCode::NOT_ACCEPTABLE,
                                             ),
                                         ),

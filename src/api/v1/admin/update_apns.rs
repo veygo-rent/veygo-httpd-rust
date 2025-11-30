@@ -1,6 +1,7 @@
 use crate::schema::renters::dsl::renters;
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
+use http::Method;
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply};
 
@@ -12,12 +13,15 @@ struct UpdateApnsBody {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("update-apns")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |body: UpdateApnsBody, auth: String, user_agent: String| {
+            async move |method: Method, body: UpdateApnsBody, auth: String, user_agent: String| {
+                if method != Method::POST {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return();

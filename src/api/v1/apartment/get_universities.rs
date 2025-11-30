@@ -16,7 +16,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 .filter(is_operating.eq(true))
                 .filter(uni_id.eq(1))
                 .load::<Apartment>(&mut pool)
-                .unwrap();
+                .unwrap_or_default();
 
             let msg = serde_json::json!({"universities": results});
             Ok::<_, warp::Rejection>((warp::reply::with_status(

@@ -283,8 +283,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if request_error.code == Some(ErrorCode::CardDeclined) {
                                     return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                 } else if request_error.error_type == InvalidRequest {
-                                    let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::PAYMENT_REQUIRED)),));
+                                    let err_msg = model::ErrorResponse {
+                                        title: "Payment Method Invalid".to_string(),
+                                        message: "Payment method is invalid. Please try a different credit card. ".to_string(),
+                                    };
+                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::PAYMENT_REQUIRED)),));
                                 }
                             }
                             methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())

@@ -77,13 +77,15 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::Apartment>(&mut pool);
                             return match insert_result {
                                 Err(_) => {
-                                    let msg =
-                                        serde_json::json!({"error": "Apartment already exists"});
+                                    let err_msg = model::ErrorResponse {
+                                        title: "Existing Apartment".to_string(),
+                                        message: "The apartment already exist. ".to_string(),
+                                    };
                                     Ok::<_, warp::Rejection>((
                                         methods::tokens::wrap_json_reply_with_token(
                                             new_token_in_db_publish,
                                             with_status(
-                                                warp::reply::json(&msg),
+                                                warp::reply::json(&err_msg),
                                                 StatusCode::NOT_ACCEPTABLE,
                                             ),
                                         ),
