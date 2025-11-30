@@ -62,11 +62,16 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         match new_pm_result {
                             Ok(new_pm) => {
                                 use crate::schema::payment_methods::dsl::*;
-                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true)).filter(fingerprint.eq(&new_pm.fingerprint)))).get_result::<bool>(&mut pool)
+                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true))
+                                    .filter(fingerprint.eq(&new_pm.fingerprint))))
+                                    .get_result::<bool>(&mut pool)
                                     .unwrap();
                                 if card_in_db {
-                                    let error_msg = serde_json::json!({"error": "PaymentMethods existed"});
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                                    let msg =  model::ErrorResponse {
+                                        title: "Payment Method Existed".to_string(),
+                                        message: "Please try a different credit card. ".to_string(),
+                                    };
+                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE)),));
                                 }
                                 // attach payment method to customer
                                 let current_renter = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
@@ -91,8 +96,11 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                             if request_error.code == Some(ErrorCode::CardDeclined) {
                                                 return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                             } else if request_error.error_type == InvalidRequest {
-                                                let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
-                                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                                                let msg =  model::ErrorResponse {
+                                                    title: "Payment Method Invalid".to_string(),
+                                                    message: "Payment method is invalid. Please try a different credit card. ".to_string(),
+                                                };
+                                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE)),));
                                             }
                                         }
                                         methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
@@ -100,8 +108,11 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 }
                             }
                             Err(_) => {
-                                let error_msg = serde_json::json!({"error": "Payment Methods token invalid"});
-                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),))
+                                let msg =  model::ErrorResponse {
+                                    title: "Payment Method Invalid".to_string(),
+                                    message: "Payment method is invalid. Please try a different credit card. ".to_string(),
+                                };
+                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE)),))
                             }
                         }
                     } else {
