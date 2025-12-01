@@ -138,12 +138,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                             current_trip.mileage_package = Some(mp.unwrap());
                                         }
                                     }
-                                    let msg = serde_json::json!({
-                                        "current_trip": current_trip,
-                                    });
                                     Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
                                         new_token_in_db_publish,
-                                        with_status(warp::reply::json(&msg), StatusCode::OK),
+                                        with_status(warp::reply::json(&current_trip), StatusCode::OK),
                                     ),))
                                 }
                             }
