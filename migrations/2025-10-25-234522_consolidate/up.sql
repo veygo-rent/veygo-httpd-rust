@@ -351,6 +351,8 @@ create index agreements_status_idx
     on agreements (status);
 create index agreements_rsvp_pickup_time_idx
     on agreements (rsvp_pickup_time);
+create index agreements_rsvp_drop_off_time_idx
+    on agreements (rsvp_drop_off_time);
 create index agreements_actual_drop_off_time_idx
     on agreements (actual_drop_off_time);
 

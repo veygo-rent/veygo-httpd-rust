@@ -69,7 +69,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use crate::schema::vehicles::dsl as vehicle_query;
                             use crate::schema::locations::dsl as location_query;
                             use crate::schema::payment_methods::dsl as payment_method_query;
-                            let now_plus_two_hours = chrono::Utc::now() + chrono::Duration::hours(2);
+                            let now = chrono::Utc::now();
+                            let now_plus_two_hours = now + chrono::Duration::hours(2);
                             let current_agreement_result = agreement_query::agreements
                                 .inner_join(location_query::locations
                                     .inner_join(apartment_query::apartments)
@@ -79,6 +80,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .filter(agreement_query::renter_id.eq(&user_in_request.id))
                                 .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
                                 .filter(agreement_query::actual_drop_off_time.is_null())
+                                .filter(
+                                    agreement_query::actual_pickup_time.is_not_null()
+                                        .or(agreement_query::rsvp_drop_off_time.ge(now))
+                                )
                                 .filter(agreement_query::rsvp_pickup_time.le(now_plus_two_hours))
                                 .order_by(agreement_query::rsvp_pickup_time.asc())
                                 .select(
