@@ -80,7 +80,8 @@ pub enum PaymentType {
     RequiresConfirmation,
     RequiresPaymentMethod,
     Succeeded,
-    VeygoBadDebt
+    VeygoBadDebt,
+    VeygoInsurance,
 }
 
 #[derive(
@@ -282,6 +283,7 @@ impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
             PaymentType::RequiresPaymentMethod => out.write_all(b"requires_payment_method")?,
             PaymentType::Succeeded => out.write_all(b"succeeded")?,
             PaymentType::VeygoBadDebt => out.write_all(b"veygo.bad_debt")?,
+            PaymentType::VeygoInsurance => out.write_all(b"veygo.insurance")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -298,6 +300,7 @@ impl FromSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
             b"requires_payment_method" => Ok(PaymentType::RequiresPaymentMethod),
             b"succeeded" => Ok(PaymentType::Succeeded),
             b"veygo.bad_debt" => Ok(PaymentType::VeygoBadDebt),
+            b"veygo.insurance" => Ok(PaymentType::VeygoInsurance),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
