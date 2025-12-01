@@ -196,8 +196,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .get_result::<(model::Vehicle, model::Location, model::Apartment)>(&mut pool);
 
                     if vehicle_result.is_err() {
-                        let error_msg = serde_json::json!({"error": "Vehicle unavailable"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::CONFLICT)),));
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Booking this vehicle is currently not allowed. Please try again later. "),
+                        };
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::CONFLICT)),));
                     }
                     let vehicle_with_location: (model::Vehicle, model::Location, model::Apartment) = vehicle_result.unwrap();
 
