@@ -995,8 +995,8 @@ pub struct Damage {
     pub occur_date: DateTime<Utc>,
     pub standard_coordination_x_percentage: i32,
     pub standard_coordination_y_percentage: i32,
-    pub first_image: Option<String>,
-    pub second_image: Option<String>,
+    pub first_image: String,
+    pub second_image: String,
     pub third_image: Option<String>,
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
@@ -1021,8 +1021,8 @@ pub struct NewDamage {
     pub occur_date: DateTime<Utc>,
     pub standard_coordination_x_percentage: i32,
     pub standard_coordination_y_percentage: i32,
-    pub first_image: Option<String>,
-    pub second_image: Option<String>,
+    pub first_image: String,
+    pub second_image: String,
     pub third_image: Option<String>,
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]

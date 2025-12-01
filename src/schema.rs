@@ -67,8 +67,7 @@ diesel::table! {
         user_email -> Varchar,
         #[max_length = 10]
         user_phone -> Varchar,
-        #[max_length = 128]
-        user_billing_address -> Varchar,
+        user_billing_address -> Text,
         rsvp_pickup_time -> Timestamptz,
         rsvp_drop_off_time -> Timestamptz,
         liability_protection_rate -> Nullable<Float8>,
@@ -122,8 +121,7 @@ diesel::table! {
         email -> Varchar,
         #[max_length = 10]
         phone -> Varchar,
-        #[max_length = 128]
-        address -> Varchar,
+        address -> Text,
         #[max_length = 16]
         accepted_school_email_domain -> Varchar,
         free_tier_hours -> Float8,
@@ -163,8 +161,7 @@ diesel::table! {
         id -> Int4,
         renter_id -> Nullable<Int4>,
         action -> AuditActionEnum,
-        #[max_length = 64]
-        path -> Varchar,
+        path -> Text,
         time -> Timestamptz,
     }
 }
@@ -172,8 +169,7 @@ diesel::table! {
 diesel::table! {
     charges (id) {
         id -> Int4,
-        #[max_length = 64]
-        name -> Varchar,
+        name -> Text,
         time -> Timestamptz,
         amount -> Float8,
         note -> Nullable<Text>,
@@ -202,14 +198,10 @@ diesel::table! {
     damage_submissions (id) {
         id -> Int4,
         reported_by -> Int4,
-        #[max_length = 255]
-        first_image -> Varchar,
-        #[max_length = 255]
-        second_image -> Varchar,
-        #[max_length = 255]
-        third_image -> Nullable<Varchar>,
-        #[max_length = 255]
-        fourth_image -> Nullable<Varchar>,
+        first_image -> Text,
+        second_image -> Text,
+        third_image -> Nullable<Text>,
+        fourth_image -> Nullable<Text>,
         description -> Text,
         processed_by -> Nullable<Int4>,
     }
@@ -223,14 +215,10 @@ diesel::table! {
         occur_date -> Timestamptz,
         standard_coordination_x_percentage -> Int4,
         standard_coordination_y_percentage -> Int4,
-        #[max_length = 255]
-        first_image -> Nullable<Varchar>,
-        #[max_length = 255]
-        second_image -> Nullable<Varchar>,
-        #[max_length = 255]
-        third_image -> Nullable<Varchar>,
-        #[max_length = 255]
-        fourth_image -> Nullable<Varchar>,
+        first_image -> Text,
+        second_image -> Text,
+        third_image -> Nullable<Text>,
+        fourth_image -> Nullable<Text>,
         fixed_date -> Nullable<Timestamptz>,
         fixed_amount -> Nullable<Float8>,
         depreciation -> Nullable<Float8>,
@@ -380,31 +368,24 @@ diesel::table! {
         phone -> Varchar,
         phone_is_verified -> Bool,
         date_of_birth -> Date,
-        #[max_length = 255]
-        profile_picture -> Nullable<Varchar>,
+        profile_picture -> Nullable<Text>,
         gender -> Nullable<GenderEnum>,
         date_of_registration -> Timestamptz,
         #[max_length = 26]
         drivers_license_number -> Nullable<Varchar>,
         #[max_length = 6]
         drivers_license_state_region -> Nullable<Varchar>,
-        #[max_length = 255]
-        drivers_license_image -> Nullable<Varchar>,
-        #[max_length = 255]
-        drivers_license_image_secondary -> Nullable<Varchar>,
+        drivers_license_image -> Nullable<Text>,
+        drivers_license_image_secondary -> Nullable<Text>,
         drivers_license_expiration -> Nullable<Date>,
-        #[max_length = 255]
-        insurance_id_image -> Nullable<Varchar>,
+        insurance_id_image -> Nullable<Text>,
         insurance_liability_expiration -> Nullable<Date>,
         insurance_collision_expiration -> Nullable<Date>,
-        #[max_length = 255]
-        lease_agreement_image -> Nullable<Varchar>,
+        lease_agreement_image -> Nullable<Text>,
         apartment_id -> Int4,
         lease_agreement_expiration -> Nullable<Date>,
-        #[max_length = 128]
-        billing_address -> Nullable<Varchar>,
-        #[max_length = 255]
-        signature_image -> Nullable<Varchar>,
+        billing_address -> Nullable<Text>,
+        signature_image -> Nullable<Text>,
         signature_datetime -> Nullable<Timestamptz>,
         plan_tier -> PlanTierEnum,
         #[max_length = 2]
@@ -457,16 +438,11 @@ diesel::table! {
         id -> Int4,
         #[max_length = 18]
         name -> Varchar,
-        #[max_length = 36]
-        corresponding_key_for_vehicle_id -> Varchar,
-        #[max_length = 36]
-        corresponding_key_for_transaction_name -> Varchar,
-        #[max_length = 18]
-        custom_prefix_for_transaction_name -> Varchar,
-        #[max_length = 36]
-        corresponding_key_for_transaction_time -> Varchar,
-        #[max_length = 36]
-        corresponding_key_for_transaction_amount -> Varchar,
+        corresponding_key_for_vehicle_id -> Text,
+        corresponding_key_for_transaction_name -> Text,
+        custom_prefix_for_transaction_name -> Text,
+        corresponding_key_for_transaction_time -> Text,
+        corresponding_key_for_transaction_amount -> Text,
         #[max_length = 26]
         timestamp_format -> Varchar,
         #[max_length = 26]
@@ -477,14 +453,10 @@ diesel::table! {
 diesel::table! {
     vehicle_snapshots (id) {
         id -> Int4,
-        #[max_length = 255]
-        left_image -> Varchar,
-        #[max_length = 255]
-        right_image -> Varchar,
-        #[max_length = 255]
-        front_image -> Varchar,
-        #[max_length = 255]
-        back_image -> Varchar,
+        left_image -> Text,
+        right_image -> Text,
+        front_image -> Text,
+        back_image -> Text,
         time -> Timestamptz,
         odometer -> Int4,
         level -> Int4,
@@ -552,8 +524,7 @@ diesel::table! {
         vehicle_id -> Int4,
         service_id -> Int4,
         odometer -> Int4,
-        #[max_length = 255]
-        document -> Varchar,
+        document -> Text,
     }
 }
 
