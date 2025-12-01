@@ -27,6 +27,9 @@ drop table if exists verifications;
 
 drop table if exists damage_submissions;
 
+drop index if exists agreements_status_idx;
+drop index if exists agreements_rsvp_pickup_time_idx;
+drop index if exists agreements_actual_drop_off_time_idx;
 drop table if exists agreements;
 
 drop table if exists vehicle_snapshots;

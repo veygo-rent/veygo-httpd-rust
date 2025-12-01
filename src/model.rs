@@ -634,6 +634,7 @@ pub struct Apartment {
     pub uni_id: Option<i32>,
     pub mileage_rate_overwrite: Option<f64>,
     pub mileage_package_overwrite: Option<f64>,
+    pub mileage_conversion: f64,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -664,6 +665,7 @@ pub struct NewApartment {
     pub uni_id: Option<i32>,
     pub mileage_rate_overwrite: Option<f64>,
     pub mileage_package_overwrite: Option<f64>,
+    pub mileage_conversion: f64,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1154,6 +1156,7 @@ pub struct Agreement {
     pub mileage_conversion: f64,
     pub mileage_rate_overwrite: Option<f64>,
     pub mileage_package_overwrite: Option<f64>,
+    pub utilization_factor: f64,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]

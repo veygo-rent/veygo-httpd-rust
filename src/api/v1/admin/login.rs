@@ -53,19 +53,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         });
                         Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
                     } else {
-                        let error_msg = helper_model::ErrorResponse {
+                        let err_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
-                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
                     }
                 },
                 Err(_) => {
-                    let error_msg = helper_model::ErrorResponse {
+                    let err_msg = helper_model::ErrorResponse {
                         title: "Credentials Invalid".to_string(),
                         message: "Please check your credentials again. ".to_string(),
                     };
-                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
                 }
             };
         })

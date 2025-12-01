@@ -93,6 +93,7 @@ diesel::table! {
         mileage_conversion -> Float8,
         mileage_rate_overwrite -> Nullable<Float8>,
         mileage_package_overwrite -> Nullable<Float8>,
+        utilization_factor -> Float8,
     }
 }
 
@@ -143,6 +144,7 @@ diesel::table! {
         uni_id -> Nullable<Int4>,
         mileage_rate_overwrite -> Nullable<Float8>,
         mileage_package_overwrite -> Nullable<Float8>,
+        mileage_conversion -> Float8,
     }
 }
 
