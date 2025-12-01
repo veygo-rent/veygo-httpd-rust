@@ -415,9 +415,9 @@ diesel::table! {
         is_plan_annual -> Bool,
         employee_tier -> EmployeeTierEnum,
         subscription_payment_method_id -> Nullable<Int4>,
-        #[max_length = 32]
+        #[max_length = 128]
         apple_apns -> Nullable<Varchar>,
-        #[max_length = 32]
+        #[max_length = 128]
         admin_apple_apns -> Nullable<Varchar>,
     }
 }

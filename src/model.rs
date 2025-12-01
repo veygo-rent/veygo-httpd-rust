@@ -1506,6 +1506,7 @@ pub struct RateOffer {
     pub renter_id: i32,
     pub apartment_id: i32,
     pub multiplier: f64,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
 }
 
