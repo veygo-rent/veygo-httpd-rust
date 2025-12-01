@@ -9,6 +9,8 @@ drop table if exists apartments_taxes;
 drop table if exists agreements_damages;
 drop table if exists vehicles_services;
 
+drop table if exists rate_offers;
+
 drop table if exists reward_transactions;
 
 drop table if exists payments;

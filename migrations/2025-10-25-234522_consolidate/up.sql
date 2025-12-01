@@ -489,6 +489,19 @@ create table reward_transactions
     constraint reward_transactions_agreement_id_fk foreign key (agreement_id) references agreements(id)
 );
 
+create table rate_offers
+(
+    id              serial,
+    renter_id       integer                                                                             not null,
+    apartment_id    integer                                                                             not null,
+    multiplier      double precision                                                                    not null,
+    exp             timestamp with time zone    default (CURRENT_TIMESTAMP + '00:20:00'::interval)      not null,
+    constraint rate_offers_pk primary key (id),
+    constraint rate_offers_renter_id_fk foreign key (renter_id) references renters(id),
+    constraint rate_offers_apartment_id_fk foreign key (apartment_id) references apartments(id),
+    constraint rate_offers_multiplier_range check (multiplier > 0.0)
+);
+
 create table agreements_taxes
 (
     agreement_id integer not null,

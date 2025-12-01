@@ -1494,3 +1494,23 @@ pub struct NewPolicy {
     pub policy_effective_date: NaiveDate,
     pub content: String,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Queryable, Identifiable)]
+#[diesel(table_name = rate_offers)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct RateOffer {
+    pub id: i32,
+    pub renter_id: i32,
+    pub apartment_id: i32,
+    pub multiplier: f64,
+    pub exp: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Insertable)]
+#[diesel(table_name = rate_offers)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewRateOffer {
+    pub renter_id: i32,
+    pub apartment_id: i32,
+    pub multiplier: f64,
+}
