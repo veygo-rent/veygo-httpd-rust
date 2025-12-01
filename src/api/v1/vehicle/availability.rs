@@ -107,6 +107,30 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 // RETURN: FORBIDDEN
                                 return methods::standard_replies::apartment_not_operational_wrapped(new_token_in_db_publish.clone());
                             }
+
+                            use crate::schema::agreements::dsl as agreements_query;
+
+                            let renter_agreements_blocking_count = agreements_query::agreements
+                                .filter(agreements_query::renter_id.eq(&access_token.user_id))
+                                .filter(agreements_query::status.eq(model::AgreementStatus::Rental))
+                                .filter(
+                                    methods::diesel_fn::coalesce(agreements_query::actual_pickup_time, agreements_query::rsvp_pickup_time)
+                                        .lt(body.end_time + Duration::minutes(15))
+                                        .and(
+                                            methods::diesel_fn::coalesce(
+                                                agreements_query::actual_drop_off_time,
+                                                methods::diesel_fn::greatest(agreements_query::rsvp_drop_off_time, diesel::dsl::now)
+                                            )
+                                                .gt(body.start_time - Duration::minutes(15))
+                                        )
+                                )
+                                .count()
+                                .get_result(&mut pool).unwrap_or(0);
+
+                            if renter_agreements_blocking_count > 0 {
+                                return methods::standard_replies::double_booking_not_allowed_wrapped(new_token_in_db_publish.clone())
+                            }
+
                             use crate::schema::locations::dsl as locations_query;
                             use crate::schema::vehicles::dsl as vehicles_query;
                             let all_vehicles = vehicles_query::vehicles
@@ -146,7 +170,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 vehicles: Vec<VehicleWithBlockedDurations>,
                             }
                             let mut vehicles_by_location: HashMap<i32, LocationWithVehicles> = HashMap::new();
-                            use crate::schema::agreements::dsl as agreements_query;
                             for (vehicle, location) in all_vehicles {
 
                                 let mut blocked_durations: Vec<BlockedRange> = Vec::new();

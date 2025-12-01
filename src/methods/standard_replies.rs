@@ -92,6 +92,19 @@ pub fn apartment_not_operational_wrapped(
     ),))
 }
 
+pub fn double_booking_not_allowed_wrapped(
+    token_data: model::PublishAccessToken,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+        title: String::from("Booking Not Allowed"),
+        message: String::from("This booking overlaps with your other booking. Please try a different time."),
+    };
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
+    ),))
+}
+
 pub fn user_not_admin_wrapped_return(
     token_data: model::PublishAccessToken,
 ) -> Result<(warp::reply::Response,), Rejection> {

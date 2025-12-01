@@ -343,6 +343,14 @@ create table agreements
     constraint agreements_mileage_package_id_fk foreign key (mileage_package_id) references mileage_packages(id),
     constraint agreements_vehicle_snapshot_before_fk foreign key (vehicle_snapshot_before) references vehicle_snapshots(id),
     constraint agreements_vehicle_snapshot_after_fk foreign key (vehicle_snapshot_after) references vehicle_snapshots(id),
+    constraint agreements_pickup_snapshot_ck check (
+        (actual_pickup_time is null and vehicle_snapshot_before is null) or
+        (actual_pickup_time is not null and vehicle_snapshot_before is not null)
+        ),
+    constraint agreements_drop_off_snapshot_ck check (
+        (actual_drop_off_time is null and vehicle_snapshot_after is null) or
+        (actual_drop_off_time is not null and vehicle_snapshot_after is not null)
+        ),
     constraint agreements_mileage_rate_overwrite_range check (mileage_rate_overwrite >= 0.0),
     constraint agreements_mileage_package_overwrite_range check (mileage_package_overwrite >= 0.0)
 );
