@@ -1,9 +1,10 @@
-use crate::{POOL, integration, methods, model, proj_config, helper_model};
+use crate::{POOL, methods, model, helper_model};
 use diesel::prelude::*;
-use warp::{Filter, Reply};
+use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
+use warp::reply::with_status;
 
-pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("current")
         .and(warp::path::end())
         .and(warp::method())
@@ -67,17 +68,85 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             use crate::schema::apartments::dsl as apartment_query;
                             use crate::schema::vehicles::dsl as vehicle_query;
                             use crate::schema::locations::dsl as location_query;
+                            use crate::schema::payment_methods::dsl as payment_method_query;
+                            let now_plus_two_hours = chrono::Utc::now() + chrono::Duration::hours(2);
                             let current_agreement_result = agreement_query::agreements
                                 .inner_join(location_query::locations
                                     .inner_join(apartment_query::apartments)
                                 )
                                 .inner_join(vehicle_query::vehicles)
+                                .inner_join(payment_method_query::payment_methods)
                                 .filter(agreement_query::renter_id.eq(&user_in_request.id))
                                 .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
                                 .filter(agreement_query::actual_drop_off_time.is_null())
-                                .order_by(agreement_query::rsvp_pickup_time.asc());
-                            // TODO
-                            methods::standard_replies::not_implemented_response()
+                                .filter(agreement_query::rsvp_pickup_time.le(now_plus_two_hours))
+                                .order_by(agreement_query::rsvp_pickup_time.asc())
+                                .select(
+                                    (
+                                        agreement_query::agreements::all_columns(),
+                                        vehicle_query::vehicles::all_columns(),
+                                        apartment_query::apartments::all_columns(),
+                                        location_query::locations::all_columns(),
+                                        payment_method_query::payment_methods::all_columns()
+                                    )
+                                )
+                                .first::<(model::Agreement, model::Vehicle, model::Apartment, model::Location, model::PaymentMethod)>(&mut pool);
+                            return match current_agreement_result {
+                                Err(_) => {
+                                    let err_msg = helper_model::ErrorResponse {
+                                        title: "No Current Reservation".to_string(),
+                                        message: "Cannot find current reservation. ".to_string(),
+                                    };
+                                    let reply = warp::reply::with_status(warp::reply::json(&err_msg), StatusCode::NOT_FOUND);
+                                    Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish.clone(), reply).into_response(),))
+                                },
+                                Ok(current) => {
+                                    let mut current_trip = helper_model::CurrentTrip {
+                                        agreement: current.0,
+                                        vehicle: current.1.into(),
+                                        apartment: current.2,
+                                        location: current.3,
+                                        vehicle_snapshot_before: None,
+                                        payment_method: current.4.into(),
+                                        promo: None,
+                                        mileage_package: None,
+                                    };
+                                    if let Some(snapshot_id) = current_trip.agreement.vehicle_snapshot_before {
+                                        use crate::schema::vehicle_snapshots::dsl as vehicle_snapshot_query;
+                                        let snapshot = vehicle_snapshot_query::vehicle_snapshots
+                                            .filter(vehicle_snapshot_query::id.eq(&snapshot_id))
+                                            .get_result::<model::VehicleSnapshot>(&mut pool);
+                                        if snapshot.is_ok() {
+                                            current_trip.vehicle_snapshot_before = Some(snapshot.unwrap());
+                                        }
+                                    }
+                                    if let Some(promo_code) = current_trip.agreement.promo_id.clone() {
+                                        use crate::schema::promos::dsl as promo_query;
+                                        let promo = promo_query::promos
+                                            .filter(promo_query::code.eq(&promo_code))
+                                            .get_result::<model::Promo>(&mut pool);
+                                        if promo.is_ok() {
+                                            current_trip.promo = Some(promo.unwrap().into());
+                                        }
+                                    }
+                                    if let Some(mileage_package_id) = current_trip.agreement.mileage_package_id {
+                                        use crate::schema::mileage_packages::dsl as mp_query;
+                                        let mp = mp_query::mileage_packages
+                                            .filter(mp_query::id.eq(&mileage_package_id))
+                                            .get_result::<model::MileagePackage>(&mut pool);
+                                        if mp.is_ok() {
+                                            current_trip.mileage_package = Some(mp.unwrap());
+                                        }
+                                    }
+                                    let msg = serde_json::json!({
+                                        "current_trip": current_trip,
+                                    });
+                                    Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                        new_token_in_db_publish,
+                                        with_status(warp::reply::json(&msg), StatusCode::OK),
+                                    ),))
+                                }
+                            }
                         }
                     }
                 }

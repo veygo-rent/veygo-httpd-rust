@@ -14,7 +14,6 @@ pub struct CurrentTrip {
     pub apartment: model::Apartment,
     pub location: model::Location,
     pub vehicle_snapshot_before: Option<model::VehicleSnapshot>,
-    pub vehicle_snapshot_after: Option<model::VehicleSnapshot>,
     pub payment_method: model::PublishPaymentMethod,
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
