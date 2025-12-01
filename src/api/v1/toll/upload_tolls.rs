@@ -1,10 +1,8 @@
-use crate::{POOL, methods, model, helper_model};
-use blake3;
+use crate::{POOL, methods, model, helper_model, methods::diesel_fn};
 use bytes::BufMut;
 use currency_rs::Currency;
 use diesel::dsl::exists;
 use diesel::prelude::*;
-use diesel::sql_types::{Bool, Timestamptz};
 use futures::TryStreamExt;
 use std::collections::HashSet;
 use warp::Filter;
@@ -191,54 +189,58 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let transaction_time = methods::timestamps::to_utc(&transaction_time_string, &toll_company_clone.timestamp_format, toll_company_clone.timezone).unwrap();
                                     let transaction_amount = Currency::new_string(&transaction_amount_string, None).unwrap().value().abs();
                                     let transaction_name = record[toll_company_clone.corresponding_key_for_transaction_name].to_string();
-                                    let to_be_hashed = transaction_name.clone() + &transaction_amount.to_string() + &transaction_time.to_string();
-                                    let hashed = blake3::hash(to_be_hashed.as_bytes()).to_hex().to_string();
-                                    use crate::schema::charges::dsl::*;
+                                    use crate::schema::charges::dsl as ch_q;
                                     let mut pool = POOL.get().unwrap();
-                                    let if_exist = diesel::select(diesel::dsl::exists(
-                                        charges
-                                            .filter(checksum.eq(&hashed)),
-                                    )).get_result::<bool>(&mut pool).unwrap();
-                                    if !if_exist {
-                                        let mut charge_record = crate::model::NewCharge {
-                                            name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
-                                            time: transaction_time,
-                                            amount: transaction_amount,
-                                            note: None,
-                                            agreement_id: None,
-                                            vehicle_id: 0,
-                                            checksum: hashed.to_string(),
-                                            transponder_company_id: Option::from(toll_company_id),
-                                            vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
-                                        };
-                                        use crate::schema::vehicles::dsl::*;
-                                        let vehicle_result: QueryResult<crate::model::Vehicle> = vehicles
+
+                                    let mut charge_record = model::NewCharge {
+                                        name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
+                                        time: transaction_time,
+                                        amount: transaction_amount,
+                                        note: None,
+                                        agreement_id: None,
+                                        vehicle_id: 0,
+                                        transponder_company_id: Option::from(toll_company_id),
+                                        vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
+                                    };
+
+                                    let charge_exists = diesel::select(
+                                        diesel::dsl::exists(
+                                            ch_q::charges
+                                                .filter(ch_q::name.eq(&charge_record.name))
+                                                .filter(ch_q::time.eq(&charge_record.time))
+                                                .filter(ch_q::transponder_company_id.eq(&charge_record.transponder_company_id))
+                                                .filter(ch_q::vehicle_identifier.eq(&charge_record.vehicle_identifier))
+                                        )
+                                    ).get_result::<bool>(&mut pool).unwrap_or(false);
+
+                                    if !charge_exists {
+                                        use crate::schema::vehicles::dsl as v_q;
+                                        let vehicle_result: QueryResult<model::Vehicle> = v_q::vehicles
                                             .into_boxed().filter(
-                                            first_transponder_company_id.eq(toll_company_id).and(first_transponder_number.eq(&vehicle_identifier_str))
-                                                .or(second_transponder_company_id.eq(toll_company_id).and(second_transponder_number.eq(&vehicle_identifier_str)))
-                                                .or(third_transponder_company_id.eq(toll_company_id).and(third_transponder_number.eq(&vehicle_identifier_str)))
-                                                .or(fourth_transponder_company_id.eq(toll_company_id).and(fourth_transponder_number.eq(&vehicle_identifier_str)))
-                                        ).get_result::<crate::model::Vehicle>(&mut pool);
-                                        if let Ok(vehicle_result) = vehicle_result {
-                                            // found vehicle
-                                            charge_record.vehicle_id = vehicle_result.id;
-                                            // try to find agreement
-                                            use crate::schema::agreements::dsl::*;
-                                            use diesel::dsl::sql;
-                                            let agreement_result = agreements
-                                                .into_boxed().filter(vehicle_id.eq(vehicle_result.id))
-                                                .filter(sql::<Bool>("COALESCE(actual_pickup_time, rsvp_pickup_time) <= ")
-                                                    .bind::<Timestamptz, _>(transaction_time)
-                                                    .sql(" AND COALESCE(actual_drop_off_time, rsvp_drop_off_time) >= ")
-                                                    .bind::<Timestamptz, _>(transaction_time)
-                                                )
-                                                .get_result::<crate::model::Agreement>(&mut pool);
-                                            if let Ok(agreement) = agreement_result {
-                                                charge_record.agreement_id = Some(agreement.id);
+                                            v_q::first_transponder_company_id.eq(toll_company_id).and(v_q::first_transponder_number.eq(&vehicle_identifier_str))
+                                                .or(v_q::second_transponder_company_id.eq(toll_company_id).and(v_q::second_transponder_number.eq(&vehicle_identifier_str)))
+                                                .or(v_q::third_transponder_company_id.eq(toll_company_id).and(v_q::third_transponder_number.eq(&vehicle_identifier_str)))
+                                                .or(v_q::fourth_transponder_company_id.eq(toll_company_id).and(v_q::fourth_transponder_number.eq(&vehicle_identifier_str)))
+                                        ).get_result::<model::Vehicle>(&mut pool);
+
+                                        if let Ok(vehicle) = vehicle_result {
+                                            charge_record.vehicle_id = vehicle.id;
+
+                                            use crate::schema::agreements::dsl as ag_q;
+                                            let affected_agreement = ag_q::agreements
+                                                .filter(ag_q::actual_pickup_time.le(&charge_record.time))
+                                                .filter(diesel_fn::coalesce(ag_q::actual_drop_off_time, diesel::dsl::now).ge(&charge_record.time))
+                                                .filter(ag_q::vehicle_id.eq(&charge_record.vehicle_id))
+                                                .get_result::<model::Agreement>(&mut pool);
+
+                                            if let Ok(ag) = affected_agreement {
+                                                charge_record.agreement_id = Some(ag.id);
                                             }
-                                            let _ = diesel::insert_into(charges).values(&charge_record).execute(&mut pool);
+
+                                            let _ = diesel::insert_into(ch_q::charges).values(&charge_record).execute(&mut pool);
                                         }
                                     }
+
                                 }
                             });
 
@@ -249,7 +251,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     with_status(warp::reply::json(&json_records), StatusCode::OK),
                                 ),
                             ));
-                            // note: original synchronous insertion code has been moved into the spawn above
                         }
                     }
                 };

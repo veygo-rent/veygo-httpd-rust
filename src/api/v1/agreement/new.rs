@@ -238,50 +238,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .get_result::<model::PaymentMethod>(&mut pool);
 
                     if pm_result.is_err() {
-                        let error_msg = serde_json::json!({"error": "Credit card is unavailable"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Failed"),
+                            message: String::from("The credit card you used to book is invalid. "),
+                        };
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
                     let payment_method = pm_result.unwrap();
-
-                    // Check if liability is covered (liability & collision)
-                    let requires_own = vehicle_with_location.0.requires_own_insurance;
-                    // liability
-                    let has_own_liability = user_in_request
-                        .insurance_liability_expiration
-                        .map(|d| d >= return_date)
-                        .unwrap_or(false);
-                    let has_lia = body.liability && !requires_own;
-
-                    let liability_ok = if requires_own {
-                        has_own_liability
-                    } else {
-                        has_lia || has_own_liability
-                    };
-
-                    if !liability_ok {
-                        let error_msg = serde_json::json!({"error": "Liability coverage required"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
-                    }
-                    // collision
-                    let has_own_collision = user_in_request
-                        .insurance_collision_expiration
-                        .map(|d| d >= return_date)
-                        .unwrap_or(false);
-                    let has_card_cdw = payment_method.cdw_enabled; // credit-card CDW flag
-                    let has_pcdw = body.pcdw && !requires_own;    // PCDW cannot satisfy if vehicle requires own insurance
-
-                    let collision_ok = if requires_own {
-                        // Vehicle requires renter's own policy to be valid through return
-                        has_own_collision
-                    } else {
-                        // Any one of the protections suffices
-                        has_pcdw || has_card_cdw || has_own_collision
-                    };
-
-                    if !collision_ok {
-                        let error_msg = serde_json::json!({"error": "Collision coverage required"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
-                    }
 
                     let start_time_buffered = body.start_time - Duration::minutes(proj_config::RSVP_BUFFER);
                     let end_time_buffered = body.end_time + Duration::minutes(proj_config::RSVP_BUFFER);
@@ -300,15 +263,28 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .get_results::<model::Tax>(&mut pool)
                         .unwrap_or_default();
 
-                    let mut local_tax_rate = 0.00;
+                    let mut local_tax_rate_multiplier = 0.00;
+                    let mut _local_tax_rate_daily = 0.0;
+                    let mut local_tax_rate_fixed = 0.0;
                     let mut local_tax_id: Vec<Option<i32>> = Vec::new();
                     for tax_obj in tax_objs {
-                        local_tax_rate += tax_obj.multiplier;
+                        match tax_obj.tax_type {
+                            model::TaxType::Percent => {
+                                local_tax_rate_multiplier += tax_obj.multiplier;
+                            },
+                            model::TaxType::Daily => {
+                                _local_tax_rate_daily += tax_obj.multiplier;
+                            }
+                            model::TaxType::Fixed => {
+                                local_tax_rate_fixed += tax_obj.multiplier;
+                            }
+                        }
                         (&mut local_tax_id).push(Some(tax_obj.id));
                     }
 
                     let conf_id = methods::agreement::generate_unique_agreement_confirmation();
-                    let deposit_amount = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * (1.00 + local_tax_rate);
+                    let deposit_amount = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * (1.00 + local_tax_rate_multiplier)
+                        + local_tax_rate_fixed;
                     let deposit_amount_in_int = (deposit_amount * 100.0).round() as i64;
                     let description = &("Hold for Veygo Reservation #".to_owned() + &*conf_id.clone());
                     let suffix: Option<&str> = Some(&*("DEPOSIT #".to_owned() + &*conf_id.clone()));
@@ -322,40 +298,44 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
                                 } else if request_error.error_type == InvalidRequest {
                                     let err_msg = helper_model::ErrorResponse {
-                                        title: "Payment Method Invalid".to_string(),
-                                        message: "Payment method is invalid. Please try a different credit card. ".to_string(),
+                                        title: "Unable To Book".to_string(),
+                                        message: "System error, please contact us. ".to_string(),
                                     };
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::PAYMENT_REQUIRED)),));
+                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
                                 }
                             }
-                            methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
+                            let err_msg = helper_model::ErrorResponse {
+                                title: "Unable To Book".to_string(),
+                                message: "System error, please contact us. ".to_string(),
+                            };
+                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
                         }
                         Ok(pmi) => {
-                            use crate::schema::agreements::dsl as agreement_query;
-                            let if_conflict = diesel::select(diesel::dsl::exists(
-                                agreement_query::agreements
+                            use crate::schema::agreements::dsl as ag_q;
+                            let is_conflict = diesel::select(diesel::dsl::exists(
+                                ag_q::agreements
                                     .into_boxed()
-                                    .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
-                                    .filter(agreement_query::vehicle_id.eq(&body.vehicle_id))
+                                    .filter(ag_q::status.eq(model::AgreementStatus::Rental))
+                                    .filter(ag_q::vehicle_id.eq(&body.vehicle_id))
                                     .filter(
-                                        methods::diesel_fn::coalesce(agreement_query::actual_pickup_time, agreement_query::rsvp_pickup_time)
+                                        methods::diesel_fn::coalesce(ag_q::actual_pickup_time, ag_q::rsvp_pickup_time)
                                             .lt(end_time_buffered)
                                             .and(
                                                 methods::diesel_fn::coalesce(
-                                                    agreement_query::actual_drop_off_time,
-                                                    methods::diesel_fn::greatest(agreement_query::rsvp_drop_off_time, diesel::dsl::now)
+                                                    ag_q::actual_drop_off_time,
+                                                    methods::diesel_fn::greatest(ag_q::rsvp_drop_off_time, diesel::dsl::now)
                                                 ).gt(start_time_buffered)
                                             )
                                     )
                             )).get_result::<bool>(&mut pool).unwrap();
 
-                            if if_conflict {
-                                let _result = integration::stripe_veygo::drop_auth(&pmi).await;
+                            if is_conflict {
+                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
                                 let err_msg = helper_model::ErrorResponse {
                                     title: "Vehicle Unavailable".to_string(),
                                     message: "Please try again later. ".to_string(),
                                 };
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::CONFLICT)),));
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
                             }
 
                             let new_agreement = model::NewAgreement {
@@ -387,10 +367,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 mileage_package_overwrite: None
                             };
 
-                            let new_publish_agreement_result = diesel::insert_into(agreement_query::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);
+                            let new_publish_agreement_result = diesel::insert_into(ag_q::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);
                             if new_publish_agreement_result.is_err() {
                                 let _ = integration::stripe_veygo::drop_auth(&pmi).await;
-                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                                let err_msg = helper_model::ErrorResponse {
+                                    title: "Unable To Book".to_string(),
+                                    message: "System error, please contact us. ".to_string(),
+                                };
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg),
+                                                                                                                                                  StatusCode::INTERNAL_SERVER_ERROR)),));
                             }
                             let new_publish_agreement = new_publish_agreement_result.unwrap();
                             use crate::schema::payments::dsl as payment_query;
@@ -409,8 +394,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let payment_result = diesel::insert_into(payment_query::payments).values(&new_payment).get_result::<model::Payment>(&mut pool);
                             if payment_result.is_err() {
                                 let _ = integration::stripe_veygo::drop_auth(&pmi).await;
-                                let _ = diesel::update(agreement_query::agreements).filter(agreement_query::id.eq(&new_publish_agreement.id)).set(agreement_query::status.eq(model::AgreementStatus::Void)).execute(&mut pool);
-                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                                let _ = diesel::delete(ag_q::agreements).filter(ag_q::id.eq(&new_publish_agreement.id)).execute(&mut pool);
+                                let err_msg = helper_model::ErrorResponse {
+                                    title: "Unable To Book".to_string(),
+                                    message: "System error, please contact us. ".to_string(),
+                                };
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg),
+                                                                                                                                                  StatusCode::INTERNAL_SERVER_ERROR)),));
                             }
                             let msg = serde_json::json!({"agreement": &new_publish_agreement});
                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))

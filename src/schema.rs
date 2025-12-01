@@ -175,8 +175,6 @@ diesel::table! {
         note -> Nullable<Text>,
         agreement_id -> Nullable<Int4>,
         vehicle_id -> Int4,
-        #[max_length = 32]
-        checksum -> Varchar,
         transponder_company_id -> Nullable<Int4>,
         #[max_length = 26]
         vehicle_identifier -> Nullable<Varchar>,

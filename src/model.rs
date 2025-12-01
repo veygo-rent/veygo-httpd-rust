@@ -1215,7 +1215,6 @@ pub struct Charge {
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
     pub vehicle_id: i32,
-    pub checksum: String,
     pub transponder_company_id: Option<i32>,
     pub vehicle_identifier: Option<String>,
 }
@@ -1232,7 +1231,6 @@ pub struct NewCharge {
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
     pub vehicle_id: i32,
-    pub checksum: String,
     pub transponder_company_id: Option<i32>,
     pub vehicle_identifier: Option<String>,
 }

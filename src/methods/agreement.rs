@@ -11,10 +11,11 @@ pub fn generate_unique_agreement_confirmation() -> String {
 
     // Shuffle the character set
     charset.shuffle(&mut rng);
+    let mut conn = POOL.get().unwrap();
 
     loop {
         // Generate a random 8-character string.
-        let confirmation: String = (0..6)
+        let confirmation: String = (0..8)
             .map(|_| {
                 let idx = rng.random_range(0..charset.len());
                 charset[idx] as char
@@ -23,7 +24,6 @@ pub fn generate_unique_agreement_confirmation() -> String {
 
         // Check if the generated confirmation already exists in the agreement table, synchronously.
         let exists = {
-            let mut conn = POOL.get().unwrap();
 
             // If there's an error performing the query, treat it as "exists = true" so we retry.
             diesel::select(diesel::dsl::exists(
@@ -31,10 +31,7 @@ pub fn generate_unique_agreement_confirmation() -> String {
                     .filter(crate::schema::agreements::confirmation.eq(&confirmation)),
             ))
             .get_result::<bool>(&mut conn)
-            .unwrap_or_else(|e| {
-                eprintln!("Database error checking agreement confirmation: {:?}", e);
-                true
-            })
+            .unwrap_or(true)
         };
 
         // If the confirmation does not exist, return it.
