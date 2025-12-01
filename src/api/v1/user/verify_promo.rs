@@ -94,7 +94,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
             }
             let apt = apt_in_request.unwrap();
-            if apt.uni_id.is_some() && user.employee_tier != model::EmployeeTier::Admin && user.apartment_id != body.apartment_id {
+            if apt.uni_id != 1 && user.employee_tier != model::EmployeeTier::Admin && user.apartment_id != body.apartment_id {
                 // RETURN: FORBIDDEN
                 return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), body.apartment_id);
             }
@@ -147,7 +147,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::promo_code_not_allowed_response(new_token_in_db_publish.clone(), &body.code);
                         }
                         // check if the promo code is for a specific university
-                        if let Some(specified_uni_id) = promo.uni_id && apt.uni_id != Some(specified_uni_id) && apt.id != specified_uni_id {
+                        if let Some(specified_uni_id) = promo.uni_id && apt.uni_id != specified_uni_id && apt.id != specified_uni_id {
                             return methods::standard_replies::promo_code_not_allowed_response(new_token_in_db_publish.clone(), &body.code);
                         }
                     }

@@ -40,10 +40,10 @@ pub fn get_university_apartment_by_renter(renter: &Renter) -> (crate::model::Apa
     let mut pool = POOL.get().unwrap();
     use crate::schema::apartments::dsl::*;
     let immediate_record = apartments.filter(id.eq(&renter.apartment_id)).get_result::<crate::model::Apartment>(&mut pool).unwrap();
-    if immediate_record.uni_id == Some(1) || immediate_record.uni_id.is_none() {
+    if immediate_record.uni_id == 1 {
         (immediate_record, None)
     } else {
-        let univ = apartments.filter(id.eq(&immediate_record.uni_id.unwrap())).get_result::<crate::model::Apartment>(&mut pool).unwrap();
+        let univ = apartments.filter(id.eq(&immediate_record.uni_id)).get_result::<crate::model::Apartment>(&mut pool).unwrap();
         (univ, Some(immediate_record))
     }
 }

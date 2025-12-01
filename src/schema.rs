@@ -139,7 +139,7 @@ diesel::table! {
         pai_protection_rate -> Nullable<Float8>,
         is_operating -> Bool,
         is_public -> Bool,
-        uni_id -> Nullable<Int4>,
+        uni_id -> Int4,
         mileage_rate_overwrite -> Nullable<Float8>,
         mileage_package_overwrite -> Nullable<Float8>,
         mileage_conversion -> Float8,

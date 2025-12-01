@@ -647,6 +647,10 @@ values ('Veygo HQ',
         NULL,
         0.065);
 
+update apartments set uni_id = 1 where id = 1;
+alter table apartments
+    alter column uni_id set not null;
+
 insert into apartments_taxes (apartment_id, tax_id)
 values (1, 1),
        (1, 2),

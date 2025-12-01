@@ -89,53 +89,95 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .into();
 
                     let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
-                    // Check if Renter has an address
-                    let Some(billing_address) = user_in_request.clone().billing_address else {
-                        let error_msg = serde_json::json!({"error": "Unknown billing address"});
-                        // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
-                    };
 
                     // Check if Renter DL exp
                     if user_in_request.drivers_license_expiration.is_none() {
-                        let error_msg = serde_json::json!({"error": "Drivers license not verified"});
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your driver's licence is not verified. Please submit your driver's licence. "),
+                        };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
                     let return_date = body.end_time.naive_utc().date();
                     if user_in_request.drivers_license_expiration.unwrap() <= return_date {
-                        let error_msg = serde_json::json!({
-                            "error": "Drivers license expired before return"
-                        });
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your driver's licence expires before trip ends. Please re-submit your driver's licence. "),
+                        };
                         // RETURN: NOT_ACCEPTABLE
                         return Ok::<_, warp::Rejection>((
-                            with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE).into_response(),
+                            with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE).into_response(),
                         ));
                     }
 
                     // Check if Renter lease exp
-                    if user_in_request.lease_agreement_expiration.is_none() {
-                        let error_msg = serde_json::json!({"error": "Lease agreement not verified"});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    use crate::schema::apartments::dsl as apartment_query;
+                    let renter_apt: model::Apartment = apartment_query::apartments
+                        .filter(apartment_query::id.eq(&user_in_request.apartment_id))
+                        .get_result(&mut pool).unwrap();
+
+                    if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.is_none() {
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your lease agreement is not verified. Please submit your lease agreement. "),
+                        };
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
-                    if user_in_request.lease_agreement_expiration.unwrap() <= return_date {
-                        let error_msg = serde_json::json!({
-                            "error": "Lease agreement expired before return"
-                        });
+                    if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.unwrap() <= return_date {
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your lease agreement expires before trip ends. Please re-submit your lease agreement. "),
+                        };
                         return Ok::<_, warp::Rejection>((
-                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::NOT_ACCEPTABLE)),
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),
                         ));
                     }
 
+                    // Check if Renter has an address
+                    let Some(billing_address) = user_in_request.clone().billing_address else {
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your billing address is not verified. Please submit your driver's licence or lease agreement. "),
+                        };
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    };
+
                     let dnr_records = methods::user::get_dnr_record_for(&user_in_request);
                     if let Some(records) = dnr_records && !records.is_empty() {
-                        let error_msg = serde_json::json!({"error": "User on do not rent list", "do_not_rent_records": records});
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&error_msg), StatusCode::FORBIDDEN)),));
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Do Not Rent Record Found"),
+                            message: String::from("We found one or more dnr records, please contact us to resolve this! "),
+                        };
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
+                    }
+                    
+                    use crate::schema::agreements::dsl as agreements_query;
+
+                    let renter_agreements_blocking_count = agreements_query::agreements
+                        .filter(agreements_query::renter_id.eq(&access_token.user_id))
+                        .filter(agreements_query::status.eq(model::AgreementStatus::Rental))
+                        .filter(
+                            methods::diesel_fn::coalesce(agreements_query::actual_pickup_time, agreements_query::rsvp_pickup_time)
+                                .lt(body.end_time + Duration::minutes(15))
+                                .and(
+                                    methods::diesel_fn::coalesce(
+                                        agreements_query::actual_drop_off_time,
+                                        methods::diesel_fn::greatest(agreements_query::rsvp_drop_off_time, diesel::dsl::now)
+                                    )
+                                        .gt(body.start_time - Duration::minutes(15))
+                                )
+                        )
+                        .count()
+                        .get_result(&mut pool).unwrap_or(0);
+
+                    if renter_agreements_blocking_count > 0 {
+                        return methods::standard_replies::double_booking_not_allowed_wrapped(new_token_in_db_publish.clone())
                     }
 
                     use crate::schema::vehicles::dsl as vehicle_query;
                     use crate::schema::locations::dsl as location_query;
-                    use crate::schema::apartments::dsl as apartment_query;
                     let vehicle_result = vehicle_query::vehicles
                         .inner_join(location_query::locations
                             .inner_join(apartment_query::apartments)
@@ -164,7 +206,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
 
-                    if vehicle_with_location.2.uni_id.is_some() && user_in_request.employee_tier != model::EmployeeTier::Admin && user_in_request.apartment_id != vehicle_with_location.2.id {
+                    if vehicle_with_location.2.uni_id != 1 && user_in_request.employee_tier != model::EmployeeTier::Admin && user_in_request.apartment_id != vehicle_with_location.2.id {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(new_token_in_db_publish.clone(), vehicle_with_location.2.id);
                     }
