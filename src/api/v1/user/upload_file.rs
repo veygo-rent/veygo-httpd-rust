@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use futures::TryStreamExt;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
+use http::Method;
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
@@ -34,13 +35,16 @@ impl FromStr for UploadedFileType {
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("upload-file")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::multipart::form().max_length(5 * 1024 * 1024))
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("file-type"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |form: FormData, auth: String, file_type: String, user_agent: String| {
+            async move |method: Method, form: FormData, auth: String, file_type: String, user_agent: String| {
+                if method != Method::POST {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
 
                 let field_names: Vec<_> = form
                     .and_then(|mut field| async move {
@@ -124,10 +128,16 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         integration::gcloud_storage_veygo::delete_object(file)
                                             .await;
                                     }
+                                    if let Some(file) = user.drivers_license_image_secondary {
+                                        integration::gcloud_storage_veygo::delete_object(file)
+                                            .await;
+                                    }
                                     user.drivers_license_image = Some(file_path);
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
                                     user.drivers_license_state_region = None;
+                                    user.drivers_license_image_secondary = None;
+                                    user.requires_secondary_driver_lic = false;
                                 }
                                 UploadedFileType::DriversLicenseSecondary => {
                                     if let Some(file) = user.drivers_license_image_secondary {
@@ -138,7 +148,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     user.drivers_license_expiration = None;
                                     user.drivers_license_number = None;
                                     user.drivers_license_state_region = None;
-                                    user.billing_address = None;
                                 }
                                 UploadedFileType::LeaseAgreement => {
                                     if let Some(file) = user.lease_agreement_image {

@@ -136,6 +136,7 @@ create table renters
     subscription_payment_method_id  integer,
     apple_apns                      text,
     admin_apple_apns                text,
+    requires_secondary_driver_lic   boolean                  default false                      not null,
     constraint renters_pk primary key (id),
     constraint renters_student_email_uk unique (student_email),
     constraint renters_phone_uk unique (phone),

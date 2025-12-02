@@ -91,24 +91,36 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
 
                     // Check if Renter DL exp
-                    if user_in_request.drivers_license_expiration.is_none() {
+                    let return_date = body.end_time.naive_utc().date();
+
+                    if user_in_request.drivers_license_image.is_none() {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Booking Not Allowed"),
-                            message: String::from("Your driver's licence is not verified. Please submit your driver's licence. "),
+                            message: String::from("Your driver's licence is not uploaded. Please submit your driver's licence. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
                         return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
-                    }
-                    let return_date = body.end_time.naive_utc().date();
-                    if user_in_request.drivers_license_expiration.unwrap() <= return_date {
+                    } else if user_in_request.drivers_license_image_secondary.is_none() && user_in_request.requires_secondary_driver_lic {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Booking Not Allowed"),
-                            message: String::from("Your driver's licence expires before trip ends. Please re-submit your driver's licence. "),
+                            message: String::from("Your secondary driver's licence is not uploaded. Please submit your secondary driver's licence. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((
-                            with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE).into_response(),
-                        ));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    } else if user_in_request.drivers_license_expiration.is_none() {
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your driver's licences are pending verification. If you are still encountering this issue, please reach out to us. "),
+                        };
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                    } else if user_in_request.drivers_license_expiration.unwrap() <= return_date {
+                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Booking Not Allowed"),
+                            message: String::from("Your driver's licences expires before trip ends. Please re-submit your driver's licence. "),
+                        };
+                        // RETURN: NOT_ACCEPTABLE
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
                     }
 
                     // Check if Renter lease exp

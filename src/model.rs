@@ -432,6 +432,7 @@ pub struct Renter {
     pub subscription_payment_method_id: Option<i32>,
     pub apple_apns: Option<String>,
     pub admin_apple_apns: Option<String>,
+    pub requires_secondary_driver_lic: bool
 }
 
 impl From<Renter> for PublishRenter {
@@ -468,6 +469,7 @@ impl From<Renter> for PublishRenter {
             is_plan_annual: renter.is_plan_annual,
             employee_tier: renter.employee_tier,
             subscription_payment_method_id: renter.subscription_payment_method_id,
+            requires_secondary_driver_lic: renter.requires_secondary_driver_lic,
         }
     }
 }
@@ -507,6 +509,7 @@ pub struct PublishRenter {
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
     pub subscription_payment_method_id: Option<i32>,
+    pub requires_secondary_driver_lic: bool
 }
 
 #[derive(Insertable, Debug, Clone, Deserialize, Serialize)]

@@ -396,6 +396,7 @@ diesel::table! {
         subscription_payment_method_id -> Nullable<Int4>,
         apple_apns -> Nullable<Text>,
         admin_apple_apns -> Nullable<Text>,
+        requires_secondary_driver_lic -> Bool,
     }
 }
 
