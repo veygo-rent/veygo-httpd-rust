@@ -2,8 +2,7 @@ use crate::{POOL, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
-use stripe::ErrorType::InvalidRequest;
-use stripe::{ErrorCode, StripeError};
+use stripe::{ErrorType, StripeError};
 use warp::Filter;
 use warp::http::StatusCode;
 
@@ -93,14 +92,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                     Err(error) => {
                                         if let StripeError::Stripe(request_error) = error {
                                             eprintln!("Stripe API error: {:?}", request_error);
-                                            if request_error.code == Some(ErrorCode::CardDeclined) {
+                                            if request_error.error_type == ErrorType::Card {
                                                 return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
-                                            } else if request_error.error_type == InvalidRequest {
-                                                let err_msg = helper_model::ErrorResponse {
-                                                    title: "Payment Method Invalid".to_string(),
-                                                    message: "Payment method is invalid. Please try a different credit card. ".to_string(),
-                                                };
-                                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
                                             }
                                         }
                                         methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())

@@ -4,8 +4,7 @@ use diesel::associations::HasTable;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
-use stripe::ErrorType::InvalidRequest;
-use stripe::{ErrorCode, PaymentIntentCaptureMethod, StripeError};
+use stripe::{ErrorType, PaymentIntentCaptureMethod, StripeError};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use warp::reply::with_status;
@@ -99,28 +98,28 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             message: String::from("Your driver's licence is not uploaded. Please submit your driver's licence. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     } else if user_in_request.drivers_license_image_secondary.is_none() && user_in_request.requires_secondary_driver_lic {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Booking Not Allowed"),
                             message: String::from("Your secondary driver's licence is not uploaded. Please submit your secondary driver's licence. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     } else if user_in_request.drivers_license_expiration.is_none() {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Booking Not Allowed"),
                             message: String::from("Your driver's licences are pending verification. If you are still encountering this issue, please reach out to us. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     } else if user_in_request.drivers_license_expiration.unwrap() <= return_date {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Booking Not Allowed"),
                             message: String::from("Your driver's licences expires before trip ends. Please re-submit your driver's licence. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     }
 
                     // Check if Renter lease exp
@@ -134,7 +133,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             title: String::from("Booking Not Allowed"),
                             message: String::from("Your lease agreement is not verified. Please submit your lease agreement. "),
                         };
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     }
                     if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.unwrap() <= return_date {
                         let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -142,7 +141,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             message: String::from("Your lease agreement expires before trip ends. Please re-submit your lease agreement. "),
                         };
                         return Ok::<_, warp::Rejection>((
-                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),
+                            methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),
                         ));
                     }
 
@@ -153,7 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             message: String::from("Your billing address is not verified. Please submit your driver's licence or lease agreement. "),
                         };
                         // RETURN: NOT_ACCEPTABLE
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     };
 
                     let dnr_records = methods::user::get_dnr_record_for(&user_in_request);
@@ -212,7 +211,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             title: String::from("Booking Not Allowed"),
                             message: String::from("Booking this vehicle is currently not allowed. Please try again later. "),
                         };
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::CONFLICT)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                     }
                     let vehicle_with_location: (model::Vehicle, model::Location, model::Apartment) = vehicle_result.unwrap();
 
@@ -254,7 +253,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             title: String::from("Booking Failed"),
                             message: String::from("The credit card you used to book is invalid. "),
                         };
-                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
+                        return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::PAYMENT_REQUIRED )),));
                     }
                     let payment_method = pm_result.unwrap();
 
@@ -306,21 +305,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Err(error) => {
                             if let StripeError::Stripe(request_error) = error {
                                 eprintln!("Stripe API error: {:?}", request_error);
-                                if request_error.code == Some(ErrorCode::CardDeclined) {
+                                if request_error.error_type == ErrorType::Card {
                                     return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
-                                } else if request_error.error_type == InvalidRequest {
-                                    let err_msg = helper_model::ErrorResponse {
-                                        title: "Unable To Book".to_string(),
-                                        message: "System error, please contact us. ".to_string(),
-                                    };
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
                                 }
                             }
-                            let err_msg = helper_model::ErrorResponse {
-                                title: "Unable To Book".to_string(),
-                                message: "System error, please contact us. ".to_string(),
-                            };
-                            return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
+                            return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                         }
                         Ok(pmi) => {
                             use crate::schema::agreements::dsl as ag_q;
@@ -347,7 +336,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     title: "Vehicle Unavailable".to_string(),
                                     message: "Please try again later. ".to_string(),
                                 };
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::INTERNAL_SERVER_ERROR)),));
+                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::CONFLICT)),));
                             }
 
                             let new_agreement = model::NewAgreement {
@@ -382,12 +371,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let new_publish_agreement_result = diesel::insert_into(ag_q::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);
                             if new_publish_agreement_result.is_err() {
                                 let _ = integration::stripe_veygo::drop_auth(&pmi).await;
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Unable To Book".to_string(),
-                                    message: "System error, please contact us. ".to_string(),
-                                };
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg),
-                                                                                                                                                  StatusCode::INTERNAL_SERVER_ERROR)),));
+                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }
                             let new_publish_agreement = new_publish_agreement_result.unwrap();
                             use crate::schema::payments::dsl as payment_query;
@@ -407,12 +391,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             if payment_result.is_err() {
                                 let _ = integration::stripe_veygo::drop_auth(&pmi).await;
                                 let _ = diesel::delete(ag_q::agreements).filter(ag_q::id.eq(&new_publish_agreement.id)).execute(&mut pool);
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Unable To Book".to_string(),
-                                    message: "System error, please contact us. ".to_string(),
-                                };
-                                return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg),
-                                                                                                                                                  StatusCode::INTERNAL_SERVER_ERROR)),));
+                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }
                             let msg = serde_json::json!({"agreement": &new_publish_agreement});
                             Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))
