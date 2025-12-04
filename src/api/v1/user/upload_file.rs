@@ -102,7 +102,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             let data = user.id.to_le_bytes();
                             hasher.update(data);
                             let result = hasher.finalize();
-                            let object_path: String = format!("user_docs/{:x}/", result);
+                            let object_path: String = format!("user_docs/{:X}/", result);
                             let file_bytes = body.to_vec();
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 object_path,
