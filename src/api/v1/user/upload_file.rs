@@ -46,6 +46,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     return methods::standard_replies::method_not_allowed_response();
                 }
 
+                let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
+                if content_type_parsed_result.is_err() {
+                    return methods::standard_replies::bad_request("File type not supported");
+                }
+
                 let field_names: Vec<_> = form
                     .and_then(|mut field| async move {
                         let mut bytes: Vec<u8> = Vec::new();
@@ -84,10 +89,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 let if_token_valid =
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
-                let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
-                if content_type_parsed_result.is_err() {
-                    return methods::standard_replies::bad_request("File type not supported");
-                }
                 return match if_token_valid {
                     Err(_) => methods::tokens::token_not_hex_warp_return(),
                     Ok(token_is_valid) => {
@@ -115,7 +116,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .into();
-                            let object_path: String = format!("user_docs/{}/", user.id);
+                            let object_path: String = "user_docs/".to_string();
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 object_path,
                                 field_names[0].0.to_string(),
@@ -174,13 +175,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::Renter>(&mut pool)
                                 .unwrap()
                                 .into();
-                            let renter_msg = serde_json::json!({
-                                "renter": renter_updated,
-                            });
                             return Ok::<_, warp::Rejection>((
                                 methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,
-                                    with_status(warp::reply::json(&renter_msg), StatusCode::OK),
+                                    with_status(warp::reply::json(&renter_updated), StatusCode::OK),
                                 ),
                             ));
                         }
