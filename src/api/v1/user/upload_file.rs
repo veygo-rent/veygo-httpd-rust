@@ -1,13 +1,11 @@
 use crate::{POOL, integration, methods, model};
-use bytes::BufMut;
+use bytes::{Bytes};
 use diesel::prelude::*;
-use futures::TryStreamExt;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
 use http::Method;
 use warp::Filter;
 use warp::http::StatusCode;
-use warp::multipart::FormData;
 use warp::reply::with_status;
 use sha2::{Sha256, Digest};
 
@@ -37,12 +35,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
     warp::path("upload-file")
         .and(warp::path::end())
         .and(warp::method())
-        .and(warp::multipart::form().max_length(5 * 1024 * 1024))
+        .and(warp::body::bytes())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("file-type"))
+        .and(warp::header::<String>("file-name"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |method: Method, form: FormData, auth: String, file_type: String, user_agent: String| {
+            async move |method: Method, body: Bytes, auth: String, file_type: String, file_name: String, user_agent: String| {
                 if method != Method::POST {
                     return methods::standard_replies::method_not_allowed_response();
                 }
@@ -52,24 +51,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     return methods::standard_replies::bad_request("File type not supported");
                 }
 
-                let field_names: Vec<_> = form
-                    .and_then(|mut field| async move {
-                        let mut bytes: Vec<u8> = Vec::new();
-
-                        // field.data() only returns a piece of the content, you should call over it until it replies None
-                        while let Some(content) = field.data().await {
-                            let content = content.unwrap();
-                            bytes.put(content);
-                        }
-                        Ok((field.filename().unwrap().to_string(), bytes))
-                    })
-                    .try_collect()
-                    .await
-                    .unwrap();
-                let file_count = field_names.len() as i32;
-                if file_count != 1 {
-                    return methods::standard_replies::bad_request("Please upload exactly one file");
-                };
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     return methods::tokens::token_invalid_wrapped_return();
@@ -122,10 +103,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             hasher.update(data);
                             let result = hasher.finalize();
                             let object_path: String = format!("user_docs/{:x}/", result);
+                            let file_bytes = body.to_vec();
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 object_path,
-                                field_names[0].0.to_string(),
-                                field_names[0].1.clone(),
+                                file_name,
+                                file_bytes.clone(),
                             )
                             .await;
                             match content_type_parsed_result.unwrap() {
