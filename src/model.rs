@@ -1163,6 +1163,8 @@ pub struct Agreement {
     pub mileage_rate_overwrite: Option<f64>,
     pub mileage_package_overwrite: Option<f64>,
     pub utilization_factor: f64,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub date_of_creation: DateTime<Utc>,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]

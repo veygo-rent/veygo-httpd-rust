@@ -93,6 +93,7 @@ diesel::table! {
         mileage_rate_overwrite -> Nullable<Float8>,
         mileage_package_overwrite -> Nullable<Float8>,
         utilization_factor -> Float8,
+        date_of_creation -> Timestamptz,
     }
 }
 
