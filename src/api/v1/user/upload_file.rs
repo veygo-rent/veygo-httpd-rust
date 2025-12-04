@@ -9,6 +9,7 @@ use warp::Filter;
 use warp::http::StatusCode;
 use warp::multipart::FormData;
 use warp::reply::with_status;
+use sha2::{Sha256, Digest};
 
 #[derive(Serialize, Deserialize)]
 enum UploadedFileType {
@@ -116,7 +117,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .get_result::<model::AccessToken>(&mut pool)
                                 .unwrap()
                                 .into();
-                            let object_path: String = "user_docs/".to_string();
+                            let mut hasher = Sha256::new();
+                            let data = user.id.to_le_bytes();
+                            hasher.update(data);
+                            let result = hasher.finalize();
+                            let object_path: String = format!("user_docs/{:x}/", result);
                             let file_path = integration::gcloud_storage_veygo::upload_file(
                                 object_path,
                                 field_names[0].0.to_string(),

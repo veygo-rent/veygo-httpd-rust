@@ -35,3 +35,4 @@ a2 = "0.10.0"
 askama = "0.14.0"
 http = "1.4.0"
 smartcar = { git = "https://github.com/veygo-rent/smartcar-rust-sdk.git" }
+sha2 = "0.10.9"
