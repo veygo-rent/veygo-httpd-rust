@@ -51,18 +51,16 @@ drop table if exists locations;
 drop index if exists payment_methods_fingerprint_enabled_uk;
 drop table if exists payment_methods;
 
-drop index if exists access_tokens_token_idx;
+drop index if exists access_tokens_user_id_token_idx;
 drop table if exists access_tokens;
 
 drop index if exists renters_name_idx;
 drop table if exists renters;
 
-drop index if exists apartments_name_idx;
 drop index if exists apartments_email_idx;
 drop index if exists apartments_phone_idx;
 drop table if exists apartments;
 
-drop index if exists transponder_companies_name_idx;
 drop table if exists transponder_companies;
 
 drop index if exists do_not_rent_lists_name_idx;

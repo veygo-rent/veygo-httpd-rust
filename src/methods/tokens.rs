@@ -33,30 +33,23 @@ pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bo
         Err(error) => Err(error),
         Ok(binary_token) => {
             let token_clone = binary_token.clone();
-            let token_clone_again = binary_token.clone();
             let mut pool = POOL.get().unwrap();
-            let token_in_db = diesel::select(diesel::dsl::exists(
-                access_tokens
-                    .filter(token.eq(token_clone))
-                    .filter(user_id.eq(_user_id)),
-            ))
-            .get_result::<bool>(&mut pool)
-            .unwrap();
-            if token_in_db {
-                let mut pool = POOL.get().unwrap();
-                let token_in_db_result = access_tokens
-                    .filter(user_id.eq(_user_id))
-                    .filter(token.eq(token_clone_again))
-                    .first::<model::AccessToken>(&mut pool)
-                    .unwrap();
-                let token_exp = token_in_db_result.exp;
-                if token_exp >= Utc::now() {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            } else {
-                Ok(false)
+
+            let token_db_result = access_tokens
+                .filter(user_id.eq(&_user_id))
+                .filter(token.eq(&token_clone))
+                .get_result::<model::AccessToken>(&mut pool);
+
+            match token_db_result {
+                Err(_) => Ok(false),
+                Ok(token_db) => {
+                    let token_exp = token_db.exp;
+                    if token_exp >= Utc::now() {
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
+                },
             }
         }
     }

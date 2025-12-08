@@ -461,6 +461,11 @@ diesel::table! {
         odometer -> Int4,
         level -> Int4,
         vehicle_id -> Int4,
+        rear_right -> Text,
+        rear_left -> Text,
+        front_right -> Text,
+        front_left -> Text,
+        dashboard -> Nullable<Text>,
     }
 }
 

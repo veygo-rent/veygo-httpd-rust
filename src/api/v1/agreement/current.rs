@@ -70,7 +70,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use crate::schema::locations::dsl as location_query;
                             use crate::schema::payment_methods::dsl as payment_method_query;
                             let now = chrono::Utc::now();
-                            let now_plus_two_hours = now + chrono::Duration::hours(2);
+                            let now_plus_buffer = now + chrono::Duration::hours(1);
                             let current_agreement_result = agreement_query::agreements
                                 .inner_join(location_query::locations
                                     .inner_join(apartment_query::apartments)
@@ -84,7 +84,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     agreement_query::actual_pickup_time.is_not_null()
                                         .or(agreement_query::rsvp_drop_off_time.ge(now))
                                 )
-                                .filter(agreement_query::rsvp_pickup_time.le(now_plus_two_hours))
+                                .filter(agreement_query::rsvp_pickup_time.le(&now_plus_buffer))
                                 .order_by(agreement_query::rsvp_pickup_time.asc())
                                 .select(
                                     (
@@ -102,7 +102,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         title: "No Current Reservation".to_string(),
                                         message: "Cannot find current reservation. ".to_string(),
                                     };
-                                    let reply = warp::reply::with_status(warp::reply::json(&err_msg), StatusCode::NOT_FOUND);
+                                    let reply = with_status(warp::reply::json(&err_msg), StatusCode::NOT_FOUND);
                                     Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish.clone(), reply).into_response(),))
                                 },
                                 Ok(current) => {

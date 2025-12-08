@@ -42,9 +42,6 @@ create table transponder_companies
     constraint transponder_companies_name_uk unique (name)
 );
 
-create index transponder_companies_name_idx
-    on transponder_companies (name);
-
 create table apartments
 (
     id                           serial,
@@ -92,8 +89,6 @@ create table apartments
     )
 );
 
-create index apartments_name_idx
-    on apartments (name);
 create index apartments_email_idx
     on apartments (email);
 create index apartments_phone_idx
@@ -156,8 +151,8 @@ create table access_tokens
     constraint access_tokens_user_id_fk foreign key (user_id) references renters(id)
 );
 
-create index access_tokens_token_idx
-    on access_tokens (token);
+create index access_tokens_user_id_token_idx
+    on access_tokens (user_id, token);
 
 create table payment_methods
 (
@@ -174,7 +169,6 @@ create table payment_methods
     last_used_date_time timestamp with time zone,
     cdw_enabled         boolean default false not null,
     constraint payment_methods_pk primary key (id),
-    constraint payment_methods_fingerprint_uk unique (fingerprint),
     constraint payment_methods_renter_id_fk foreign key (renter_id) references renters(id)
 );
 
@@ -285,15 +279,20 @@ create table mileage_packages
 
 create table vehicle_snapshots
 (
-    id          serial,
-    left_image  text                        not null,
-    right_image text                        not null,
-    front_image text                        not null,
-    back_image  text                        not null,
-    time        timestamp with time zone    not null,
-    odometer    integer                     not null,
-    level       integer                     not null,
-    vehicle_id  integer                     not null,
+    id              serial,
+    left_image      text                                                        not null,
+    right_image     text                                                        not null,
+    front_image     text                                                        not null,
+    back_image      text                                                        not null,
+    time            timestamp with time zone    default CURRENT_TIMESTAMP       not null,
+    odometer        integer                                                     not null,
+    level           integer                                                     not null,
+    vehicle_id      integer                                                     not null,
+    rear_right      text                                                        not null,
+    rear_left       text                                                        not null,
+    front_right     text                                                        not null,
+    front_left      text                                                        not null,
+    dashboard       text,
     constraint vehicle_snapshots_pk primary key (id),
     constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
     constraint vehicle_snapshots_odometer_range check (odometer > 0),

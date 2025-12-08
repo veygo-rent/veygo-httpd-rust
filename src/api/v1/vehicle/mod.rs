@@ -6,6 +6,7 @@ mod lock_with_sc;
 mod lock_with_tesla;
 mod update_vehicle_with_sc;
 mod get_mileage_packages;
+mod user_identify;
 
 use warp::Filter;
 
@@ -21,6 +22,7 @@ pub fn api_v1_vehicle()
                 .or(lock_with_tesla::main())
                 .or(update_vehicle_with_sc::main())
                 .or(get_mileage_packages::main())
+                .or(user_identify::main())
         )
         .and(warp::path::end())
 }

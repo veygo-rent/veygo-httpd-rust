@@ -1051,6 +1051,11 @@ pub struct VehicleSnapshot {
     pub odometer: i32,
     pub level: i32,
     pub vehicle_id: i32,
+    pub rear_right: String,
+    pub rear_left: String,
+    pub front_right: String,
+    pub front_left: String,
+    pub dashboard: Option<String>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1066,6 +1071,11 @@ pub struct NewVehicleSnapshot {
     pub odometer: i32,
     pub level: i32,
     pub vehicle_id: i32,
+    pub rear_right: String,
+    pub rear_left: String,
+    pub front_right: String,
+    pub front_left: String,
+    pub dashboard: Option<String>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
