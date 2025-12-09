@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model, integration};
+use crate::{POOL, methods, model, integration};
 use diesel::prelude::*;
 use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
@@ -116,7 +116,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
                                 }
                             }
-                            methods::standard_replies::not_implemented_response()
+                            let msg = serde_json::json!({});
+                            Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                new_token_in_db_publish,
+                                with_status(warp::reply::json(&msg), StatusCode::OK),
+                            ),))
                         }
                     }
                 }
