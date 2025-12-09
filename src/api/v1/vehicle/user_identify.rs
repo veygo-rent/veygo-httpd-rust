@@ -115,12 +115,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let cmd_path = format!("/api/1/vehicles/{}/command/honk_horn", vehicle.remote_mgmt_id);
                                     let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
                                 }
+                                let msg = serde_json::json!({});
+                                Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                    new_token_in_db_publish,
+                                    with_status(warp::reply::json(&msg), StatusCode::OK),
+                                ),))
+                            } else {
+                                let msg = serde_json::json!({});
+                                Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                    new_token_in_db_publish,
+                                    with_status(warp::reply::json(&msg), StatusCode::NOT_FOUND),
+                                ),))
                             }
-                            let msg = serde_json::json!({});
-                            Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
-                                new_token_in_db_publish,
-                                with_status(warp::reply::json(&msg), StatusCode::OK),
-                            ),))
                         }
                     }
                 }
