@@ -42,7 +42,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     Err(_) => methods::tokens::token_not_hex_warp_return(),
                     Ok(token_bool) => {
                         if !token_bool {
-                            methods::tokens::token_not_hex_warp_return()
+                            methods::tokens::token_invalid_wrapped_return()
                         } else {
                             // Generate new token
                             let token_clone = access_token.clone();
@@ -113,7 +113,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                                     // 2) Proceed to lock/unlock once online (or after timeout anyway)
                                     let cmd_path = format!("/api/1/vehicles/{}/command/honk_horn", vehicle.remote_mgmt_id);
-                                    let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
+                                    let result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
+                                    let msg = serde_json::json!({});
+                                    return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                        new_token_in_db_publish,
+                                        with_status(warp::reply::json(&msg), result.unwrap().status()),
+                                    ),))
                                 }
                                 let msg = serde_json::json!({});
                                 Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(

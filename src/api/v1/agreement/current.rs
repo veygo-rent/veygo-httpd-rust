@@ -43,7 +43,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     Err(_) => methods::tokens::token_not_hex_warp_return(),
                     Ok(token_bool) => {
                         if !token_bool {
-                            methods::tokens::token_not_hex_warp_return()
+                            methods::tokens::token_invalid_wrapped_return()
                         } else {
                             // Generate new token
                             let token_clone = access_token.clone();
