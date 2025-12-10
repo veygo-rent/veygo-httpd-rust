@@ -83,6 +83,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 )
                                 .first::<model::Vehicle>(&mut pool);
                             if let Ok(vehicle) = current_vehicle_result {
+                                let previous_agreement_exist = diesel::select(diesel::dsl::exists(
+                                    agreement_query::agreements
+                                        .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
+                                        .filter(agreement_query::vehicle_id.eq(&vehicle.id))
+                                        .filter(agreement_query::renter_id.ne(&user_in_request.id))
+                                        .filter(agreement_query::actual_pickup_time.is_not_null())
+                                        .filter(agreement_query::actual_drop_off_time.is_null())
+                                )).get_result::<bool>(&mut pool).unwrap_or(true);
+                                if previous_agreement_exist {
+                                    let msg = serde_json::json!({});
+                                    return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                                        new_token_in_db_publish,
+                                        with_status(warp::reply::json(&msg), StatusCode::NOT_FOUND),
+                                    ),))
+                                }
                                 if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
 
                                     // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
@@ -113,12 +128,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                                     // 2) Proceed to lock/unlock once online (or after timeout anyway)
                                     let cmd_path = format!("/api/1/vehicles/{}/command/honk_horn", vehicle.remote_mgmt_id);
-                                    let result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
-                                    let msg = serde_json::json!({});
-                                    return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        with_status(warp::reply::json(&msg), result.unwrap().status()),
-                                    ),))
+                                    let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
                                 }
                                 let msg = serde_json::json!({});
                                 Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
