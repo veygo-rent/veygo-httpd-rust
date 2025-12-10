@@ -24,7 +24,7 @@ pub async fn get_signed_url(object_path: &str) -> String {
     let google_access_id = "veygo-server@veygo-server.iam.gserviceaccount.com".to_string();
     let url = client
         .signed_url(
-            "veygo-store",
+            "veygo-store-progressive",
             object_path,
             Some(google_access_id),
             Some(sign::SignBy::SignBytes),
@@ -70,7 +70,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
     let _ = client
         .upload_object(
             &UploadObjectRequest {
-                bucket: "veygo-store".to_string(),
+                bucket: "veygo-store-progressive".to_string(),
                 ..Default::default()
             },
             data_clone,
@@ -94,7 +94,7 @@ pub async fn delete_object(stored_file_abs_path: String) {
         .unwrap();
     let client = Client::new(config);
     let _ = client.delete_object(&DeleteObjectRequest {
-        bucket: "veygo-store".to_string(),
+        bucket: "veygo-store-progressive".to_string(),
         object: stored_file_abs_path,
         ..Default::default()
     }).await;
@@ -114,7 +114,7 @@ pub async fn delete_all_objects() -> Result<(), Box<dyn std::error::Error>> {
 
     // List all objects in the bucket
     let list_req = ListObjectsRequest {
-        bucket: "veygo-store".to_string(),
+        bucket: "veygo-store-progressive".to_string(),
         ..Default::default()
     };
     let objects = client.list_objects(&list_req).await?;
@@ -125,7 +125,7 @@ pub async fn delete_all_objects() -> Result<(), Box<dyn std::error::Error>> {
             let name = obj.name;
             client
                 .delete_object(&DeleteObjectRequest {
-                    bucket: "veygo-store".to_string(),
+                    bucket: "veygo-store-progressive".to_string(),
                     object: name,
                     ..Default::default()
                 })
