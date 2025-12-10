@@ -98,38 +98,40 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         with_status(warp::reply::json(&msg), StatusCode::NOT_FOUND),
                                     ),))
                                 }
-                                if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
+                                tokio::spawn(async move {
+                                    if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
 
-                                    // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
-                                    let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
+                                        // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                                        let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
-                                    for i in 0..16 { // up to ~10s total
-                                        if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
-                                            if let Ok(body_text) = response.text().await {
-                                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
-                                                    let state = json
-                                                        .get("response")
-                                                        .and_then(|r| r.get("state"))
-                                                        .and_then(|s| s.as_str())
-                                                        .unwrap_or("");
-                                                    if state == "online" {
-                                                        break;
-                                                    }
-                                                    // Only on the first iteration, if offline, send wake_up once
-                                                    if i == 0 {
-                                                        let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
-                                                        let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                        for i in 0..16 { // up to ~10s total
+                                            if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                                if let Ok(body_text) = response.text().await {
+                                                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                                        let state = json
+                                                            .get("response")
+                                                            .and_then(|r| r.get("state"))
+                                                            .and_then(|s| s.as_str())
+                                                            .unwrap_or("");
+                                                        if state == "online" {
+                                                            break;
+                                                        }
+                                                        // Only on the first iteration, if offline, send wake_up once
+                                                        if i == 0 {
+                                                            let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                                                            let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                        }
                                                     }
                                                 }
                                             }
+                                            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                         }
-                                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                                    }
 
-                                    // 2) Proceed to lock/unlock once online (or after timeout anyway)
-                                    let cmd_path = format!("/api/1/vehicles/{}/command/honk_horn", vehicle.remote_mgmt_id);
-                                    let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
-                                }
+                                        // 2) Proceed to lock/unlock once online (or after timeout anyway)
+                                        let cmd_path = format!("/api/1/vehicles/{}/command/honk_horn", vehicle.remote_mgmt_id);
+                                        let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
+                                    }
+                                });
                                 let msg = serde_json::json!({});
                                 Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
                                     new_token_in_db_publish,
