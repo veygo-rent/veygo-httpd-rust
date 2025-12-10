@@ -69,6 +69,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use crate::schema::vehicles::dsl as vehicle_query;
                             use crate::schema::locations::dsl as location_query;
                             use crate::schema::payment_methods::dsl as payment_method_query;
+                            use crate::schema::damages::dsl as damage_query;
+
                             let now = chrono::Utc::now();
                             let now_plus_buffer = now + chrono::Duration::hours(1);
                             let current_agreement_result = agreement_query::agreements
@@ -106,6 +108,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish.clone(), reply).into_response(),))
                                 },
                                 Ok(current) => {
+                                    let damages = damage_query::damages
+                                        .filter(damage_query::vehicle_id.eq(&current.1.id))
+                                        .filter(damage_query::fixed_date.is_not_null())
+                                        .get_results::<model::Damage>(&mut pool)
+                                        .unwrap_or_default();
                                     let mut current_trip = helper_model::CurrentTrip {
                                         agreement: current.0,
                                         vehicle: current.1.into(),
@@ -115,6 +122,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         payment_method: current.4.into(),
                                         promo: None,
                                         mileage_package: None,
+                                        damages,
                                     };
                                     if let Some(snapshot_id) = current_trip.agreement.vehicle_snapshot_before {
                                         use crate::schema::vehicle_snapshots::dsl as vehicle_snapshot_query;

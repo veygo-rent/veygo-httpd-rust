@@ -17,4 +17,5 @@ pub struct CurrentTrip {
     pub payment_method: model::PublishPaymentMethod,
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
+    pub damages: Vec<model::Damage>,
 }
