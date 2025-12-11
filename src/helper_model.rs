@@ -19,3 +19,8 @@ pub struct CurrentTrip {
     pub mileage_package: Option<model::MileagePackage>,
     pub damages: Vec<model::Damage>,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct FilePath {
+    pub file_path: String,
+}
