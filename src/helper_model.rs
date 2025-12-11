@@ -24,3 +24,8 @@ pub struct CurrentTrip {
 pub struct FilePath {
     pub file_path: String,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct FileLink {
+    pub file_link: String,
+}

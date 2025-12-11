@@ -95,9 +95,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        let msg = serde_json::json!({
-                                            "drivers_license": link,
-                                        });
+                                        let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -109,8 +107,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ))
                                     } else {
                                         let err_msg = helper_model::ErrorResponse {
-                                            title: "Upload Failed".to_string(),
-                                            message: "Cannot upload drivers license. ".to_string(),
+                                            title: "File Not Exist".to_string(),
+                                            message: "Cannot locate drivers license. ".to_string(),
                                         };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -130,9 +128,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        let msg = serde_json::json!({
-                                            "drivers_license_secondary": link,
-                                        });
+                                        let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -144,8 +140,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ))
                                     } else {
                                         let err_msg = helper_model::ErrorResponse {
-                                            title: "Upload Failed".to_string(),
-                                            message: "Cannot upload secondary drivers license. ".to_string(),
+                                            title: "File Not Exist".to_string(),
+                                            message: "Cannot locate secondary drivers license. ".to_string(),
                                         };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -165,9 +161,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        let msg = serde_json::json!({
-                                            "lease_agreement": link,
-                                        });
+                                        let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -179,8 +173,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ))
                                     } else {
                                         let err_msg = helper_model::ErrorResponse {
-                                            title: "Upload Failed".to_string(),
-                                            message: "Cannot upload lease agreement. ".to_string(),
+                                            title: "File Not Exist".to_string(),
+                                            message: "Cannot locate lease agreement. ".to_string(),
                                         };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -200,9 +194,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 &file,
                                             )
                                             .await;
-                                        let msg = serde_json::json!({
-                                            "insurance_id": link,
-                                        });
+                                        let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
                                                 new_token_in_db_publish,
@@ -214,8 +206,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         ))
                                     } else {
                                         let err_msg = helper_model::ErrorResponse {
-                                            title: "Upload Failed".to_string(),
-                                            message: "Cannot upload proof of insurance. ".to_string(),
+                                            title: "File Not Exist".to_string(),
+                                            message: "Cannot locate proof of insurance. ".to_string(),
                                         };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
