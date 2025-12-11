@@ -2,6 +2,7 @@ use crate::{POOL, integration, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
+use sha2::{Sha256, Digest};
 use warp::Filter;
 use warp::http::StatusCode;
 use warp::reply::with_status;
@@ -90,11 +91,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             return match content_type_parsed_result.unwrap() {
                                 UploadedFileType::DriversLicense => {
                                     if let Some(file) = user.drivers_license_image {
-                                        let link =
-                                            integration::gcloud_storage_veygo::get_signed_url(
-                                                &file,
-                                            )
-                                            .await;
+                                        let mut hasher = Sha256::new();
+                                        let data = user.id.to_le_bytes();
+                                        hasher.update(data);
+                                        let result = hasher.finalize();
+                                        let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                        let link = integration::gcloud_storage_veygo::get_signed_url(
+                                            &object_path,
+                                        ).await;
                                         let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -123,11 +127,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                                 UploadedFileType::DriversLicenseSecondary => {
                                     if let Some(file) = user.drivers_license_image_secondary {
-                                        let link =
-                                            integration::gcloud_storage_veygo::get_signed_url(
-                                                &file,
-                                            )
-                                            .await;
+                                        let mut hasher = Sha256::new();
+                                        let data = user.id.to_le_bytes();
+                                        hasher.update(data);
+                                        let result = hasher.finalize();
+                                        let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                        let link = integration::gcloud_storage_veygo::get_signed_url(
+                                            &object_path,
+                                        ).await;
                                         let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -156,11 +163,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                                 UploadedFileType::LeaseAgreement => {
                                     if let Some(file) = user.lease_agreement_image {
-                                        let link =
-                                            integration::gcloud_storage_veygo::get_signed_url(
-                                                &file,
-                                            )
-                                            .await;
+                                        let mut hasher = Sha256::new();
+                                        let data = user.id.to_le_bytes();
+                                        hasher.update(data);
+                                        let result = hasher.finalize();
+                                        let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                        let link = integration::gcloud_storage_veygo::get_signed_url(
+                                            &object_path,
+                                        ).await;
                                         let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(
@@ -189,11 +199,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                                 UploadedFileType::ProofOfInsurance => {
                                     if let Some(file) = user.insurance_id_image {
-                                        let link =
-                                            integration::gcloud_storage_veygo::get_signed_url(
-                                                &file,
-                                            )
-                                            .await;
+                                        let mut hasher = Sha256::new();
+                                        let data = user.id.to_le_bytes();
+                                        hasher.update(data);
+                                        let result = hasher.finalize();
+                                        let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                        let link = integration::gcloud_storage_veygo::get_signed_url(
+                                            &object_path,
+                                        ).await;
                                         let msg = helper_model::FileLink{ file_link: link };
                                         Ok::<_, warp::Rejection>((
                                             methods::tokens::wrap_json_reply_with_token(

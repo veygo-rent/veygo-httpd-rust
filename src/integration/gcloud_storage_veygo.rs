@@ -80,7 +80,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
             &upload_type,
         )
         .await;
-    stored_file_abs_path
+    file_name_with_uuid
 }
 
 #[allow(dead_code)]
