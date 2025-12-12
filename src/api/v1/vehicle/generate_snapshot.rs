@@ -26,8 +26,8 @@ struct TeslaVehicleState {
     odometer: f64,
 }
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path("set-sc-token")
+pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
+    warp::path("generate-snapshot")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::body::json())
