@@ -1,8 +1,30 @@
 use crate::{POOL, methods, model, integration, helper_model};
 use diesel::prelude::*;
-use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
+use warp::{Filter, http::Method, http::StatusCode, reply::with_status, Rejection};
 use sha2::{Sha256, Digest};
 use futures::{stream::FuturesUnordered, StreamExt};
+
+use serde::Deserialize;
+#[derive(Debug, Deserialize)]
+struct TeslaVehicleDataEnvelope {
+    response: TeslaVehicleData,
+}
+
+#[derive(Debug, Deserialize)]
+struct TeslaVehicleData {
+    charge_state: TeslaChargeState,
+    vehicle_state: TeslaVehicleState,
+}
+
+#[derive(Debug, Deserialize)]
+struct TeslaChargeState {
+    battery_level: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct TeslaVehicleState {
+    odometer: f64,
+}
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("set-sc-token")
@@ -25,10 +47,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             if vehicle_result.is_err() {
                 return methods::standard_replies::bad_request("Vehicle does not exist")
             }
-            let vehicle: model::Vehicle = vehicle_result.unwrap();
+            let mut vehicle: model::Vehicle = vehicle_result.unwrap();
 
             let mut hasher = Sha256::new();
-            let data = vehicle.vin.into_bytes();
+            let data = vehicle.vin.clone().into_bytes();
             hasher.update(data);
             let result = hasher.finalize();
             let object_pwd: String = format!("vehicle_pictures/{:X}/", result);
@@ -116,6 +138,38 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .unwrap()
                             .into();
 
+                        if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
+                            // Fetch live Tesla vehicle data (odometer + battery level)
+                            let vehicle_tag = &vehicle.remote_mgmt_id;
+                            let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+
+                            let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
+                                Ok(r) => r,
+                                Err(_) => {
+                                    return methods::standard_replies::bad_request("Failed to fetch Tesla vehicle data");
+                                }
+                            };
+
+                            if !tesla_resp.status().is_success() {
+                                return methods::standard_replies::bad_request("Failed to fetch Tesla vehicle data");
+                            }
+
+                            let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
+                                Ok(b) => b,
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                                }
+                            };
+
+                            let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
+                            let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
+
+                            vehicle.odometer = odometer_i32;
+                            vehicle.tank_level_percentage = battery_level_i32;
+
+                            diesel::update(v_q::vehicles.find(vehicle.id)).set(&vehicle).execute(&mut pool).unwrap();
+                        }
+
                         let snapshot_to_be_inserted = model::NewVehicleSnapshot {
                             left_image: body.left_image_path.clone(),
                             right_image: body.right_image_path.clone(),
@@ -131,7 +185,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             dashboard: None,
                         };
 
-                        methods::standard_replies::not_implemented_response()
+                        use crate::schema::vehicle_snapshots::dsl as v_s_q;
+
+                        let v_snap = diesel::insert_into(v_s_q::vehicle_snapshots)
+                            .values(&snapshot_to_be_inserted)
+                            .get_result::<model::VehicleSnapshot>(&mut pool)
+                            .unwrap();
+
+                        Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
+                            new_token_in_db_publish,
+                            with_status(warp::reply::json(&v_snap), StatusCode::OK),
+                        ),))
                     }
                 }
             }
