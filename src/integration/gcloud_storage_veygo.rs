@@ -9,32 +9,46 @@ use std::borrow::Cow;
 use std::path::Path;
 use uuid;
 
+use gcloud_storage::client::{Client, ClientConfig};
+use std::sync::Arc;
+use tokio::sync::OnceCell;
+
+const BUCKET: &str = "veygo-store-progressive";
+const CREDS_PATH: &str = "/app/cert/gcloud/veygo-server-8d64193d983c.json";
+const GOOGLE_ACCESS_ID: &str = "veygo-server@veygo-server.iam.gserviceaccount.com";
+
+static GCS_CLIENT: OnceCell<Arc<Client>> = OnceCell::const_new();
+
+async fn gcs_client() -> Arc<Client> {
+    GCS_CLIENT
+        .get_or_init(|| async {
+            let config = ClientConfig::default()
+                .with_credentials(
+                    CredentialsFile::new_from_file(CREDS_PATH.to_string())
+                        .await
+                        .expect("Failed to load GCS credentials"),
+                )
+                .await
+                .expect("Failed to build GCS client config");
+            Arc::new(Client::new(config))
+        })
+        .await
+        .clone()
+}
+
 #[allow(dead_code)]
 pub async fn get_signed_url(object_path: &str) -> String {
-    use gcloud_storage::client::{Client, ClientConfig};
-    let config = ClientConfig::default()
-        .with_credentials(
-            CredentialsFile::new_from_file(String::from(
-                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
-            ))
-            .await
-            .unwrap(),
-        )
-        .await
-        .unwrap();
-    let client = Client::new(config);
-    let google_access_id = "veygo-server@veygo-server.iam.gserviceaccount.com".to_string();
-    let url = client
+    let client = gcs_client().await;
+    client
         .signed_url(
-            "veygo-store-progressive",
+            BUCKET,
             object_path,
-            Some(google_access_id),
+            Some(GOOGLE_ACCESS_ID.to_string()),
             Some(sign::SignBy::SignBytes),
             SignedURLOptions::default(),
         )
         .await
-        .unwrap();
-    url
+        .unwrap()
 }
 
 #[allow(dead_code)]
@@ -42,28 +56,16 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
     let path = Path::new(&file_name);
     let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap_or("").to_uppercase();
     let content_type = match ext.as_str() {
-        "PDF" => Some("application/pdf"),
-        "JPG" => Some("image/jpeg"),
-        "JPEG" => Some("image/jpeg"),
-        "PNG" => Some("image/png"),
-        "CSV" => Some("text/csv"),
-        "HEIC" => Some("image/heic"),
-        _ => None,
-    }.unwrap();
+        "PDF" => "application/pdf",
+        "JPG" | "JPEG" => "image/jpeg",
+        "PNG" => "image/png",
+        "CSV" => "text/csv",
+        "HEIC" => "image/heic",
+        _ => "application/octet-stream",
+    };
     let u = uuid::Uuid::new_v4().to_string().to_uppercase();
     let file_name_with_uuid = u + "." + ext.as_str();
-    use gcloud_storage::client::{Client, ClientConfig};
-    let config = ClientConfig::default()
-        .with_credentials(
-            CredentialsFile::new_from_file(String::from(
-                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
-            ))
-            .await
-            .unwrap(),
-        )
-        .await
-        .unwrap();
-    let client = Client::new(config);
+    let client = gcs_client().await;
     let stored_file_abs_path = format!("{}{}", object_path, file_name_with_uuid);
     let upload_type = UploadType::Simple(Media {
         name: Cow::from(stored_file_abs_path.clone()),
@@ -73,7 +75,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
     let _ = client
         .upload_object(
             &UploadObjectRequest {
-                bucket: "veygo-store-progressive".to_string(),
+                bucket: BUCKET.to_string(),
                 ..Default::default()
             },
             data_clone,
@@ -85,20 +87,9 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
 
 #[allow(dead_code)]
 pub async fn delete_object(stored_file_abs_path: String) {
-    use gcloud_storage::client::{Client, ClientConfig};
-    let config = ClientConfig::default()
-        .with_credentials(
-            CredentialsFile::new_from_file(String::from(
-                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
-            ))
-                .await
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    let client = Client::new(config);
+    let client = gcs_client().await;
     let _ = client.delete_object(&DeleteObjectRequest {
-        bucket: "veygo-store-progressive".to_string(),
+        bucket: BUCKET.to_string(),
         object: stored_file_abs_path,
         ..Default::default()
     }).await;
@@ -106,21 +97,10 @@ pub async fn delete_object(stored_file_abs_path: String) {
 
 #[allow(dead_code)]
 pub async fn check_exists(stored_file_abs_path: String) -> bool {
-    use gcloud_storage::client::{Client, ClientConfig};
-    let config = ClientConfig::default()
-        .with_credentials(
-            CredentialsFile::new_from_file(String::from(
-                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
-            ))
-                .await
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    let client = Client::new(config);
+    let client = gcs_client().await;
     let result = client.get_object(
         &GetObjectRequest {
-            bucket: "veygo-store-progressive".to_string(),
+            bucket: BUCKET.to_string(),
             object: stored_file_abs_path,
             ..Default::default()
         },
@@ -133,20 +113,11 @@ pub async fn check_exists(stored_file_abs_path: String) -> bool {
 
 #[allow(dead_code)]
 pub async fn delete_all_objects() -> Result<(), Box<dyn std::error::Error>> {
-    use gcloud_storage::client::{Client, ClientConfig};
-    let config = ClientConfig::default()
-        .with_credentials(
-            CredentialsFile::new_from_file(String::from(
-                "/app/cert/gcloud/veygo-server-8d64193d983c.json",
-            ))
-                .await?,
-        )
-        .await?;
-    let client = Client::new(config);
+    let client = gcs_client().await;
 
     // List all objects in the bucket
     let list_req = ListObjectsRequest {
-        bucket: "veygo-store-progressive".to_string(),
+        bucket: BUCKET.to_string(),
         ..Default::default()
     };
     let objects = client.list_objects(&list_req).await?;
@@ -157,7 +128,7 @@ pub async fn delete_all_objects() -> Result<(), Box<dyn std::error::Error>> {
             let name = obj.name;
             client
                 .delete_object(&DeleteObjectRequest {
-                    bucket: "veygo-store-progressive".to_string(),
+                    bucket: BUCKET.to_string(),
                     object: name,
                     ..Default::default()
                 })

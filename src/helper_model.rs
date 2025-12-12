@@ -29,3 +29,16 @@ pub struct FilePath {
 pub struct FileLink {
     pub file_link: String,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct GenerateSnapshot {
+    pub vehicle_vin: String,
+    pub left_image_path: String,
+    pub right_image_path: String,
+    pub front_image_path: String,
+    pub back_image_path: String,
+    pub front_right_image_path: String,
+    pub front_left_image_path: String,
+    pub back_right_image_path: String,
+    pub back_left_image_path: String,
+}

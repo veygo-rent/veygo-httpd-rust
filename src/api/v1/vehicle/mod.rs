@@ -8,6 +8,7 @@ mod update_vehicle_with_sc;
 mod get_mileage_packages;
 mod user_identify;
 mod upload_image;
+mod generate_snapshot;
 
 use warp::Filter;
 
@@ -25,6 +26,7 @@ pub fn api_v1_vehicle()
                 .or(get_mileage_packages::main())
                 .or(user_identify::main())
                 .or(upload_image::main())
+                .or(generate_snapshot::main())
         )
         .and(warp::path::end())
 }

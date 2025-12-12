@@ -1,9 +1,9 @@
 use crate::{POOL, methods, model, integration};
 use diesel::prelude::*;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct RequestBody {
     vehicle_id: i32,
     smartcar_token: String,
