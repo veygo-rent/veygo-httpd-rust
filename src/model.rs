@@ -1067,7 +1067,6 @@ pub struct NewVehicleSnapshot {
     pub right_image: String,
     pub front_image: String,
     pub back_image: String,
-    pub time: DateTime<Utc>,
     pub odometer: i32,
     pub level: i32,
     pub vehicle_id: i32,

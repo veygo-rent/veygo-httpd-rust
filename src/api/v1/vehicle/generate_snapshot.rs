@@ -2,6 +2,7 @@ use crate::{POOL, methods, model, integration, helper_model};
 use diesel::prelude::*;
 use warp::{Filter, http::Method, http::StatusCode, reply::with_status};
 use sha2::{Sha256, Digest};
+use futures::{stream::FuturesUnordered, StreamExt};
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path("set-sc-token")
@@ -40,6 +41,34 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let front_left_image_path: String = format!("{}{}", &object_pwd, &body.front_left_image_path);
             let back_right_image_path: String = format!("{}{}", &object_pwd, &body.back_right_image_path);
             let back_left_image_path: String = format!("{}{}", &object_pwd, &body.back_left_image_path);
+
+            // Validate that all referenced images exist in GCS (run checks concurrently)
+            let checks: [(String, String); 8] = [
+                ("Left Image".to_string(), left_image_path.clone()),
+                ("Right Image".to_string(), right_image_path.clone()),
+                ("Front Image".to_string(), front_image_path.clone()),
+                ("Back Image".to_string(), back_image_path.clone()),
+                ("Front-Right Image".to_string(), front_right_image_path.clone()),
+                ("Front-Left Image".to_string(), front_left_image_path.clone()),
+                ("Back-Right Image".to_string(), back_right_image_path.clone()),
+                ("Back-Left Image".to_string(), back_left_image_path.clone()),
+            ];
+
+            let mut futures = FuturesUnordered::new();
+            for (label, path) in checks {
+                futures.push(async move {
+                    let ok = integration::gcloud_storage_veygo::check_exists(path.clone()).await;
+                    (label, path, ok)
+                });
+            }
+
+            while let Some((label, path, ok)) = futures.next().await {
+                if !ok {
+                    return methods::standard_replies::bad_request(
+                        &format!("{} does not exist: {}", label, path),
+                    );
+                }
+            }
 
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -86,6 +115,21 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .get_result::<model::AccessToken>(&mut pool)
                             .unwrap()
                             .into();
+
+                        let snapshot_to_be_inserted = model::NewVehicleSnapshot {
+                            left_image: body.left_image_path.clone(),
+                            right_image: body.right_image_path.clone(),
+                            front_image: body.front_image_path.clone(),
+                            back_image: body.back_image_path.clone(),
+                            odometer: vehicle.odometer,
+                            level: vehicle.tank_level_percentage,
+                            vehicle_id: vehicle.id,
+                            rear_right: body.back_right_image_path.clone(),
+                            rear_left: body.back_left_image_path.clone(),
+                            front_right: body.front_right_image_path.clone(),
+                            front_left: body.front_left_image_path.clone(),
+                            dashboard: None,
+                        };
 
                         methods::standard_replies::not_implemented_response()
                     }
