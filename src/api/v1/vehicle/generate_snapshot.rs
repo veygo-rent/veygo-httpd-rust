@@ -33,7 +33,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move | method: Method, body: helper_model::GenerateSnapshot,
+        .and_then(async move | method: Method, body: helper_model::GenerateSnapshotRequest,
                                auth: String, user_agent: String| {
 
             if method != Method::POST {
@@ -211,6 +211,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             front_right: body.front_right_image_path.clone(),
                             front_left: body.front_left_image_path.clone(),
                             dashboard: None,
+                            renter_id: access_token.user_id,
                         };
 
                         use crate::schema::vehicle_snapshots::dsl as v_s_q;

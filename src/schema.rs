@@ -466,6 +466,7 @@ diesel::table! {
         front_right -> Text,
         front_left -> Text,
         dashboard -> Nullable<Text>,
+        renter_id -> Int4,
     }
 }
 
@@ -579,6 +580,7 @@ diesel::joinable!(rate_offers -> apartments (apartment_id));
 diesel::joinable!(rate_offers -> renters (renter_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(reward_transactions -> agreements (agreement_id));
+diesel::joinable!(vehicle_snapshots -> renters (renter_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));
 diesel::joinable!(vehicles_services -> services (service_id));

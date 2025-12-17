@@ -293,8 +293,10 @@ create table vehicle_snapshots
     front_right     text                                                        not null,
     front_left      text                                                        not null,
     dashboard       text,
+    renter_id       integer                                                     not null,
     constraint vehicle_snapshots_pk primary key (id),
     constraint vehicle_snapshots_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
+    constraint vehicle_snapshots_renter_id_fk foreign key (renter_id) references renters(id),
     constraint vehicle_snapshots_odometer_range check (odometer > 0),
     constraint vehicle_snapshots_level_range check (level >= 0 and level <= 100)
 );

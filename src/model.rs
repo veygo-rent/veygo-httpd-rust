@@ -1039,6 +1039,7 @@ pub struct NewDamage {
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(belongs_to(Vehicle))]
+#[diesel(belongs_to(Renter))]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct VehicleSnapshot {
@@ -1056,10 +1057,12 @@ pub struct VehicleSnapshot {
     pub front_right: String,
     pub front_left: String,
     pub dashboard: Option<String>,
+    pub renter_id: i32,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[diesel(belongs_to(Vehicle))]
+#[diesel(belongs_to(Renter))]
 #[diesel(table_name = vehicle_snapshots)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewVehicleSnapshot {
@@ -1075,6 +1078,7 @@ pub struct NewVehicleSnapshot {
     pub front_right: String,
     pub front_left: String,
     pub dashboard: Option<String>,
+    pub renter_id: i32,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]

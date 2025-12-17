@@ -31,7 +31,7 @@ pub struct FileLink {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct GenerateSnapshot {
+pub struct GenerateSnapshotRequest {
     pub vehicle_vin: String,
     pub left_image_path: String,
     pub right_image_path: String,
@@ -41,4 +41,11 @@ pub struct GenerateSnapshot {
     pub front_left_image_path: String,
     pub back_right_image_path: String,
     pub back_left_image_path: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct CheckOutRequest {
+    pub agreement_id: i32,
+    pub vehicle_snapshot_id: i32,
+    pub hours_using_reward: i32,
 }
