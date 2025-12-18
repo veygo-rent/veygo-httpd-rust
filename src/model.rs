@@ -364,6 +364,7 @@ pub struct RewardTransaction {
     pub duration: f64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
+    pub renter_id: i32,
 }
 
 #[derive(

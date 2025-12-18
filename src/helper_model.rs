@@ -47,5 +47,5 @@ pub struct GenerateSnapshotRequest {
 pub struct CheckOutRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
-    pub hours_using_reward: i32,
+    pub hours_using_reward: f64,
 }

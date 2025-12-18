@@ -497,8 +497,10 @@ create table reward_transactions
     agreement_id     integer                                            not null,
     duration         double precision                                   not null,
     transaction_time timestamp with time zone default CURRENT_TIMESTAMP not null,
+    renter_id        integer                                            not null,
     constraint reward_transactions_pk primary key (id),
-    constraint reward_transactions_agreement_id_fk foreign key (agreement_id) references agreements(id)
+    constraint reward_transactions_agreement_id_fk foreign key (agreement_id) references agreements(id),
+    constraint reward_transactions_renter_id_fk foreign key (renter_id) references renters(id)
 );
 
 create table rate_offers

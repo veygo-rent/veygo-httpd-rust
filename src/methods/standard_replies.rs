@@ -182,3 +182,17 @@ pub fn promo_code_not_allowed_response(
         warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
     ),))
 }
+
+pub fn agreement_not_allowed_response(
+    token_data: model::PublishAccessToken,
+) -> Result<(warp::reply::Response,), Rejection> {
+    let msg_txt = String::from("Accessing this agreement is not allowed. Please try another one.");
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+        title: String::from("Access Agreement Not Allowed"),
+        message: msg_txt,
+    };
+    Ok::<_, Rejection>((wrap_json_reply_with_token(
+        token_data,
+        warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN),
+    ),))
+}

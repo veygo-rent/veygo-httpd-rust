@@ -1,7 +1,7 @@
 use std::option::Option;
 use crate::POOL;
 use crate::model::Renter;
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use diesel::prelude::*;
 
 pub async fn get_user_by_id(user_id: &i32) -> QueryResult<Renter> {
@@ -78,4 +78,19 @@ pub fn user_is_operational_manager(user: &Renter) -> bool {
     } else {
         false
     }
+}
+
+pub fn user_plan_renewal_date(
+    user: &Renter,
+) -> Option<NaiveDate> {
+    // Expect MMYYYY
+    if user.plan_expire_month_year.len() != 6 {
+        return None;
+    }
+
+    let month: u32 = user.plan_expire_month_year[0..2].parse().ok()?;
+    let year: i32 = user.plan_expire_month_year[2..6].parse().ok()?;
+    let day: u32 = user.plan_renewal_day.parse().ok()?;
+
+    NaiveDate::from_ymd_opt(year, month, day)
 }

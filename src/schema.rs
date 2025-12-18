@@ -407,6 +407,7 @@ diesel::table! {
         agreement_id -> Int4,
         duration -> Float8,
         transaction_time -> Timestamptz,
+        renter_id -> Int4,
     }
 }
 
@@ -580,6 +581,7 @@ diesel::joinable!(rate_offers -> apartments (apartment_id));
 diesel::joinable!(rate_offers -> renters (renter_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(reward_transactions -> agreements (agreement_id));
+diesel::joinable!(reward_transactions -> renters (renter_id));
 diesel::joinable!(vehicle_snapshots -> renters (renter_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));

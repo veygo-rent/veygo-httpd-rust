@@ -84,10 +84,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                 });
             }
 
-            while let Some((label, path, ok)) = futures.next().await {
+            while let Some((label, _path, ok)) = futures.next().await {
                 if !ok {
                     return methods::standard_replies::bad_request(
-                        &format!("{} does not exist: {}", label, path),
+                        &format!("{} does not exist", label),
                     );
                 }
             }
@@ -140,12 +140,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
 
                         if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
 
-
                             // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
                             let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
                             for i in 0..16 { // up to ~10s total
-                                if let Ok(response) = integration::tesla_curl::tesla_make_request(reqwest::Method::GET, &status_path, None).await {
+                                if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
                                     if let Ok(body_text) = response.text().await {
                                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
                                             let state = json
@@ -159,7 +158,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                             // Only on the first iteration, if offline, send wake_up once
                                             if i == 0 {
                                                 let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
-                                                let _ = integration::tesla_curl::tesla_make_request(reqwest::Method::POST, &wake_path, None).await;
+                                                let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
                                             }
                                         }
                                     }
@@ -174,12 +173,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                 Ok(r) => r,
                                 Err(_) => {
-                                    return methods::standard_replies::bad_request("Failed to fetch Tesla vehicle data");
+                                    return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                                 }
                             };
 
                             if !tesla_resp.status().is_success() {
-                                return methods::standard_replies::bad_request("Failed to fetch Tesla vehicle data");
+                                return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }
 
                             let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
