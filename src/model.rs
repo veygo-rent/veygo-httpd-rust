@@ -360,7 +360,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct RewardTransaction {
     pub id: i32,
-    pub agreement_id: i32,
+    pub agreement_id: Option<i32>,
     pub duration: f64,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
@@ -374,10 +374,9 @@ pub struct RewardTransaction {
 #[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRewardTransaction {
-    pub agreement_id: i32,
+    pub agreement_id: Option<i32>,
     pub duration: f64,
-    #[serde(with = "chrono::serde::ts_seconds")]
-    pub transaction_time: DateTime<Utc>,
+    pub renter_id: i32,
 }
 
 #[derive(

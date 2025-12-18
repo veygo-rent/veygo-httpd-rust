@@ -404,7 +404,7 @@ diesel::table! {
 diesel::table! {
     reward_transactions (id) {
         id -> Int4,
-        agreement_id -> Int4,
+        agreement_id -> Nullable<Int4>,
         duration -> Float8,
         transaction_time -> Timestamptz,
         renter_id -> Int4,

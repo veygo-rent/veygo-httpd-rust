@@ -494,7 +494,7 @@ create table payments
 create table reward_transactions
 (
     id               serial,
-    agreement_id     integer                                            not null,
+    agreement_id     integer,
     duration         double precision                                   not null,
     transaction_time timestamp with time zone default CURRENT_TIMESTAMP not null,
     renter_id        integer                                            not null,
