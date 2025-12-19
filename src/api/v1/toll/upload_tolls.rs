@@ -215,16 +215,19 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                                     if !charge_exists {
                                         use crate::schema::vehicles::dsl as v_q;
-                                        let vehicle_result: QueryResult<model::Vehicle> = v_q::vehicles
-                                            .into_boxed().filter(
-                                            v_q::first_transponder_company_id.eq(toll_company_id).and(v_q::first_transponder_number.eq(&vehicle_identifier_str))
-                                                .or(v_q::second_transponder_company_id.eq(toll_company_id).and(v_q::second_transponder_number.eq(&vehicle_identifier_str)))
-                                                .or(v_q::third_transponder_company_id.eq(toll_company_id).and(v_q::third_transponder_number.eq(&vehicle_identifier_str)))
-                                                .or(v_q::fourth_transponder_company_id.eq(toll_company_id).and(v_q::fourth_transponder_number.eq(&vehicle_identifier_str)))
-                                        ).get_result::<model::Vehicle>(&mut pool);
+                                        let vehicle_result: QueryResult<i32> = v_q::vehicles
+                                            .into_boxed()
+                                            .filter(
+                                                v_q::first_transponder_company_id.eq(toll_company_id).and(v_q::first_transponder_number.eq(&vehicle_identifier_str))
+                                                    .or(v_q::second_transponder_company_id.eq(toll_company_id).and(v_q::second_transponder_number.eq(&vehicle_identifier_str)))
+                                                    .or(v_q::third_transponder_company_id.eq(toll_company_id).and(v_q::third_transponder_number.eq(&vehicle_identifier_str)))
+                                                    .or(v_q::fourth_transponder_company_id.eq(toll_company_id).and(v_q::fourth_transponder_number.eq(&vehicle_identifier_str)))
+                                            )
+                                            .select(v_q::id)
+                                            .get_result::<i32>(&mut pool);
 
                                         if let Ok(vehicle) = vehicle_result {
-                                            charge_record.vehicle_id = vehicle.id;
+                                            charge_record.vehicle_id = vehicle;
 
                                             use crate::schema::agreements::dsl as ag_q;
                                             let affected_agreement = ag_q::agreements
