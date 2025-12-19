@@ -116,13 +116,13 @@ pub async fn nightly_task() {
                                 // Approved
                                 // Save Payment
                                 let new_payment = model::NewPayment {
-                                    payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
+                                    payment_type: pmi.status.into(),
                                     amount: taxed_rent,
                                     note: Some(description),
                                     reference_number: Some(pmi.id.to_string()),
                                     agreement_id: None,
                                     renter_id: renter.id,
-                                    payment_method_id: plan_pm.id,
+                                    payment_method_id: Some(plan_pm.id),
                                     amount_authorized: None,
                                     capture_before: None,
                                     is_deposit: false,

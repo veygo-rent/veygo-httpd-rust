@@ -1,9 +1,11 @@
-use crate::{POOL, methods, model, helper_model};
+use std::str::FromStr;
+use crate::{POOL, methods, model, helper_model, integration};
 use diesel::prelude::*;
 use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
 use warp::reply::with_status;
 use chrono::{DateTime, Datelike, Duration, Utc};
+use stripe::{ErrorType, PaymentIntentCaptureMethod, StripeError, PaymentIntentId};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("check-in")
@@ -91,12 +93,27 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             return methods::standard_replies::agreement_not_allowed_response(new_token_in_db_publish.clone())
                         }
 
-                        let (agreement_to_be_checked_out, check_out_snapshot) = ag_v_s_result.unwrap();
+                        let (mut agreement_to_be_checked_out, check_out_snapshot) = ag_v_s_result.unwrap();
 
                         let current_user = methods::user::get_user_by_id(&new_token.user_id).await.unwrap();
 
+                        let hours_reward_used = body.hours_using_reward;
+                        let total_duration = agreement_to_be_checked_out.rsvp_drop_off_time - agreement_to_be_checked_out.rsvp_pickup_time;
+                        let mut billable_duration = total_duration;
+
                         // Check if the renter has enough free hours to check in when using reward
-                        if body.hours_using_reward <= 0.0 {
+                        if body.hours_using_reward > 0.0 {
+                            let total_duration_in_hours = total_duration.num_minutes() as f64 / 60.0;
+
+                            if hours_reward_used > total_duration_in_hours {
+                                let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                    title: String::from("Check Out Not Allowed"),
+                                    message: String::from("You are trying to redeem more hours than the rental period."),
+                                };
+                                // RETURN: FORBIDDEN
+                                return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
+                            }
+
                             let apartment: model::Apartment = a_q::apartments
                                 .filter(a_q::id.eq(&current_user.apartment_id))
                                 .get_result::<model::Apartment>(&mut pool)
@@ -174,9 +191,175 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 // RETURN: FORBIDDEN
                                 return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                             }
+                            // Subtract reward time safely (prevent negative billable duration due to rounding)
+                            let total_minutes: i64 = billable_duration.num_minutes().max(0);
+                            let mut reward_minutes: i64 = (hours_reward_used.max(0.0) * 60.0).round() as i64;
+                            if reward_minutes > total_minutes {
+                                reward_minutes = total_minutes;
+                            }
+                            billable_duration = Duration::minutes(total_minutes - reward_minutes);
                         }
 
-                        methods::standard_replies::not_implemented_response()
+                        let billable_duration_hours: f64 = billable_duration.num_minutes() as f64 / 60.0;
+                        let billable_days_count: i32 = (billable_duration_hours / 24.0).ceil() as i32;
+
+                        // Tiered billing:
+                        // - First 8 hours are billed 1:1
+                        // - Hours after 8 up to the end of the first week (168 hours total) are billed at 0.25 per hour
+                        // - Hours after 168 are billed at 0.15 per hour
+                        let calculated_duration_hours: f64 = {
+                            let h = billable_duration_hours.max(0.0);
+
+                            // Tier 1: first 8 hours at 1x
+                            let tier1_hours = h.min(8.0);
+
+                            // Tier 2: from hour 9 up to hour 168 (i.e., next 160 hours) at 0.25x
+                            let tier2_hours = (h - 8.0).clamp(0.0, 160.0);
+
+                            // Tier 3: beyond 168 hours at 0.15x
+                            let tier3_hours = (h - 168.0).max(0.0);
+
+                            tier1_hours + (tier2_hours * 0.25) + (tier3_hours * 0.15)
+                        };
+
+                        let duration_revenue = calculated_duration_hours * agreement_to_be_checked_out.duration_rate * agreement_to_be_checked_out.msrp_factor * agreement_to_be_checked_out.utilization_factor;
+
+                        use crate::schema::agreements_taxes::dsl as agreement_tax_q;
+                        use crate::schema::taxes::dsl as tax_q;
+                        use crate::schema::payments::dsl as payment_q;
+                        use crate::schema::payment_methods::dsl as payment_method_q;
+                        use crate::schema::renters::dsl as renter_q;
+
+                        let taxes: Vec<model::Tax> = agreement_tax_q::agreements_taxes
+                            .inner_join(tax_q::taxes)
+                            .filter(agreement_tax_q::agreement_id.eq(&agreement_to_be_checked_out.id))
+                            .select(tax_q::taxes::all_columns())
+                            .get_results::<model::Tax>(&mut pool)
+                            .unwrap_or_default();
+
+                        let mut total_revenue: f64 = duration_revenue;
+
+                        if let Some(mileage_package_id) = agreement_to_be_checked_out.mileage_package_id {
+                            use crate::schema::mileage_packages::dsl as mp_q;
+                            let mileage_package = mp_q::mileage_packages
+                                .find(mileage_package_id)
+                                .get_result::<model::MileagePackage>(&mut pool)
+                                .unwrap();
+                            let base_rate_for_mp: f64;
+                            if let Some(overwrite) = agreement_to_be_checked_out.mileage_package_overwrite {
+                                base_rate_for_mp = overwrite;
+                            } else {
+                                base_rate_for_mp = agreement_to_be_checked_out.duration_rate * agreement_to_be_checked_out.msrp_factor * agreement_to_be_checked_out.mileage_conversion;
+                            }
+                            total_revenue = total_revenue + base_rate_for_mp * mileage_package.miles as f64 * mileage_package.discounted_rate as f64 / 100.0;
+                        }
+
+                        let mut daily_taxes: f64 = 0.0;
+                        let mut percent_taxes: f64 = 0.0;
+                        let mut fixed_taxes: f64 = 0.0;
+
+                        for tax in taxes {
+                            match tax.tax_type {
+                                model::TaxType::Fixed => {
+                                    fixed_taxes = fixed_taxes + tax.multiplier;
+                                },
+                                model::TaxType::Percent => {
+                                    percent_taxes = percent_taxes + total_revenue * tax.multiplier;
+                                },
+                                model::TaxType::Daily => {
+                                    daily_taxes = daily_taxes + billable_days_count as f64 * tax.multiplier;
+                                }
+                            }
+                        }
+
+                        let payment_method_token: String = payment_method_q::payment_methods
+                            .find(agreement_to_be_checked_out.payment_method_id)
+                            .select(payment_method_q::token)
+                            .get_result(&mut pool)
+                            .unwrap();
+
+                        let user_stripe_id: String = renter_q::renters
+                            .find(&agreement_to_be_checked_out.renter_id)
+                            .select(renter_q::stripe_id)
+                            .get_result::<Option<String>>(&mut pool)
+                            .unwrap()
+                            .unwrap();
+
+                        let total_should_bill: f64 = total_revenue + daily_taxes + percent_taxes + fixed_taxes;
+
+                        let total_after_deposit: f64 = total_should_bill + 100.0;
+                        let total_after_deposit_in_int = (total_after_deposit * 100.0).round() as i64;
+
+                        let description = &("Temp Hold for Veygo Reservation #".to_owned() + &*agreement_to_be_checked_out.confirmation.clone());
+                        let suffix: Option<&str> = Some(&*("RENTAL #".to_owned() + &*agreement_to_be_checked_out.confirmation.clone()));
+
+                        let stripe_auth = integration::stripe_veygo::create_payment_intent(description, &user_stripe_id, &payment_method_token, &total_after_deposit_in_int, PaymentIntentCaptureMethod::Manual, suffix).await;
+
+                        return match stripe_auth {
+                            Err(error) => {
+                                if let StripeError::Stripe(request_error) = error {
+                                    eprintln!("Stripe API error: {:?}", request_error);
+                                    if request_error.error_type == ErrorType::Card {
+                                        return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
+                                    }
+                                }
+                                methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
+                            }
+                            Ok(pmi) => {
+                                let payments: Vec<(i32, Option<String>)> = payment_q::payments
+                                    .filter(payment_q::agreement_id.eq(&agreement_to_be_checked_out.id))
+                                    .filter(payment_q::payment_type.ne(model::PaymentType::Canceled))
+                                    .filter(payment_q::is_deposit)
+                                    .filter(payment_q::payment_method_id.is_not_null())
+                                    .select((payment_q::id, payment_q::reference_number))
+                                    .get_results(&mut pool)
+                                    .unwrap_or_default();
+
+                                // Create a payment record in the database
+
+                                let new_payment = model::NewPayment {
+                                    payment_type: pmi.status.into(),
+                                    amount: 0.00,
+                                    note: Some("Reservation charge".to_string()),
+                                    reference_number: Some(pmi.id.to_string()),
+                                    agreement_id: Some(agreement_to_be_checked_out.id.clone()),
+                                    renter_id: agreement_to_be_checked_out.renter_id.clone(),
+                                    payment_method_id: Some(agreement_to_be_checked_out.payment_method_id.clone()),
+                                    amount_authorized: Option::from(total_after_deposit),
+                                    capture_before: Option::from(methods::timestamps::from_seconds(pmi.clone().latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
+                                    is_deposit: false,
+                                };
+                                let _payment_result = diesel::insert_into(payment_q::payments).values(&new_payment).get_result::<model::Payment>(&mut pool);
+
+                                // Create a reward transaction record in the database if applicable
+
+                                if body.hours_using_reward > 0.0 {
+                                    let new_reward_transaction = model::NewRewardTransaction{
+                                        agreement_id: Some(agreement_to_be_checked_out.id.clone()),
+                                        duration: body.hours_using_reward,
+                                        renter_id: agreement_to_be_checked_out.renter_id.clone(),
+                                    };
+                                    use crate::schema::reward_transactions::dsl as reward_q;
+                                    let _reward_result = diesel::insert_into(reward_q::reward_transactions).values(&new_reward_transaction).get_result::<model::RewardTransaction>(&mut pool);
+                                }
+
+                                // Assign the snapshot, and the check-out time to the agreement record
+
+                                agreement_to_be_checked_out.vehicle_snapshot_before = Some(check_out_snapshot.id);
+                                agreement_to_be_checked_out.actual_pickup_time = Some(Utc::now());
+
+                                let updated_agreement = diesel::update(agreement_q::agreements.find(&agreement_to_be_checked_out.id)).set(&agreement_to_be_checked_out).get_result::<model::Agreement>(&mut pool).unwrap();
+
+                                // Drop auth charges
+
+                                for payment in payments {
+                                    let payment_id = PaymentIntentId::from_str(&payment.1.unwrap()).unwrap();
+                                    let _drop_result = integration::stripe_veygo::drop_auth(&payment_id).await;
+                                }
+
+                                Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&updated_agreement), StatusCode::OK)),))
+                            }
+                        }
                     }
                 }
             }

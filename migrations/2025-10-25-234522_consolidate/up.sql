@@ -480,7 +480,7 @@ create table payments
     reference_number  varchar(18),
     agreement_id      integer,
     renter_id         integer                                            not null,
-    payment_method_id integer                                            not null,
+    payment_method_id integer,
     amount_authorized double precision,
     capture_before    timestamp with time zone,
     is_deposit        boolean                                            not null,

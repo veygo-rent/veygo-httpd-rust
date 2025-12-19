@@ -331,7 +331,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )).get_result::<bool>(&mut pool).unwrap();
 
                             if is_conflict {
-                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                 let err_msg = helper_model::ErrorResponse {
                                     title: "Vehicle Unavailable".to_string(),
                                     message: "Please try again later. ".to_string(),
@@ -370,26 +370,26 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                             let new_publish_agreement_result = diesel::insert_into(ag_q::agreements).values(&new_agreement).get_result::<model::Agreement>(&mut pool);
                             if new_publish_agreement_result.is_err() {
-                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                 return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }
                             let new_publish_agreement = new_publish_agreement_result.unwrap();
                             use crate::schema::payments::dsl as payment_query;
                             let new_payment = model::NewPayment {
-                                payment_type: model::PaymentType::from_stripe_payment_intent_status(pmi.status),
+                                payment_type: pmi.status.into(),
                                 amount: 0.00,
                                 note: Some("Non refundable deposit".to_string()),
                                 reference_number: Some(pmi.id.to_string()),
                                 agreement_id: Some(new_publish_agreement.id.clone()),
                                 renter_id: user_in_request.id,
-                                payment_method_id: payment_method.id,
+                                payment_method_id: Some(payment_method.id),
                                 amount_authorized: Option::from(deposit_amount),
                                 capture_before: Option::from(methods::timestamps::from_seconds(pmi.clone().latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
                                 is_deposit: true,
                             };
                             let payment_result = diesel::insert_into(payment_query::payments).values(&new_payment).get_result::<model::Payment>(&mut pool);
                             if payment_result.is_err() {
-                                let _ = integration::stripe_veygo::drop_auth(&pmi).await;
+                                let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                 let _ = diesel::delete(ag_q::agreements).filter(ag_q::id.eq(&new_publish_agreement.id)).execute(&mut pool);
                                 return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }

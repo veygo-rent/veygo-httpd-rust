@@ -84,6 +84,20 @@ pub enum PaymentType {
     VeygoInsurance,
 }
 
+impl From<stripe::PaymentIntentStatus> for PaymentType {
+    fn from(status: stripe::PaymentIntentStatus) -> Self {
+        match status {
+            stripe::PaymentIntentStatus::Canceled => PaymentType::Canceled,
+            stripe::PaymentIntentStatus::Processing => PaymentType::Processing,
+            stripe::PaymentIntentStatus::RequiresAction => PaymentType::RequiresAction,
+            stripe::PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
+            stripe::PaymentIntentStatus::RequiresConfirmation => PaymentType::RequiresConfirmation,
+            stripe::PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
+            stripe::PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
+        }
+    }
+}
+
 #[derive(
     Deserialize,
     Serialize,
@@ -1125,6 +1139,7 @@ impl From<Promo> for PublishPromo {
 #[derive(
     Queryable,
     Selectable,
+    AsChangeset,
     Identifiable,
     Associations,
     Debug,
@@ -1271,7 +1286,7 @@ pub struct Payment {
     pub reference_number: Option<String>,
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
-    pub payment_method_id: i32,
+    pub payment_method_id: Option<i32>,
     pub amount_authorized: Option<f64>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
@@ -1291,7 +1306,7 @@ pub struct NewPayment {
     pub reference_number: Option<String>,
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
-    pub payment_method_id: i32,
+    pub payment_method_id: Option<i32>,
     pub amount_authorized: Option<f64>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,

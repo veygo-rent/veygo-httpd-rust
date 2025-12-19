@@ -1,6 +1,8 @@
 use crate::model::{NewPaymentMethod, PaymentType};
 use std::env;
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::OnceCell;
 use stripe::{
     Client, CreateCustomer, CreatePaymentIntent, CreatePaymentIntentAutomaticPaymentMethods,
     CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects, PaymentMethodId, SetupIntent,
@@ -14,14 +16,26 @@ use stripe::{
     RefundReasonFilter, PaymentIntentId
 };
 
+static STRIPE_CLIENT: OnceCell<Arc<Client>> = OnceCell::const_new();
+
+async fn stripe_client() -> Arc<Client> {
+    STRIPE_CLIENT
+        .get_or_init(|| async {
+            let stripe_secret_key = env::var("STRIPE_SECRET_KEY")
+                .expect("STRIPE_SECRET_KEY must be set");
+            Arc::new(Client::new(stripe_secret_key))
+        })
+        .await
+        .clone()
+}
+
 pub async fn create_new_payment_method(
     pm_id: &str,
     cardholder_name: &String, // Required as Stripe does not return the full name
     renter_id: &i32,          // Must be provided
     nickname: &Option<String>, // Optional user-defined alias
 ) -> Result<NewPaymentMethod, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
+    let client = stripe_client().await;
     let payment_id = PaymentMethodId::from_str(pm_id).unwrap();
     let payment_method = PaymentMethod::retrieve(&client, &payment_id, &[]).await;
 
@@ -61,8 +75,7 @@ pub async fn create_stripe_customer(
     phone_data: &String,
     email_data: &String,
 ) -> Result<Customer, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
+    let client = stripe_client().await;
     Customer::create(
         &client,
         CreateCustomer {
@@ -78,26 +91,23 @@ pub async fn create_stripe_customer(
 
 #[allow(dead_code)]
 pub async fn create_stripe_refund(
-    customer_id_str: &String,
-    payment_intent_id_str: &String,
+    customer_id: &CustomerId,
+    payment_intent_id: &PaymentIntentId,
     amount: &i64,
 ) -> Result<Refund, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
-    let payment_intent_id = PaymentIntentId::from_str(payment_intent_id_str.as_str()).unwrap();
-    let customer_id = CustomerId::from_str(customer_id_str.as_str()).unwrap();
+    let client = stripe_client().await;
     Refund::create(
         &client,
         CreateRefund {
             amount: Some(amount.clone()),
             charge: None,
             currency: Some(Currency::USD),
-            customer: Some(customer_id),
+            customer: Some(customer_id.clone()),
             expand: &[],
             instructions_email: None,
             metadata: None,
             origin: None,
-            payment_intent: Some(payment_intent_id),
+            payment_intent: Some(payment_intent_id.clone()),
             reason: Some(RefundReasonFilter::RequestedByCustomer),
             refund_application_fee: None,
             reverse_transfer: None,
@@ -109,8 +119,7 @@ pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: &String,
     pm_id: &String,
 ) -> Result<SetupIntent, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
+    let client = stripe_client().await;
     let payment_method_id = PaymentMethodId::from_str(pm_id.as_str()).unwrap();
     let customer_id = CustomerId::from_str(stripe_customer_id.as_str()).unwrap();
     SetupIntent::create(
@@ -141,8 +150,7 @@ pub async fn create_payment_intent(
     capture_method: PaymentIntentCaptureMethod,
     statement_descriptor_suffix: Option<&str>,
 ) -> Result<PaymentIntent, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
+    let client = stripe_client().await;
     let customer_id = CustomerId::from_str(customer_id_data).unwrap();
     let payment_method_id = PaymentMethodId::from_str(payment_id_data).unwrap();
     PaymentIntent::create(
@@ -194,26 +202,11 @@ pub async fn create_payment_intent(
     ).await
 }
 
-impl PaymentType {
-    pub fn from_stripe_payment_intent_status(pis: PaymentIntentStatus) -> Self {
-        match pis {
-            PaymentIntentStatus::Canceled => PaymentType::Canceled,
-            PaymentIntentStatus::Processing => PaymentType::Processing,
-            PaymentIntentStatus::RequiresAction => PaymentType::RequiresAction,
-            PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
-            PaymentIntentStatus::RequiresConfirmation => PaymentType::RequiresConfirmation,
-            PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
-            PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
-        }
-    }
-}
-
-pub async fn drop_auth(intent: &PaymentIntent) -> Result<PaymentIntent, StripeError> {
-    let stripe_secret_key = env::var("STRIPE_SECRET_KEY").expect("STRIPE_SECRET_KEY must be set");
-    let client = Client::new(stripe_secret_key);
+pub async fn drop_auth(intent_id: &PaymentIntentId) -> Result<PaymentIntent, StripeError> {
+    let client = stripe_client().await;
     PaymentIntent::cancel(
         &client,
-        &intent.id,
+        &intent_id,
         CancelPaymentIntent {
             cancellation_reason: None,
         }
