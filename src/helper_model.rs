@@ -49,3 +49,9 @@ pub struct CheckOutRequest {
     pub vehicle_snapshot_id: i32,
     pub hours_using_reward: f64,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct CheckInRequest {
+    pub agreement_id: i32,
+    pub vehicle_snapshot_id: i32,
+}

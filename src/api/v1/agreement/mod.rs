@@ -3,6 +3,8 @@ mod get;
 mod current;
 mod check_out;
 
+mod check_in;
+
 use warp::Filter;
 
 pub fn api_v1_agreement()
@@ -13,6 +15,7 @@ pub fn api_v1_agreement()
                 .or(get::main())
                 .or(current::main())
                 .or(check_out::main())
+                .or(check_in::main())
         )
         .and(warp::path::end())
 }

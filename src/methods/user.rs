@@ -8,7 +8,7 @@ pub async fn get_user_by_id(user_id: &i32) -> QueryResult<Renter> {
     let mut pool = POOL.get().unwrap();
     use crate::schema::renters::dsl::*;
     renters
-        .filter(id.eq(&user_id))
+        .find(&user_id)
         .get_result::<Renter>(&mut pool)
 }
 

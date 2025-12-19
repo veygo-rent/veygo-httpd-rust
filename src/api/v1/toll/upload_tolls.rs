@@ -150,12 +150,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 }
                             }
                             let toll_company_clone = toll_company.clone();
-                            let required: HashSet<&str> = [
-                                toll_company_clone.corresponding_key_for_transaction_amount.as_str(),
-                                toll_company_clone.corresponding_key_for_transaction_name.as_str(),
-                                toll_company_clone.corresponding_key_for_transaction_time.as_str(),
-                                toll_company_clone.corresponding_key_for_vehicle_id.as_str(),
-                            ]
+                            let required: HashSet<&str> = 
+                                [
+                                    toll_company_clone.corresponding_key_for_transaction_amount.as_str(),
+                                    toll_company_clone.corresponding_key_for_transaction_name.as_str(), 
+                                    toll_company_clone.corresponding_key_for_transaction_time.as_str(), 
+                                    toll_company_clone.corresponding_key_for_vehicle_id.as_str(), 
+                                ]
                                 .into_iter()
                                 .collect();
                             let csv_cols: HashSet<&str> = headers.iter().collect();
@@ -180,7 +181,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                             // Spawn background processing of each record
                             tokio::spawn(async move {
-                                for record in records.into_iter() {
+                                for record in records {
                                     let toll_company_clone = tc.clone();
                                     let toll_company_id = toll_company_clone.id;
                                     let vehicle_identifier_str = record[toll_company_clone.corresponding_key_for_vehicle_id].to_string();

@@ -1062,6 +1062,7 @@ pub struct VehicleSnapshot {
     pub right_image: String,
     pub front_image: String,
     pub back_image: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub odometer: i32,
     pub level: i32,

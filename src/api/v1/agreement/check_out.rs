@@ -71,6 +71,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .unwrap()
                             .into();
 
+                        let five_minutes_ago = Utc::now() - Duration::minutes(5);
+
                         use crate::schema::agreements::dsl as agreement_q;
                         use crate::schema::apartments::dsl as a_q;
                         use crate::schema::vehicle_snapshots::dsl as v_s_q;
@@ -86,6 +88,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .filter(agreement_q::id.eq(&body.agreement_id))
                             .filter(v_s_q::time.ge(agreement_q::rsvp_pickup_time))
                             .filter(v_s_q::time.lt(agreement_q::rsvp_drop_off_time))
+                            .filter(v_s_q::time.ge(five_minutes_ago))
                             .select((agreement_q::agreements::all_columns(), v_s_q::vehicle_snapshots::all_columns()))
                             .get_result::<(model::Agreement, model::VehicleSnapshot)>(&mut pool);
 
@@ -306,7 +309,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
                             }
                             Ok(pmi) => {
-                                // TODO: Unlock vehicle
+                                // Unlock vehicle
 
                                 use crate::schema::vehicles::dsl as v_q;
                                 let (vehicle_remote_mgmt, mgmt_id) = v_q::vehicles
@@ -353,7 +356,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                                 let payments: Vec<(i32, Option<String>)> = payment_q::payments
                                     .filter(payment_q::agreement_id.eq(&agreement_to_be_checked_out.id))
-                                    .filter(payment_q::payment_type.ne(model::PaymentType::Canceled))
+                                    .filter(payment_q::payment_type.eq(model::PaymentType::RequiresCapture))
                                     .filter(payment_q::is_deposit)
                                     .filter(payment_q::payment_method_id.is_not_null())
                                     .select((payment_q::id, payment_q::reference_number))
