@@ -1,4 +1,4 @@
-use crate::model::{NewPaymentMethod, PaymentType};
+use crate::model;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -11,9 +11,9 @@ use stripe::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, Currency,
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
     CreateSetupIntentAutomaticPaymentMethods, StripeError, CancelPaymentIntent, Customer,
-    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, PaymentIntentStatus,
+    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, RefundReasonFilter,
     PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, CreateRefund, Refund,
-    RefundReasonFilter, PaymentIntentId
+    PaymentIntentId
 };
 
 static STRIPE_CLIENT: OnceCell<Arc<Client>> = OnceCell::const_new();
@@ -34,7 +34,7 @@ pub async fn create_new_payment_method(
     cardholder_name: &String, // Required as Stripe does not return the full name
     renter_id: &i32,          // Must be provided
     nickname: &Option<String>, // Optional user-defined alias
-) -> Result<NewPaymentMethod, StripeError> {
+) -> Result<model::NewPaymentMethod, StripeError> {
     let client = stripe_client().await;
     let payment_id = PaymentMethodId::from_str(pm_id).unwrap();
     let payment_method = PaymentMethod::retrieve(&client, &payment_id, &[]).await;
@@ -53,7 +53,7 @@ pub async fn create_new_payment_method(
             let network = card.brand; // Visa, Mastercard, etc.
             let expiration = format!("{:02}/{}", card.exp_month, card.exp_year);
 
-            Ok(NewPaymentMethod {
+            Ok(model::NewPaymentMethod {
                 cardholder_name: cardholder_name.to_string(),
                 masked_card_number,
                 network,
