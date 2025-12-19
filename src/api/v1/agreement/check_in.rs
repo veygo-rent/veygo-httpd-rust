@@ -306,6 +306,51 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
                             }
                             Ok(pmi) => {
+                                // TODO: Unlock vehicle
+
+                                use crate::schema::vehicles::dsl as v_q;
+                                let (vehicle_remote_mgmt, mgmt_id) = v_q::vehicles
+                                    .find(&agreement_to_be_checked_out.vehicle_id)
+                                    .select((v_q::remote_mgmt, v_q::remote_mgmt_id))
+                                    .get_result::<(model::RemoteMgmtType, String)>(&mut pool)
+                                    .unwrap();
+
+                                match vehicle_remote_mgmt {
+                                    model::RemoteMgmtType::Tesla => {
+                                        let _handler = tokio::spawn(async move {
+                                            // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                                            let status_path = format!("/api/1/vehicles/{}", mgmt_id);
+
+                                            for i in 0..16 { // up to ~10s total
+                                                if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                                    if let Ok(body_text) = response.text().await {
+                                                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                                            let state = json
+                                                                .get("response")
+                                                                .and_then(|r| r.get("state"))
+                                                                .and_then(|s| s.as_str())
+                                                                .unwrap_or("");
+                                                            if state == "online" {
+                                                                break;
+                                                            }
+                                                            // Only on the first iteration, if offline, send wake_up once
+                                                            if i == 0 {
+                                                                let wake_path = format!("/api/1/vehicles/{}/wake_up", mgmt_id);
+                                                                let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                            }
+                                            // 2) Proceed to lock/unlock once online (or after timeout anyway)
+                                            let cmd_path = format!("/api/1/vehicles/{}/command/door_unlock", mgmt_id);
+                                            let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
+                                        });
+                                    }
+                                    _ => {}
+                                }
+                                
                                 let payments: Vec<(i32, Option<String>)> = payment_q::payments
                                     .filter(payment_q::agreement_id.eq(&agreement_to_be_checked_out.id))
                                     .filter(payment_q::payment_type.ne(model::PaymentType::Canceled))

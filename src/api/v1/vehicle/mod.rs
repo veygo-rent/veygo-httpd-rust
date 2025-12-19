@@ -2,8 +2,6 @@ mod availability;
 mod new;
 mod get;
 mod generate_smartcar_token;
-mod lock_with_sc;
-mod lock_with_tesla;
 mod update_vehicle_with_sc;
 mod get_mileage_packages;
 mod user_identify;
@@ -20,8 +18,6 @@ pub fn api_v1_vehicle()
                 .or(new::main())
                 .or(get::main())
                 .or(generate_smartcar_token::main())
-                .or(lock_with_sc::main())
-                .or(lock_with_tesla::main())
                 .or(update_vehicle_with_sc::main())
                 .or(get_mileage_packages::main())
                 .or(user_identify::main())
