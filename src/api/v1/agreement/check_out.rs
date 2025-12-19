@@ -8,7 +8,7 @@ use chrono::{DateTime, Datelike, Duration, Utc};
 use stripe::{ErrorType, PaymentIntentCaptureMethod, StripeError, PaymentIntentId};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path("check-in")
+    warp::path("check-out")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::body::json())
@@ -350,7 +350,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     }
                                     _ => {}
                                 }
-                                
+
                                 let payments: Vec<(i32, Option<String>)> = payment_q::payments
                                     .filter(payment_q::agreement_id.eq(&agreement_to_be_checked_out.id))
                                     .filter(payment_q::payment_type.ne(model::PaymentType::Canceled))

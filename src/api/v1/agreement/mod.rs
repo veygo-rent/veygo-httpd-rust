@@ -1,7 +1,7 @@
 mod new;
 mod get;
 mod current;
-mod check_in;
+mod check_out;
 
 use warp::Filter;
 
@@ -12,7 +12,7 @@ pub fn api_v1_agreement()
             new::main()
                 .or(get::main())
                 .or(current::main())
-                .or(check_in::main())
+                .or(check_out::main())
         )
         .and(warp::path::end())
 }
