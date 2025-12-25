@@ -16,7 +16,7 @@ pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection>
 pub fn internal_server_error_response_without_token() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Internal Server Error"),
-        message: String::from("Please try again later."),
+        message: String::from("Please try again later. If issue present, contact us at dev@veygo.rent "),
     };
     Ok::<_, Rejection>((warp::reply::with_status(
         warp::reply::json(&msg),

@@ -278,7 +278,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let mut _local_tax_rate_daily = 0.0;
                     let mut local_tax_rate_fixed = 0.0;
                     let mut local_tax_id: Vec<Option<i32>> = Vec::new();
-                    for tax_obj in tax_objs {
+                    for tax_obj in &tax_objs {
                         match tax_obj.tax_type {
                             model::TaxType::Percent => {
                                 local_tax_rate_multiplier += tax_obj.multiplier;
@@ -383,7 +383,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 agreement_id: Some(new_publish_agreement.id.clone()),
                                 renter_id: user_in_request.id,
                                 payment_method_id: Some(payment_method.id),
-                                amount_authorized: Option::from(deposit_amount),
+                                amount_authorized: deposit_amount,
                                 capture_before: Option::from(methods::timestamps::from_seconds(pmi.clone().latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
                                 is_deposit: true,
                             };
@@ -393,8 +393,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let _ = diesel::delete(ag_q::agreements).filter(ag_q::id.eq(&new_publish_agreement.id)).execute(&mut pool);
                                 return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
                             }
-                            let msg = serde_json::json!({"agreement": &new_publish_agreement});
-                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&msg), StatusCode::OK)),))
+
+                            use crate::schema::agreements_taxes::dsl as ag_tx_q;
+                            for tax in &tax_objs {
+                                let new_agreement_tax = model::AgreementTax {
+                                    agreement_id: new_publish_agreement.id,
+                                    tax_id: tax.id,
+                                };
+                                let _ = diesel::insert_into(ag_tx_q::agreements_taxes)
+                                    .values(new_agreement_tax)
+                                    .execute(&mut pool);
+                            }
+                            Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&new_publish_agreement), StatusCode::OK)),))
                         }
                     }
                 }

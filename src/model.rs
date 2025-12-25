@@ -1288,7 +1288,7 @@ pub struct Payment {
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
-    pub amount_authorized: Option<f64>,
+    pub amount_authorized: f64,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
     pub is_deposit: bool,
@@ -1308,7 +1308,7 @@ pub struct NewPayment {
     pub agreement_id: Option<i32>,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
-    pub amount_authorized: Option<f64>,
+    pub amount_authorized: f64,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
     pub is_deposit: bool,

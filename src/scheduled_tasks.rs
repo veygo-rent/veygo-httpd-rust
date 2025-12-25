@@ -123,7 +123,7 @@ pub async fn nightly_task() {
                                     agreement_id: None,
                                     renter_id: renter.id,
                                     payment_method_id: Some(plan_pm.id),
-                                    amount_authorized: None,
+                                    amount_authorized: taxed_rent,
                                     capture_before: None,
                                     is_deposit: false,
                                 };

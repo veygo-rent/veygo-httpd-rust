@@ -302,7 +302,7 @@ diesel::table! {
         agreement_id -> Nullable<Int4>,
         renter_id -> Int4,
         payment_method_id -> Nullable<Int4>,
-        amount_authorized -> Nullable<Float8>,
+        amount_authorized -> Float8,
         capture_before -> Nullable<Timestamptz>,
         is_deposit -> Bool,
     }

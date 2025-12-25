@@ -212,7 +212,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                                 .filter(ch_q::transponder_company_id.eq(&charge_record.transponder_company_id))
                                                 .filter(ch_q::vehicle_identifier.eq(&charge_record.vehicle_identifier))
                                         )
-                                    ).get_result::<bool>(&mut pool).unwrap_or(false);
+                                    ).get_result::<bool>(&mut pool).unwrap_or(true);
 
                                     if !charge_exists {
                                         use crate::schema::vehicles::dsl as v_q;

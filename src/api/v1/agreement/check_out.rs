@@ -74,18 +74,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let five_minutes_ago = Utc::now() - Duration::minutes(5);
 
                         use crate::schema::agreements::dsl as agreement_q;
-                        use crate::schema::apartments::dsl as a_q;
                         use crate::schema::vehicle_snapshots::dsl as v_s_q;
                         let ag_v_s_result = v_s_q::vehicle_snapshots
                             .inner_join(
                                 agreement_q::agreements.on(
-                                v_s_q::vehicle_id.eq(agreement_q::vehicle_id)
-                                    .and(v_s_q::renter_id.eq(agreement_q::renter_id))
+                                    v_s_q::vehicle_id.eq(agreement_q::vehicle_id)
+                                        .and(v_s_q::renter_id.eq(agreement_q::renter_id))
                                 )
                             )
                             .filter(agreement_q::renter_id.eq(&new_token.user_id))
                             .filter(v_s_q::id.eq(&body.vehicle_snapshot_id))
                             .filter(agreement_q::id.eq(&body.agreement_id))
+                            .filter(agreement_q::actual_pickup_time.is_null())
+                            .filter(agreement_q::actual_drop_off_time.is_null())
                             .filter(v_s_q::time.ge(agreement_q::rsvp_pickup_time))
                             .filter(v_s_q::time.lt(agreement_q::rsvp_drop_off_time))
                             .filter(v_s_q::time.ge(five_minutes_ago))
@@ -116,6 +117,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 // RETURN: FORBIDDEN
                                 return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                             }
+
+                            use crate::schema::apartments::dsl as a_q;
 
                             let apartment: model::Apartment = a_q::apartments
                                 .filter(a_q::id.eq(&current_user.apartment_id))
@@ -373,7 +376,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     agreement_id: Some(agreement_to_be_checked_out.id.clone()),
                                     renter_id: agreement_to_be_checked_out.renter_id.clone(),
                                     payment_method_id: Some(agreement_to_be_checked_out.payment_method_id.clone()),
-                                    amount_authorized: Option::from(total_after_deposit),
+                                    amount_authorized: total_after_deposit,
                                     capture_before: Option::from(methods::timestamps::from_seconds(pmi.clone().latest_charge.unwrap().into_object().unwrap().payment_method_details.unwrap().card.unwrap().capture_before.unwrap())),
                                     is_deposit: false,
                                 };
