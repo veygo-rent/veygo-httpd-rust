@@ -74,10 +74,7 @@ pub enum EmployeeTier {
 #[diesel(sql_type = sql_types::PaymentTypeEnum)]
 pub enum PaymentType {
     Canceled,
-    Processing,
-    RequiresAction,
     RequiresCapture,
-    RequiresConfirmation,
     RequiresPaymentMethod,
     Succeeded,
     VeygoBadDebt,
@@ -88,12 +85,10 @@ impl From<stripe::PaymentIntentStatus> for PaymentType {
     fn from(status: stripe::PaymentIntentStatus) -> Self {
         match status {
             stripe::PaymentIntentStatus::Canceled => PaymentType::Canceled,
-            stripe::PaymentIntentStatus::Processing => PaymentType::Processing,
-            stripe::PaymentIntentStatus::RequiresAction => PaymentType::RequiresAction,
             stripe::PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
-            stripe::PaymentIntentStatus::RequiresConfirmation => PaymentType::RequiresConfirmation,
             stripe::PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
             stripe::PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
+            _ => PaymentType::Canceled,
         }
     }
 }
@@ -290,10 +285,7 @@ impl ToSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
             PaymentType::Canceled => out.write_all(b"canceled")?,
-            PaymentType::Processing => out.write_all(b"processing")?,
-            PaymentType::RequiresAction => out.write_all(b"requires_action")?,
             PaymentType::RequiresCapture => out.write_all(b"requires_capture")?,
-            PaymentType::RequiresConfirmation => out.write_all(b"requires_confirmation")?,
             PaymentType::RequiresPaymentMethod => out.write_all(b"requires_payment_method")?,
             PaymentType::Succeeded => out.write_all(b"succeeded")?,
             PaymentType::VeygoBadDebt => out.write_all(b"veygo.bad_debt")?,
@@ -307,10 +299,7 @@ impl FromSql<sql_types::PaymentTypeEnum, Pg> for PaymentType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         match bytes.as_bytes() {
             b"canceled" => Ok(PaymentType::Canceled),
-            b"processing" => Ok(PaymentType::Processing),
-            b"requires_action" => Ok(PaymentType::RequiresAction),
             b"requires_capture" => Ok(PaymentType::RequiresCapture),
-            b"requires_confirmation" => Ok(PaymentType::RequiresConfirmation),
             b"requires_payment_method" => Ok(PaymentType::RequiresPaymentMethod),
             b"succeeded" => Ok(PaymentType::Succeeded),
             b"veygo.bad_debt" => Ok(PaymentType::VeygoBadDebt),

@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::str::FromStr;
 use crate::{POOL, methods, model, helper_model, integration};
 use diesel::prelude::*;
@@ -9,6 +10,7 @@ use chrono::{DateTime, Datelike, Duration, Utc};
 use hex::FromHexError;
 use stripe::{ErrorType, PaymentIntentCaptureMethod, StripeError, PaymentIntentId};
 use serde::Deserialize;
+use crate::model::TaxType;
 
 #[derive(Debug, Deserialize)]
 struct TeslaChargingSessionsResponse {
@@ -188,8 +190,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                         use crate::schema::charges::dsl as c_q;
 
-                        let pickup: DateTime<Utc> = agreement_to_be_checked_in.actual_pickup_time.expect("pickup must exist");
-                        let drop_off: DateTime<Utc> = agreement_to_be_checked_in.actual_drop_off_time.expect("drop off must exist");
+                        let pickup: DateTime<Utc> = agreement_to_be_checked_in.actual_pickup_time.unwrap();
+                        let drop_off: DateTime<Utc> = agreement_to_be_checked_in.actual_drop_off_time.unwrap();
 
                         diesel::update(c_q::charges)
                             .filter(c_q::agreement_id.is_null())
@@ -271,11 +273,85 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
 
                         // TODO: calculate total cost
+                        // 0. total reward hours
+                        
+                        use crate::schema::reward_transactions::dsl as r_q;
+                        
+                        let total_reward_hours: f64 = r_q::reward_transactions
+                            .filter(r_q::agreement_id.eq(&agreement_to_be_checked_in.id))
+                            .select(diesel::dsl::sum(r_q::duration))
+                            .get_result::<Option<f64>>(&mut pool)
+                            .unwrap_or(None)
+                            .unwrap_or(0.0);
+                        
                         // 1. total rental revenue before late return
+
+                        let time_to_be_counted_as_if_return_on_time = min(drop_off, agreement_to_be_checked_in.rsvp_drop_off_time);
+
+                        let total_duration = time_to_be_counted_as_if_return_on_time - pickup;
+                        let billable_duration = methods::rental_rate::calculate_duration_after_reward(total_duration, total_reward_hours);
+
+                        let billable_hours = methods::rental_rate::calculate_billable_duration_hours(billable_duration);
+
+                        let rental_revenue = billable_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * agreement_to_be_checked_in.utilization_factor;
+                        
                         // 2. total late return fee
+
+                        let late_hours = methods::rental_rate::calculate_late_hours(agreement_to_be_checked_in.rsvp_drop_off_time, drop_off);
+                        let late_return_revenue = late_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * agreement_to_be_checked_in.utilization_factor * 2.0;
+
                         // 3. total charges
+
+                        let total_external_charges: f64 = c_q::charges
+                            .filter(c_q::agreement_id.eq(&agreement_to_be_checked_in.id))
+                            .select(diesel::dsl::sum(c_q::amount))
+                            .get_result::<Option<f64>>(&mut pool)
+                            .unwrap_or(None)
+                            .unwrap_or(0.0);
+
                         // 4. total taxes
+
+                        let mut percent_tax = 0.0;
+                        let mut daily_tax = 0.0;
+                        let mut fixed_tax = 0.0;
+
+                        let subjected_to_sales_tax = rental_revenue + late_return_revenue + total_external_charges;
+                        let subjected_to_non_sales_tax = rental_revenue + late_return_revenue;
+                        let billable_days = methods::rental_rate::billable_days_count(total_duration);
+
+                        use crate::schema::taxes::dsl as t_q;
+                        use crate::schema::agreements_taxes::dsl as a_t_q;
+
+                        let all_taxes_with_current_agreement: Vec<model::Tax> = a_t_q::agreements_taxes
+                            .inner_join(t_q::taxes)
+                            .filter(a_t_q::agreement_id.eq(&agreement_to_be_checked_in.id))
+                            .select(t_q::taxes::all_columns())
+                            .get_results::<model::Tax>(&mut pool)
+                            .unwrap_or_default();
+
+                        for tax in all_taxes_with_current_agreement {
+                            match tax.tax_type {
+                                TaxType::Percent => {
+                                    if tax.is_sales_tax {
+                                        percent_tax += tax.multiplier * subjected_to_sales_tax;
+                                    } else {
+                                        percent_tax += tax.multiplier * subjected_to_non_sales_tax;
+                                    }
+                                }
+                                TaxType::Daily => {
+                                    daily_tax += billable_days as f64 * tax.multiplier;
+                                }
+                                TaxType::Fixed => {
+                                    fixed_tax += tax.multiplier;
+                                }
+                            }
+                        }
+
+                        let total_tax = percent_tax + daily_tax + fixed_tax;
+
                         // 5. total cost = 1 + 2 + 3 + 4
+                        
+                        let total_cost = rental_revenue + late_return_revenue + total_external_charges + total_tax;
                         
                         // TODO: capture the correct amount and process additional charges
                         // 1. calculate amount 

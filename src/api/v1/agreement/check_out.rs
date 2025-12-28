@@ -197,36 +197,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 // RETURN: FORBIDDEN
                                 return Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN)),));
                             }
-                            // Subtract reward time safely (prevent negative billable duration due to rounding)
-                            let total_minutes: i64 = billable_duration.num_minutes().max(0);
-                            let mut reward_minutes: i64 = (hours_reward_used.max(0.0) * 60.0).round() as i64;
-                            if reward_minutes > total_minutes {
-                                reward_minutes = total_minutes;
-                            }
-                            billable_duration = Duration::minutes(total_minutes - reward_minutes);
+                            billable_duration = methods::rental_rate::calculate_duration_after_reward(billable_duration, hours_reward_used);
                         }
 
-                        let billable_duration_hours: f64 = billable_duration.num_minutes() as f64 / 60.0;
-                        let billable_days_count: i32 = (billable_duration_hours / 24.0).ceil() as i32;
+                        let billable_days_count: i32 = methods::rental_rate::billable_days_count(total_duration);
 
-                        // Tiered billing:
-                        // - First 8 hours are billed 1:1
-                        // - Hours after 8 up to the end of the first week (168 hours total) are billed at 0.25 per hour
-                        // - Hours after 168 are billed at 0.15 per hour
-                        let calculated_duration_hours: f64 = {
-                            let h = billable_duration_hours.max(0.0);
-
-                            // Tier 1: first 8 hours at 1x
-                            let tier1_hours = h.min(8.0);
-
-                            // Tier 2: from hour 9 up to hour 168 (i.e., next 160 hours) at 0.25x
-                            let tier2_hours = (h - 8.0).clamp(0.0, 160.0);
-
-                            // Tier 3: beyond 168 hours at 0.15x
-                            let tier3_hours = (h - 168.0).max(0.0);
-
-                            tier1_hours + (tier2_hours * 0.25) + (tier3_hours * 0.15)
-                        };
+                        let calculated_duration_hours: f64 = methods::rental_rate::calculate_billable_duration_hours(billable_duration);
 
                         let duration_revenue = calculated_duration_hours * agreement_to_be_checked_out.duration_rate * agreement_to_be_checked_out.msrp_factor * agreement_to_be_checked_out.utilization_factor;
 
