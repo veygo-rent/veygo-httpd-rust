@@ -8,13 +8,13 @@ tokio = { version = "1.48.0", features = ["full"] }
 warp = { version = "0.4.2", features = ["multipart", "server"] }
 csv = "1.4.0"
 bcrypt = "0.17.1"
-diesel = { version = "2.3.4", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
+diesel = { version = "2.3.5", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 serde_derive = "1.0.228"
 regex = "1.12.2"
 chrono = { version = "0.4.42", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.145"
+serde_json = "1.0.148"
 lazy_static = "1.5.0"
 secrets = "1.2.0"
 hex = "0.4.3"
@@ -27,12 +27,12 @@ futures = "0.3.31"
 bytes = "1.11.0"
 currency_rs = "1.3.0"
 anyhow = "1.0.100"
-gcloud-storage = { version = "1.1.1", features = ["auth"] }
-uuid = { version = "1.18.1", features = ["v4"] }
+gcloud-storage = { version = "1.2.0", features = ["auth"] }
+uuid = { version = "1.19.0", features = ["v4"] }
 blake3 = "1.8.2"
 reqwest = "0.12.24"
 a2 = "0.10.0"
-askama = "0.14.0"
+askama = "0.15.1"
 http = "1.4.0"
 smartcar = { git = "https://github.com/veygo-rent/smartcar-rust-sdk.git" }
 sha2 = "0.10.9"
