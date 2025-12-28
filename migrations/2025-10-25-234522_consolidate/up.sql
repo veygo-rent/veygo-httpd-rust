@@ -489,7 +489,8 @@ create table payments
     constraint payments_renter_id_fk foreign key (renter_id) references renters(id),
     constraint payments_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
     constraint payments_agreement_id_fk foreign key (agreement_id) references agreements(id),
-    constraint payments_amount_range check (amount > 0.0)
+    constraint payments_amount_range check (amount > 0.0),
+    constraint payments_reference_number_uk unique (reference_number)
 );
 
 create table reward_transactions
