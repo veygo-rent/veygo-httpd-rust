@@ -1,9 +1,10 @@
 use warp::{Filter, Reply};
 use bytes;
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use http::StatusCode;
 use stripe::EventObject;
 use warp::reply::with_status;
-use crate::{methods};
+use crate::{methods, POOL, model};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("stripe")
@@ -24,14 +25,41 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let obj = event.clone().data.object;
                         match obj {
                             EventObject::PaymentIntent(pmi) => {
-                                println!("{:?}", pmi);
+                                if pmi.status == stripe::PaymentIntentStatus::Canceled {
+                                    let payment_intent = pmi.clone();
+                                    tokio::spawn(async move {
+                                        let mut pool = POOL.get().unwrap();
+
+                                        use crate::schema::payments::dsl as p_q;
+                                        let agreement_id_result = p_q::payments
+                                            .filter(p_q::reference_number.eq(&payment_intent.id.as_str()))
+                                            .select(p_q::agreement_id)
+                                            .get_result::<i32>(&mut pool);
+
+                                        match agreement_id_result {
+                                            Ok(ag_id) => {
+                                                use crate::schema::agreements::dsl as a_q;
+
+                                                let ag_that_payment_being_canceled = a_q::agreements
+                                                    .find(ag_id)
+                                                    .get_result::<model::Agreement>(&mut pool)
+                                                    .unwrap();
+
+                                                match ag_that_payment_being_canceled.status {
+                                                    model::AgreementStatus::Rental => {}
+                                                    _ => {
+                                                        // Do nothing
+                                                    }
+                                                }
+                                            }
+                                            Err(_) => {}
+                                        }
+                                    });
+                                }
                             }
                             _ => {}
                         }
-                        let event_msg = serde_json::json!({
-                            "event": event,
-                        });
-                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&event_msg), StatusCode::OK).into_response(),))
+                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&event), StatusCode::OK).into_response(),))
                     }
                     Err(_err) => {
                         methods::standard_replies::internal_server_error_response_without_token()

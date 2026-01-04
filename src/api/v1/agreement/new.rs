@@ -380,7 +380,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 amount: 0.00,
                                 note: Some("Non refundable deposit".to_string()),
                                 reference_number: Some(pmi.id.to_string()),
-                                agreement_id: Some(new_publish_agreement.id.clone()),
+                                agreement_id: new_publish_agreement.id,
                                 renter_id: user_in_request.id,
                                 payment_method_id: Some(payment_method.id),
                                 amount_authorized: deposit_amount,

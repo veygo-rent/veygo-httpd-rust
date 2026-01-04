@@ -9,6 +9,23 @@ create type audit_action_enum as enum('create', 'read', 'update', 'delete');
 create type policy_enum as enum('rental', 'privacy', 'membership');
 create type tax_type_enum as enum('percent', 'daily', 'fixed');
 
+create type us_address as
+(
+    street_address      varchar(64),
+    extended_address    varchar(64),
+    city                varchar(64),
+    state               varchar(2),
+    zipcode             varchar(10)
+);
+
+create domain us_address_domain as us_address
+    check (
+        (value).street_address is not null and
+        (value).city is not null and
+        (value).state is not null and
+        (value).zipcode is not null
+    );
+
 create table do_not_rent_lists
 (
     id    serial,
@@ -49,7 +66,7 @@ create table apartments
     timezone                        varchar(36)             not null,
     email                           varchar(36)             not null,
     phone                           varchar(10)             not null,
-    address                         text                    not null,
+    address                         us_address              not null,
     accepted_school_email_domain    varchar(16)             not null,
     free_tier_hours                 double precision        not null,
     silver_tier_hours               double precision,
@@ -119,7 +136,7 @@ create table renters
     lease_agreement_image           text,
     apartment_id                    integer                                                     not null,
     lease_agreement_expiration      date,
-    billing_address                 text,
+    billing_address                 us_address,
     signature_image                 text,
     signature_datetime              timestamp with time zone,
     plan_tier                       plan_tier_enum           default 'Free'::plan_tier_enum     not null,
@@ -310,7 +327,7 @@ create table agreements
     user_date_of_birth          date                                                    not null,
     user_email                  varchar(36)                                             not null,
     user_phone                  varchar(10)                                             not null,
-    user_billing_address        text                                                    not null,
+    user_billing_address        us_address                                              not null,
     rsvp_pickup_time            timestamp with time zone                                not null,
     rsvp_drop_off_time          timestamp with time zone                                not null,
     liability_protection_rate   double precision,
@@ -479,7 +496,7 @@ create table payments
     amount            double precision                                   not null,
     note              text,
     reference_number  varchar(18),
-    agreement_id      integer,
+    agreement_id      integer                                            not null,
     renter_id         integer                                            not null,
     payment_method_id integer,
     amount_authorized double precision                                   not null,
@@ -612,7 +629,7 @@ values ('Veygo HQ',
         'America/New_York',
         'admin@veygo.rent',
         '8334683946',
-        '101 Foundry Dr, Ste 1200, West Lafayette, IN 47906',
+        ('101 Foundry Dr', 'Ste 1200', 'West Lafayette', 'IN', '47906'),
         'veygo.rent',
         0.0,
         NULL, NULL,
@@ -634,7 +651,7 @@ values ('Veygo HQ',
         'America/New_York',
         'newres@purdue.edu',
         '7654944600',
-        '610 Purdue Mall, West Lafayette, IN 47907',
+        ('610 Purdue Mall', NULL, 'West Lafayette', 'IN', '47907'),
         'purdue.edu',
         1.0,
         5.0, 71.99,

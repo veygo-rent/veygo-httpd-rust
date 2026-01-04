@@ -349,7 +349,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     amount: 0.00,
                                     note: Some("Reservation charge".to_string()),
                                     reference_number: Some(pmi.id.to_string()),
-                                    agreement_id: Some(agreement_to_be_checked_out.id.clone()),
+                                    agreement_id: agreement_to_be_checked_out.id,
                                     renter_id: agreement_to_be_checked_out.renter_id.clone(),
                                     payment_method_id: Some(agreement_to_be_checked_out.payment_method_id.clone()),
                                     amount_authorized: total_after_deposit,

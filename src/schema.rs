@@ -38,6 +38,10 @@ pub mod sql_types {
     pub struct TaxTypeEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "us_address"))]
+    pub struct UsAddress;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "verification_type_enum"))]
     pub struct VerificationTypeEnum;
 }
@@ -54,6 +58,7 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::AgreementStatusEnum;
+    use super::sql_types::UsAddress;
 
     agreements (id) {
         id -> Int4,
@@ -67,7 +72,7 @@ diesel::table! {
         user_email -> Varchar,
         #[max_length = 10]
         user_phone -> Varchar,
-        user_billing_address -> Text,
+        user_billing_address -> UsAddress,
         rsvp_pickup_time -> Timestamptz,
         rsvp_drop_off_time -> Timestamptz,
         liability_protection_rate -> Nullable<Float8>,
@@ -112,6 +117,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::UsAddress;
+
     apartments (id) {
         id -> Int4,
         #[max_length = 26]
@@ -122,7 +130,7 @@ diesel::table! {
         email -> Varchar,
         #[max_length = 10]
         phone -> Varchar,
-        address -> Text,
+        address -> UsAddress,
         #[max_length = 16]
         accepted_school_email_domain -> Varchar,
         free_tier_hours -> Float8,
@@ -299,7 +307,7 @@ diesel::table! {
         note -> Nullable<Text>,
         #[max_length = 18]
         reference_number -> Nullable<Varchar>,
-        agreement_id -> Nullable<Int4>,
+        agreement_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Nullable<Int4>,
         amount_authorized -> Float8,
@@ -349,6 +357,7 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::GenderEnum;
+    use super::sql_types::UsAddress;
     use super::sql_types::PlanTierEnum;
     use super::sql_types::EmployeeTierEnum;
 
@@ -383,7 +392,7 @@ diesel::table! {
         lease_agreement_image -> Nullable<Text>,
         apartment_id -> Int4,
         lease_agreement_expiration -> Nullable<Date>,
-        billing_address -> Nullable<Text>,
+        billing_address -> Nullable<UsAddress>,
         signature_image -> Nullable<Text>,
         signature_datetime -> Nullable<Timestamptz>,
         plan_tier -> PlanTierEnum,

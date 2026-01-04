@@ -78,3 +78,6 @@ drop type if exists payment_type_enum;
 drop type if exists audit_action_enum;
 drop type if exists policy_enum;
 drop type if exists tax_type_enum;
+
+drop domain if exists us_address_domain;
+drop type if exists us_address;

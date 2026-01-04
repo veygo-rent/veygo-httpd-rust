@@ -120,7 +120,7 @@ pub async fn nightly_task() {
                                     amount: taxed_rent,
                                     note: Some(description),
                                     reference_number: Some(pmi.id.to_string()),
-                                    agreement_id: None,
+                                    agreement_id: 0,
                                     renter_id: renter.id,
                                     payment_method_id: Some(plan_pm.id),
                                     amount_authorized: taxed_rent,

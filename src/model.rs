@@ -12,6 +12,206 @@ use diesel::serialize::{self, Output, ToSql};
 use diesel::{AsExpression, FromSqlRow};
 use std::io::Write;
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::UsAddress)]
+pub struct UsAddress {
+    pub street_address: String,
+    pub extended_address: Option<String>,
+    pub city: String,
+    pub state: String,
+    pub zipcode: String,
+}
+
+impl FromSql<sql_types::UsAddress, Pg> for UsAddress {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        // Diesel/Postgres typically gives custom types in text format unless binary decoding is implemented.
+        // We parse the composite literal format: ("street",,"city","state","zip")
+        let raw = std::str::from_utf8(bytes.as_bytes())
+            .map_err(|_| "us_address: invalid UTF-8 from Postgres")?;
+
+        // Trim and strip surrounding parentheses if present.
+        let s = raw.trim();
+        let s = if s.starts_with('(') && s.ends_with(')') && s.len() >= 2 {
+            &s[1..s.len() - 1]
+        } else {
+            s
+        };
+
+        fn unescape_quoted(mut v: &str) -> String {
+            // v is the inside of quotes (no surrounding ")
+            let mut out = String::with_capacity(v.len());
+            while !v.is_empty() {
+                let mut chars = v.chars();
+                let ch = chars.next().unwrap();
+                if ch == '\\' {
+                    // Backslash escapes the next character if present.
+                    if let Some(next) = chars.next() {
+                        out.push(next);
+                        let consumed = 1 + next.len_utf8();
+                        v = &v[consumed..];
+                        continue;
+                    } else {
+                        // Trailing backslash; keep it.
+                        out.push('\\');
+                        v = "";
+                        continue;
+                    }
+                } else {
+                    out.push(ch);
+                    v = &v[ch.len_utf8()..];
+                }
+            }
+            out
+        }
+
+        fn parse_fields(s: &str) -> Result<Vec<Option<String>>, Box<dyn std::error::Error + Send + Sync>> {
+            let mut fields: Vec<Option<String>> = Vec::new();
+            let mut i = 0usize;
+            let bytes = s.as_bytes();
+
+            while i <= bytes.len() {
+                // Parse one field (possibly quoted) until comma or end.
+                if i == bytes.len() {
+                    // trailing empty field (rare) => treat as empty
+                    fields.push(Some(String::new()));
+                    break;
+                }
+
+                if bytes[i] == b',' {
+                    // Empty field => NULL
+                    fields.push(None);
+                    i += 1;
+                    continue;
+                }
+
+                if bytes[i] == b'"' {
+                    // Quoted field
+                    i += 1; // skip opening quote
+                    let start = i;
+                    let mut out = String::new();
+                    while i < bytes.len() {
+                        match bytes[i] {
+                            b'\\' => {
+                                // escape next byte/char
+                                i += 1;
+                                if i < bytes.len() {
+                                    out.push(bytes[i] as char);
+                                    i += 1;
+                                }
+                            }
+                            b'"' => {
+                                // closing quote
+                                i += 1;
+                                break;
+                            }
+                            _ => {
+                                // This is safe because quoted strings are UTF-8 in our schema; accumulate as bytes->char.
+                                out.push(bytes[i] as char);
+                                i += 1;
+                            }
+                        }
+                    }
+                    // If we never saw a closing quote, fall back to UTF-8 based unescape for correctness.
+                    if i > bytes.len() {
+                        let inner = &s[start..];
+                        fields.push(Some(unescape_quoted(inner)));
+                        break;
+                    } else {
+                        fields.push(Some(out));
+                    }
+
+                    // Expect comma or end
+                    if i < bytes.len() {
+                        if bytes[i] == b',' {
+                            i += 1;
+                        } else {
+                            // If not comma, continue; we'll let outer loop handle end.
+                        }
+                    }
+                    continue;
+                }
+
+                // Unquoted field: read until comma or end
+                let start = i;
+                while i < bytes.len() && bytes[i] != b',' {
+                    i += 1;
+                }
+                let token = s[start..i].trim();
+                // In composite text input, NULL can also be spelled NULL unquoted.
+                if token.eq_ignore_ascii_case("null") {
+                    fields.push(None);
+                } else {
+                    fields.push(Some(token.to_string()));
+                }
+                if i < bytes.len() && bytes[i] == b',' {
+                    i += 1;
+                }
+            }
+
+            Ok(fields)
+        }
+
+        let fields = parse_fields(s)
+            .map_err(|_| "us_address: failed to parse composite")?;
+
+        if fields.len() < 5 {
+            return Err("us_address: expected 5 fields".into());
+        }
+
+        let street_address = fields[0].clone().ok_or("us_address: street_address is NULL")?;
+        let extended_address = fields[1].clone();
+        let city = fields[2].clone().ok_or("us_address: city is NULL")?;
+        let state = fields[3].clone().ok_or("us_address: state is NULL")?;
+        let zipcode = fields[4].clone().ok_or("us_address: zipcode is NULL")?;
+
+        Ok(UsAddress {
+            street_address,
+            extended_address,
+            city,
+            state,
+            zipcode,
+        })
+    }
+}
+
+impl ToSql<sql_types::UsAddress, Pg> for UsAddress {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        fn esc(s: &str) -> String {
+            // Postgres composite text input: always quote text fields and escape backslash and double-quote.
+            let mut v = String::with_capacity(s.len() + 2);
+            v.push('"');
+            for ch in s.chars() {
+                match ch {
+                    '\\' => v.push_str("\\\\"),
+                    '"' => v.push_str("\\\""),
+                    _ => v.push(ch),
+                }
+            }
+            v.push('"');
+            v
+        }
+
+        // Composite literal format: (field1,field2,field3,field4,field5)
+        // For NULLs, leave the field empty: ("a",,"c",...)
+        let ext = match &self.extended_address {
+            Some(v) => esc(v),
+            None => String::new(),
+        };
+
+        let s = format!(
+            "({},{},{},{},{})",
+            esc(&self.street_address),
+            ext,
+            esc(&self.city),
+            esc(&self.state),
+            esc(&self.zipcode)
+        );
+
+        out.write_all(s.as_bytes())?;
+        Ok(serialize::IsNull::No)
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::TaxTypeEnum)]
 pub enum TaxType {
@@ -422,7 +622,7 @@ pub struct Renter {
     pub lease_agreement_image: Option<String>,
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
-    pub billing_address: Option<String>,
+    pub billing_address: Option<UsAddress>,
     pub signature_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
@@ -501,7 +701,7 @@ pub struct PublishRenter {
     pub lease_agreement_image: Option<String>,
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
-    pub billing_address: Option<String>,
+    pub billing_address: Option<UsAddress>,
     pub signature_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
@@ -623,7 +823,7 @@ pub struct Apartment {
     pub timezone: String,
     pub email: String,
     pub phone: String,
-    pub address: String,
+    pub address: UsAddress,
     pub accepted_school_email_domain: String,
     pub free_tier_hours: f64,
     pub silver_tier_hours: Option<f64>,
@@ -654,7 +854,7 @@ pub struct NewApartment {
     pub timezone: String,
     pub email: String,
     pub phone: String,
-    pub address: String,
+    pub address: UsAddress,
     pub accepted_school_email_domain: String,
     pub free_tier_hours: f64,
     pub silver_tier_hours: Option<f64>,
@@ -1152,7 +1352,7 @@ pub struct Agreement {
     pub user_date_of_birth: NaiveDate,
     pub user_email: String,
     pub user_phone: String,
-    pub user_billing_address: String,
+    pub user_billing_address: UsAddress,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -1199,7 +1399,7 @@ pub struct NewAgreement {
     pub user_date_of_birth: NaiveDate,
     pub user_email: String,
     pub user_phone: String,
-    pub user_billing_address: String,
+    pub user_billing_address: UsAddress,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -1274,7 +1474,7 @@ pub struct Payment {
     pub amount: f64,
     pub note: Option<String>,
     pub reference_number: Option<String>,
-    pub agreement_id: Option<i32>,
+    pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
     pub amount_authorized: f64,
@@ -1294,7 +1494,7 @@ pub struct NewPayment {
     pub amount: f64,
     pub note: Option<String>,
     pub reference_number: Option<String>,
-    pub agreement_id: Option<i32>,
+    pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
     pub amount_authorized: f64,

@@ -1,8 +1,6 @@
 mod availability;
 mod new;
 mod get;
-mod generate_smartcar_token;
-mod update_vehicle_with_sc;
 mod get_mileage_packages;
 mod user_identify;
 mod upload_image;
@@ -17,8 +15,6 @@ pub fn api_v1_vehicle()
             availability::main()
                 .or(new::main())
                 .or(get::main())
-                .or(generate_smartcar_token::main())
-                .or(update_vehicle_with_sc::main())
                 .or(get_mileage_packages::main())
                 .or(user_identify::main())
                 .or(upload_image::main())
