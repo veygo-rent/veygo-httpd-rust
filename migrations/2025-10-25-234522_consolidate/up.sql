@@ -19,11 +19,27 @@ create type us_address as
 );
 
 create domain us_address_domain as us_address
-    check (
-        (value).street_address is not null and
-        (value).city is not null and
-        (value).state is not null and
-        (value).zipcode is not null
+    constraint us_address_domain_valid_ck check (
+        value is null
+        or (
+            (value).street_address is not null
+            and (value).city is not null
+            and (value).state is not null
+            and (value).zipcode is not null
+            and (value).state ~ '^[A-Z]{2}$'
+            and upper((value).state) in (
+                -- US states
+                'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+                'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+                'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+                -- DC + territories
+                'DC','AS','GU','MP','PR','VI','UM'
+            )
+            and (
+                (value).zipcode ~ '^\d{5}$'
+                or (value).zipcode ~ '^\d{5}-\d{4}$'
+            )
+        )
     );
 
 create table do_not_rent_lists
@@ -66,7 +82,7 @@ create table apartments
     timezone                        varchar(36)             not null,
     email                           varchar(36)             not null,
     phone                           varchar(10)             not null,
-    address                         us_address              not null,
+    address                         us_address_domain       not null,
     accepted_school_email_domain    varchar(16)             not null,
     free_tier_hours                 double precision        not null,
     silver_tier_hours               double precision,
@@ -136,7 +152,7 @@ create table renters
     lease_agreement_image           text,
     apartment_id                    integer                                                     not null,
     lease_agreement_expiration      date,
-    billing_address                 us_address,
+    billing_address                 us_address_domain,
     signature_image                 text,
     signature_datetime              timestamp with time zone,
     plan_tier                       plan_tier_enum           default 'Free'::plan_tier_enum     not null,
@@ -327,7 +343,7 @@ create table agreements
     user_date_of_birth          date                                                    not null,
     user_email                  varchar(36)                                             not null,
     user_phone                  varchar(10)                                             not null,
-    user_billing_address        us_address                                              not null,
+    user_billing_address        us_address_domain                                       not null,
     rsvp_pickup_time            timestamp with time zone                                not null,
     rsvp_drop_off_time          timestamp with time zone                                not null,
     liability_protection_rate   double precision,
