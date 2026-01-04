@@ -18,8 +18,8 @@ create type us_address as
     zipcode             varchar(10)
 );
 
-create domain us_address_domain as us_address
-    constraint us_address_domain_valid_ck check (
+create domain us_address_domain_optional as us_address
+    constraint us_address_domain_optional_valid_ck check (
         value is null
         or (
             (value).street_address is not null
@@ -39,6 +39,27 @@ create domain us_address_domain as us_address
                 (value).zipcode ~ '^\d{5}$'
                 or (value).zipcode ~ '^\d{5}-\d{4}$'
             )
+        )
+    );
+
+create domain us_address_domain as us_address
+    constraint us_address_domain_valid_ck check (
+        (value).street_address is not null
+        and (value).city is not null
+        and (value).state is not null
+        and (value).zipcode is not null
+        and (value).state ~ '^[A-Z]{2}$'
+        and upper((value).state) in (
+            -- US states
+            'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+            'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+            'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+            -- DC + territories
+            'DC','AS','GU','MP','PR','VI','UM'
+        )
+        and (
+            (value).zipcode ~ '^\d{5}$'
+            or (value).zipcode ~ '^\d{5}-\d{4}$'
         )
     );
 
@@ -152,7 +173,7 @@ create table renters
     lease_agreement_image           text,
     apartment_id                    integer                                                     not null,
     lease_agreement_expiration      date,
-    billing_address                 us_address_domain,
+    billing_address                 us_address_domain_optional,
     signature_image                 text,
     signature_datetime              timestamp with time zone,
     plan_tier                       plan_tier_enum           default 'Free'::plan_tier_enum     not null,
