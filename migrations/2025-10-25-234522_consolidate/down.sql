@@ -15,6 +15,8 @@ drop table if exists reward_transactions;
 
 drop table if exists payments;
 
+drop table if exists subscription_payments;
+
 drop table if exists damages;
 
 drop table if exists claims;

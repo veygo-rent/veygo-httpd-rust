@@ -1574,3 +1574,44 @@ pub struct NewRateOffer {
     pub apartment_id: i32,
     pub multiplier: f64,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Queryable, Identifiable)]
+#[diesel(table_name = subscription_payments)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct SubscriptionPayment {
+    pub id: i32,
+    pub renter_id: i32,
+    pub payment_method_id: i32,
+    pub apartment_id: i32,
+    pub renter_name: String,
+    pub renter_email: String,
+    pub renter_phone: String,
+    pub renter_billing_address: UsAddress,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub time: DateTime<Utc>,
+    pub is_annual: bool,
+    pub amount: f64,
+    pub plan_tier: PlanTier,
+    pub plan_renewal_day: String,
+    pub plan_expire_month_year: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Insertable)]
+#[diesel(table_name = subscription_payments)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewSubscriptionPayment {
+    pub renter_id: i32,
+    pub payment_method_id: i32,
+    pub apartment_id: i32,
+    pub renter_name: String,
+    pub renter_email: String,
+    pub renter_phone: String,
+    pub renter_billing_address: UsAddress,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub time: DateTime<Utc>,
+    pub is_annual: bool,
+    pub amount: f64,
+    pub plan_tier: PlanTier,
+    pub plan_renewal_day: String,
+    pub plan_expire_month_year: String,
+}

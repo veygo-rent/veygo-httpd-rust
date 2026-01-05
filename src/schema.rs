@@ -430,6 +430,34 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::UsAddress;
+    use super::sql_types::PlanTierEnum;
+
+    subscription_payments (id) {
+        id -> Int4,
+        renter_id -> Int4,
+        payment_method_id -> Int4,
+        apartment_id -> Int4,
+        #[max_length = 26]
+        renter_name -> Varchar,
+        #[max_length = 36]
+        renter_email -> Varchar,
+        #[max_length = 10]
+        renter_phone -> Varchar,
+        renter_billing_address -> UsAddress,
+        time -> Timestamptz,
+        is_annual -> Bool,
+        amount -> Float8,
+        plan_tier -> PlanTierEnum,
+        #[max_length = 2]
+        plan_renewal_day -> Varchar,
+        #[max_length = 6]
+        plan_expire_month_year -> Varchar,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::TaxTypeEnum;
 
     taxes (id) {
@@ -591,6 +619,9 @@ diesel::joinable!(rate_offers -> renters (renter_id));
 diesel::joinable!(renters -> apartments (apartment_id));
 diesel::joinable!(reward_transactions -> agreements (agreement_id));
 diesel::joinable!(reward_transactions -> renters (renter_id));
+diesel::joinable!(subscription_payments -> apartments (apartment_id));
+diesel::joinable!(subscription_payments -> payment_methods (payment_method_id));
+diesel::joinable!(subscription_payments -> renters (renter_id));
 diesel::joinable!(vehicle_snapshots -> renters (renter_id));
 diesel::joinable!(vehicle_snapshots -> vehicles (vehicle_id));
 diesel::joinable!(vehicles -> locations (location_id));
@@ -621,6 +652,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     renters,
     reward_transactions,
     services,
+    subscription_payments,
     taxes,
     transponder_companies,
     vehicle_snapshots,

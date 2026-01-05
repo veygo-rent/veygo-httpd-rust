@@ -177,7 +177,7 @@ create table renters
     signature_image                 text,
     signature_datetime              timestamp with time zone,
     plan_tier                       plan_tier_enum           default 'Free'::plan_tier_enum     not null,
-    plan_renewal_day                varchar(2)                                                 not null,
+    plan_renewal_day                varchar(2)                                                  not null,
     plan_expire_month_year          varchar(6)                                                  not null,
     plan_available_duration         double precision                                            not null,
     is_plan_annual                  boolean                  default false                      not null,
@@ -523,6 +523,29 @@ create table damages
     constraint damages_fixed_amount_range check (fixed_amount >= 0.0),
     constraint damages_depreciation_range check (depreciation >= 0.0),
     constraint claims_lost_of_use_range check (lost_of_use >= 0.0)
+);
+
+create table subscription_payments
+(
+    id                              serial,
+    renter_id                       integer                                             not null,
+    payment_method_id               integer                                             not null,
+    apartment_id                    integer                                             not null,
+    renter_name                     varchar(26)                                         not null,
+    renter_email                    varchar(36)                                         not null,
+    renter_phone                    varchar(10)                                         not null,
+    renter_billing_address          us_address_domain                                   not null,
+    time                            timestamp with time zone default CURRENT_TIMESTAMP  not null,
+    is_annual                       boolean                                             not null,
+    amount                          double precision                                    not null,
+    plan_tier                       plan_tier_enum                                      not null,
+    plan_renewal_day                varchar(2)                                          not null,
+    plan_expire_month_year          varchar(6)                                          not null,
+    constraint subscription_payment_pk primary key (id),
+    constraint subscription_payment_renter_id_fk foreign key (renter_id) references renters(id),
+    constraint subscription_payment_apartment_id_fk foreign key (apartment_id) references apartments(id),
+    constraint subscription_payment_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
+    constraint subscription_payment_amount_range check (amount > 0.0)
 );
 
 create table payments
