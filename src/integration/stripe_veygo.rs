@@ -7,7 +7,6 @@ use stripe_types::Currency;
 
 use stripe_core::payment_intent::{
     CapturePaymentIntent, CancelPaymentIntent, CreatePaymentIntent, CreatePaymentIntentOffSession,
-    CreatePaymentIntentAutomaticPaymentMethods, CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects,
     CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization,
     CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization,
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
@@ -206,12 +205,6 @@ pub async fn create_payment_intent(
         .description(description)
         .off_session(CreatePaymentIntentOffSession::Bool(true))
         .payment_method_types(vec![String::from("card")])
-        .automatic_payment_methods(
-            CreatePaymentIntentAutomaticPaymentMethods {
-                allow_redirects: Some(CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects::Never),
-                enabled: true,
-            }
-        )
         .payment_method_options(CreatePaymentIntentPaymentMethodOptions {
             card: Some(CreatePaymentIntentPaymentMethodOptionsCard {
                 request_extended_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable),
