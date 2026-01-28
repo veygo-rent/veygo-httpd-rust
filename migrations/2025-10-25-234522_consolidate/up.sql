@@ -10,57 +10,57 @@ create type policy_enum as enum('rental', 'privacy', 'membership');
 create type tax_type_enum as enum('percent', 'daily', 'fixed');
 
 create type us_address as
-(
-    street_address      varchar(64),
-    extended_address    varchar(64),
-    city                varchar(64),
-    state               varchar(2),
-    zipcode             varchar(10)
-);
+    (
+    street_address      text,
+    extended_address    text,
+    city                text,
+    state               text,
+    zipcode             text
+    );
 
 create domain us_address_domain_optional as us_address
     constraint us_address_domain_optional_valid_ck check (
         value is null
-        or (
+            or (
             (value).street_address is not null
-            and (value).city is not null
-            and (value).state is not null
-            and (value).zipcode is not null
-            and (value).state ~ '^[A-Z]{2}$'
-            and upper((value).state) in (
-                -- US states
-                'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
-                'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
-                'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
-                -- DC + territories
-                'DC','AS','GU','MP','PR','VI','UM'
-            )
-            and (
-                (value).zipcode ~ '^\d{5}$'
-                or (value).zipcode ~ '^\d{5}-\d{4}$'
-            )
-        )
+    and (value).city is not null
+    and (value).state is not null
+    and (value).zipcode is not null
+    and (value).state ~ '^[A-Z]{2}$'
+    and upper((value).state) in (
+    -- US states
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+    -- DC + territories
+    'DC','AS','GU','MP','PR','VI','UM'
+    )
+    and (
+    (value).zipcode ~ '^\d{5}$'
+    or (value).zipcode ~ '^\d{5}-\d{4}$'
+    )
+    )
     );
 
 create domain us_address_domain as us_address
     constraint us_address_domain_valid_ck check (
         (value).street_address is not null
-        and (value).city is not null
-        and (value).state is not null
-        and (value).zipcode is not null
-        and (value).state ~ '^[A-Z]{2}$'
-        and upper((value).state) in (
-            -- US states
-            'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
-            'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
-            'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
-            -- DC + territories
-            'DC','AS','GU','MP','PR','VI','UM'
-        )
-        and (
-            (value).zipcode ~ '^\d{5}$'
-            or (value).zipcode ~ '^\d{5}-\d{4}$'
-        )
+    and (value).city is not null
+    and (value).state is not null
+    and (value).zipcode is not null
+    and (value).state ~ '^[A-Z]{2}$'
+    and upper((value).state) in (
+    -- US states
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+    -- DC + territories
+    'DC','AS','GU','MP','PR','VI','UM'
+    )
+    and (
+    (value).zipcode ~ '^\d{5}$'
+    or (value).zipcode ~ '^\d{5}-\d{4}$'
+    )
     );
 
 create table do_not_rent_lists

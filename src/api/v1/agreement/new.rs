@@ -462,8 +462,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     Ok(result) => {
                                         result
                                     }
-                                    Err(err) => {
-                                        println!("{:?}", err);
+                                    Err(_) => {
                                         let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                         return methods::standard_replies::internal_server_error_response(
                                             "agreement/new: SQL error inserting agreement",
@@ -488,13 +487,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 };
                                 let payment_result = diesel::insert_into(payment_query::payments).values(&new_payment).get_result::<model::Payment>(&mut pool);
 
-                                let Ok(payment) = payment_result else {
-                                    let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
-                                    let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "agreement/new: SQL error inserting deposit payment",
-                                    )
-                                    .await;
+                                let payment = match payment_result {
+                                    Ok(pmt) => { pmt }
+                                    Err(err) => {
+                                        print!("Error inserting deposit payment: {:?}", err);
+                                        let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
+                                        let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
+                                        let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/new: SQL error inserting deposit payment",
+                                        )
+                                            .await;
+                                    }
                                 };
 
                                 use crate::schema::agreements_taxes::dsl as ag_tx_q;
