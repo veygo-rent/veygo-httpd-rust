@@ -553,7 +553,7 @@ create table payments
     time              timestamp with time zone default CURRENT_TIMESTAMP    not null,
     amount            numeric(8, 2)                                         not null,
     note              text,
-    reference_number  varchar(18),
+    reference_number  varchar(36),
     agreement_id      integer                                               not null,
     renter_id         integer                                               not null,
     payment_method_id integer,

@@ -489,15 +489,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                 let payment = match payment_result {
                                     Ok(pmt) => { pmt }
-                                    Err(err) => {
-                                        println!("{:?}", err);
+                                    Err(_) => {
                                         let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
                                         let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                         let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
                                         return methods::standard_replies::internal_server_error_response(
                                             "agreement/new: SQL error inserting deposit payment",
-                                        )
-                                            .await;
+                                        ).await;
                                     }
                                 };
 

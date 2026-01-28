@@ -306,7 +306,7 @@ diesel::table! {
         time -> Timestamptz,
         amount -> Numeric,
         note -> Nullable<Text>,
-        #[max_length = 18]
+        #[max_length = 36]
         reference_number -> Nullable<Varchar>,
         agreement_id -> Int4,
         renter_id -> Int4,
