@@ -372,7 +372,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let deposit_amount_2dp = (vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * local_tax_rate_percent
                             + local_tax_rate_fixed + local_tax_rate_daily).round_dp(2);
                         let deposit_amount_in_int = deposit_amount_2dp.mantissa() as i64;
-                        let description = "HOLD #".to_owned() + &*conf_id.clone();
+                        let description = "DEP #".to_owned() + &*conf_id.clone();
 
                         let stripe_auth = integration::stripe_veygo::create_payment_intent(
                             &user_in_request.stripe_id, &payment_method.token, deposit_amount_in_int, PaymentIntentCaptureMethod::Manual, &description
