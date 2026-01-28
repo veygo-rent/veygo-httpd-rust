@@ -462,7 +462,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     Ok(result) => {
                                         result
                                     }
-                                    Err(_) => {
+                                    Err(err) => {
+                                        println!("{:?}", err);
                                         let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                         return methods::standard_replies::internal_server_error_response(
                                             "agreement/new: SQL error inserting agreement",
