@@ -489,7 +489,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                 let payment = match payment_result {
                                     Ok(pmt) => { pmt }
-                                    Err(_) => {
+                                    Err(err) => {
+                                        println!("{:?}", err);
                                         let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
                                         let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                         let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
