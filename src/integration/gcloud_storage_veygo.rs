@@ -52,7 +52,7 @@ pub async fn get_signed_url(object_path: &str) -> String {
 }
 
 #[allow(dead_code)]
-pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec<u8>) -> String {
+pub async fn upload_file(object_path: String, file_name: String, data_raw: Vec<u8>) -> String {
     let path = Path::new(&file_name);
     let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap_or("").to_uppercase();
     let content_type = match ext.as_str() {
@@ -78,7 +78,7 @@ pub async fn upload_file(object_path: String, file_name: String, data_clone: Vec
                 bucket: BUCKET.to_string(),
                 ..Default::default()
             },
-            data_clone,
+            data_raw,
             &upload_type,
         )
         .await;

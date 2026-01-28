@@ -1,10 +1,9 @@
 use crate::{POOL, methods, model, helper_model};
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use http::Method;
+use diesel::result::Error;
 use serde_derive::{Deserialize, Serialize};
-use warp::http::StatusCode;
-use warp::reply::with_status;
+use warp::http::{StatusCode, Method};
 use warp::{Filter, Reply};
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -42,25 +41,29 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let pub_token: model::PublishAccessToken = insert_token_result.into();
                         let pub_renter: model::PublishRenter = renter.into();
-                        let renter_msg = serde_json::json!({
-                            "renter": pub_renter,
-                        });
-                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
+                        methods::standard_replies::auth_renter_reply(&pub_renter, &pub_token, false)
 
                     } else {
                         let err_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
-                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                        methods::standard_replies::response_with_obj(err_msg, StatusCode::UNAUTHORIZED)
                     }
                 }
-                Err(_) => {
-                    let err_msg = helper_model::ErrorResponse {
-                        title: "Credentials Invalid".to_string(),
-                        message: "Please check your credentials again. ".to_string(),
-                    };
-                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                Err(err) => {
+                    match err {
+                        Error::NotFound => {
+                            let err_msg = helper_model::ErrorResponse {
+                                title: "Credentials Invalid".to_string(),
+                                message: "Please check your credentials again. ".to_string(),
+                            };
+                            methods::standard_replies::response_with_obj(err_msg, StatusCode::UNAUTHORIZED)
+                        }
+                        _ => {
+                            methods::standard_replies::internal_server_error_response()
+                        }
+                    }
                 }
             }
         })

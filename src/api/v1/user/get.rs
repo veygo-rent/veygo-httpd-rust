@@ -1,16 +1,18 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
+use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use warp::Filter;
+use diesel::result::Error;
 use warp::http::{StatusCode, Method};
+use warp::{Filter, Reply};
 use crate::helper_model::VeygoError;
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path!("get" / i32)
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |pagination: i32, method: Method, auth: String, user_agent: String| {
+        .and_then(async move |usr_id: i32, method:Method, auth: String, user_agent: String| {
             if method != Method::GET {
                 return methods::standard_replies::method_not_allowed_response();
             }
@@ -34,7 +36,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let if_token_valid =
                 methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                     .await;
-            
             return match if_token_valid {
                 Err(err) => {
                     match err {
@@ -75,22 +76,36 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         return methods::standard_replies::admin_not_verified()
                     }
 
-                    use crate::schema::vehicles::dsl as vehicle_query;
+                    use crate::schema::renters::dsl as r_q;
                     let mut pool = POOL.get().unwrap();
-                    let results = vehicle_query::vehicles
-                        .order(vehicle_query::id.asc())
-                        .offset(((pagination - 1) * 10) as i64)
-                        .limit(10)
-                        .get_results::<model::Vehicle>(&mut pool);
+
+                    let user = if admin.is_operational_admin() {
+                        r_q::renters
+                            .find(&usr_id)
+                            .get_result::<model::Renter>(&mut pool)
+                    } else {
+                        r_q::renters
+                            .filter(r_q::apartment_id.eq(&admin.apartment_id))
+                            .find(&usr_id)
+                            .get_result::<model::Renter>(&mut pool)
+                    };
                     
-                    match results {
-                        Ok(res) => {
-                            methods::standard_replies::response_with_obj(res, StatusCode::OK)
+                    let user = match user {
+                        Ok(usr) => { usr }
+                        Err(err) => {
+                            return match err {
+                                Error::NotFound => {
+                                    let msg = helper_model::ErrorResponse{ title: "User Not Found".to_string(), message: "The user you are trying to access does not exist. ".to_string() };
+                                    methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
+                                }
+                                _ => {
+                                    methods::standard_replies::internal_server_error_response()
+                                }
+                            }
                         }
-                        Err(_) => {
-                            methods::standard_replies::internal_server_error_response()
-                        }
-                    }
+                    };
+                    
+                    methods::standard_replies::response_with_obj(user, StatusCode::OK)
                 }
             };
         })

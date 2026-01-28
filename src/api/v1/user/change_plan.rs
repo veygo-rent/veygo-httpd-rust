@@ -1,8 +1,11 @@
 use crate::schema::renters::dsl::renters;
-use crate::{POOL, methods, model, schema};
+use crate::{POOL, methods, model, schema, helper_model};
 use diesel::prelude::*;
+use diesel::result::Error;
+use warp::http::{StatusCode, Method};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Reply};
+use crate::helper_model::VeygoError;
 
 #[derive(Deserialize, Serialize)]
 struct ChangePlanRequest {
@@ -14,17 +17,21 @@ struct ChangePlanRequest {
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("change-plan")
         .and(warp::path::end())
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |request_body: ChangePlanRequest,
+            async move |method: Method,
+                        request_body: ChangePlanRequest,
                         auth: String,
                         user_agent: String| {
+                if method != Method::POST {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -33,7 +40,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         int
                     }
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
 
@@ -43,73 +50,140 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     &access_token.token,
                 ).await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_bool) => {
-                        if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            // gen new token
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(access_token.token).unwrap(),
-                            ).await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            ).await;
-                            use schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .into();
-                            let mut user = methods::user::get_user_by_id(&access_token.user_id)
-                                .await
-                                .unwrap();
-                            use schema::apartments::dsl::*;
-                            let apartment: model::Apartment = apartments
-                                .into_boxed()
-                                .filter(schema::apartments::columns::id.eq(&user.apartment_id))
-                                .get_result::<model::Apartment>(&mut pool)
-                                .unwrap();
-                            if !&apartment.is_operating {
-                                return methods::standard_replies::apartment_not_operational_wrapped(new_token_in_db_publish);
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
                             }
-                            if request_body.plan == model::PlanTier::Free {
-                                // request downgrade will be automatically executed when the old plan expires
-                                user.subscription_payment_method_id = None;
-                                let pub_user: model::PublishRenter = diesel::update(renters.find(access_token.user_id.clone())).set(&user).get_result::<model::Renter>(&mut pool).unwrap().into();
-                                methods::standard_replies::renter_wrapped(new_token_in_db_publish, &pub_user)
-                            } else {
-                                if let Some(_pm_id) = request_body.payment_method_id {
-                                    if user.plan_tier == model::PlanTier::Free {
-                                        // TODO if the old plan is free, setting up a brand new plan
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
 
-                                        let plan_rate: Option<f64> = match request_body.plan {
-                                            model::PlanTier::Free => Some(0.00),
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+
+                        // Get current user
+                        let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await;
+
+                        let mut user_in_request = match user_in_request {
+                            Ok(temp) => { temp }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response()
+                            }
+                        };
+
+                        let mut pool = POOL.get().unwrap();
+                        
+                        use schema::apartments::dsl as apt_q;
+                        let apartment = apt_q::apartments
+                            .filter(apt_q::id.eq(&user_in_request.apartment_id))
+                            .get_result::<model::Apartment>(&mut pool);
+
+                        let apartment = match apartment {
+                            Ok(apt) => { apt }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response()
+                            }
+                        };
+
+                        if !apartment.is_operating {
+                            user_in_request.subscription_payment_method_id = None;
+                            user_in_request.plan_tier = model::PlanTier::Free;
+                            let result = diesel::update
+                                (
+                                    renters
+                                        .find(access_token.user_id)
+                                )
+                                .set(&user_in_request)
+                                .execute(&mut pool);
+                            match result {
+                                Ok(count) => {
+                                    if count != 1 {
+                                        return methods::standard_replies::internal_server_error_response()
+                                    }
+                                }
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response()
+                                }
+                            }
+                            return methods::standard_replies::apartment_not_operational();
+                        }
+
+                        if request_body.plan == model::PlanTier::Free {
+                            user_in_request.subscription_payment_method_id = None;
+                            user_in_request.plan_tier = model::PlanTier::Free;
+                            let result = diesel::update
+                                (
+                                    renters
+                                        .find(access_token.user_id)
+                                )
+                                .set(&user_in_request)
+                                .get_result::<model::Renter>(&mut pool);
+                            return match result {
+                                Ok(renter) => {
+                                    let pub_renter: model::PublishRenter = renter.into();
+                                    methods::standard_replies::response_with_obj(pub_renter, StatusCode::OK)
+                                }
+                                Err(_) => {
+                                    methods::standard_replies::internal_server_error_response()
+                                }
+                            }
+                        } else {
+                            if let Some(pm_id) = request_body.payment_method_id {
+                                use crate::schema::payment_methods::dsl as pm_q;
+                                let payment_method = pm_q::payment_methods
+                                    .find(&pm_id)
+                                    .get_result::<model::PaymentMethod>(&mut pool);
+                                match payment_method {
+                                    Ok(_pm) => {
+                                        let plan_rate = match request_body.plan {
+                                            model::PlanTier::Free => None,
                                             model::PlanTier::Gold => apartment.gold_tier_rate,
                                             model::PlanTier::Silver => apartment.silver_tier_rate,
                                             model::PlanTier::Platinum => apartment.platinum_tier_rate,
                                         };
+                                        let Some(_plan_rate) = plan_rate else {
+                                            let msg = helper_model::ErrorResponse{ 
+                                                title: "Plan Not Available".to_string(), message: "The plan is currently not available, please try a different plan. ".to_string()
+                                            };
+                                            return methods::standard_replies::response_with_obj(msg, StatusCode::FORBIDDEN)
+                                        };
+                                        
+                                        
+                                        // TODO: Calculate plan credits or start new plans
+                                        
 
-                                        let plan_cost = plan_rate.unwrap_or_default();
-
-                                        if plan_cost == 0.00 {
-                                            // TODO 
-                                            return methods::standard_replies::not_implemented_response();
-                                        }
-
-                                        methods::standard_replies::not_implemented_response()
-                                    } else {
-                                        // TODO Change exp date and tier level
-                                        let _plan_exp_ddmmyyyy = user.plan_renewal_day.clone() + &user.plan_expire_month_year;
-                                        let _old_plan = user.plan_tier.clone();
-                                        let _if_annual = user.is_plan_annual.clone();
-                                        methods::standard_replies::not_implemented_response()
+                                        methods::standard_replies::internal_server_error_response()
                                     }
-                                } else {
-                                    methods::standard_replies::card_invalid_wrapped(new_token_in_db_publish)
+                                    Err(err) => {
+                                        match err {
+                                            Error::NotFound => {
+                                                methods::standard_replies::card_invalid()
+                                            }
+                                            _ => {
+                                                methods::standard_replies::internal_server_error_response()
+                                            }
+                                        }
+                                    }
                                 }
+                            } else {
+                                methods::standard_replies::card_invalid()
                             }
                         }
                     }

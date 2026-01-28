@@ -125,7 +125,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match result {
                                 // Matched Apartment Found
                                 Ok(apartment) => {
-                                    // email correct
+                                    // email corrects
                                     let hashed_pass = hash(&renter_create_data.password, DEFAULT_COST).unwrap();
                                     renter_create_data.password = hashed_pass;
                                     // Get today's date.
@@ -150,8 +150,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         emp_tier = model::EmployeeTier::User;
                                     }
 
+                                    let stripe_result = stripe_veygo::create_stripe_customer(
+                                        &renter_create_data.name, &renter_create_data.phone, &renter_create_data.student_email
+                                    ).await;
+
+                                    let Ok(customer) = stripe_result else {
+                                        return methods::standard_replies::internal_server_error_response()
+                                    };
+
                                     let to_be_inserted = model::NewRenter {
                                         name: renter_create_data.name,
+                                        stripe_id: customer.id.to_string(),
                                         student_email: renter_create_data.student_email,
                                         password: renter_create_data.password,
                                         phone: renter_create_data.phone,
@@ -159,27 +168,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         apartment_id: apartment.id,
                                         plan_renewal_day: plan_renewal_day_string,
                                         plan_expire_month_year: plan_expire_month_year_string,
-                                        plan_available_duration: apartment.free_tier_hours,
                                         employee_tier: emp_tier,
                                     };
-                                    let mut renter = diesel::insert_into(renters)
-                                        .values(&to_be_inserted)
-                                        .get_result::<model::Renter>(&mut pool).unwrap();
 
-                                    let stripe_result = stripe_veygo::create_stripe_customer(&renter.name, &renter.phone, &renter.student_email).await;
-                                    match stripe_result {
-                                        Ok(stripe_customer) => {
-                                            let stripe_customer_id = stripe_customer.id.to_string();
-                                            let renter_id_to_add_stripe = renter.id.clone();
-                                            let new_renter = diesel::update(renters.find(renter_id_to_add_stripe)).set(stripe_id.eq(stripe_customer_id)).get_result::<model::Renter>(&mut pool).unwrap();
-                                            renter = new_renter;
-                                        }
-                                        Err(_) => {
-                                            use crate::schema::renters::dsl::*;
-                                            diesel::delete(renters.filter(id.eq(renter.id))).execute(&mut pool).unwrap();
-                                            return methods::standard_replies::internal_server_error_response_without_token();
-                                        }
-                                    }
+                                    let renter = diesel::insert_into(renters)
+                                        .values(&to_be_inserted)
+                                        .get_result::<model::Renter>(&mut pool);
+
+                                    let Ok(renter) = renter else {
+                                        return methods::standard_replies::internal_server_error_response()
+                                    };
+
                                     let user_id_data = renter.id;
                                     let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
                                     use crate::schema::access_tokens::dsl::*;
@@ -190,10 +189,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                     let pub_token: model::PublishAccessToken = insert_token_result.into();
                                     let pub_renter: model::PublishRenter = renter.into();
-                                    let renter_msg = serde_json::json!({
-                                            "renter": pub_renter,
-                                        });
-                                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::CREATED)),))
+                                    methods::standard_replies::auth_renter_reply(&pub_renter, &pub_token, true)
                                 }
                                 Err(_) => {
                                     // Matched Apartment Not Found

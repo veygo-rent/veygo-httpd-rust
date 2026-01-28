@@ -1,11 +1,11 @@
 use crate::{POOL, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
+use http::Method;
 use serde_derive::{Deserialize, Serialize};
-use stripe::{ErrorType, StripeError};
-use warp::Filter;
+use warp::{Filter};
 use warp::http::StatusCode;
-
+use crate::helper_model::VeygoError;
 use crate::integration::stripe_veygo;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,15 +17,20 @@ pub struct CreatePaymentMethodsRequestBody {
 
 pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection> + Clone {
     warp::path("create")
-        .and(warp::post())
+        .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and(warp::path::end())
-        .and_then(async move |request_body: CreatePaymentMethodsRequestBody, auth: String, user_agent: String| {
+        .and_then(async move |method: Method,
+                              request_body: CreatePaymentMethodsRequestBody,
+                              auth: String, user_agent: String| {
+            if method != Method::POST {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
-                return methods::tokens::token_invalid_wrapped_return();
+                return methods::tokens::token_invalid_return();
             }
             let user_id;
             let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -34,82 +39,133 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                     int
                 }
                 Err(_) => {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
             };
 
-            let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
+            let access_token = model::RequestToken {
+                user_id,
+                token: String::from(token_and_id[0]),
+            };
+
             let if_token_valid = methods::tokens::verify_user_token(&access_token.user_id, &access_token.token).await;
             return match if_token_valid {
-                Err(_) => {
-                    methods::tokens::token_not_hex_warp_return()
+                Err(err) => {
+                    match err {
+                        VeygoError::TokenFormatError => {
+                            methods::tokens::token_not_hex_warp_return()
+                        }
+                        VeygoError::InvalidToken => {
+                            methods::tokens::token_invalid_return()
+                        }
+                        _ => {
+                            methods::standard_replies::internal_server_error_response()
+                        }
+                    }
                 }
-                Ok(token_bool) => {
-                    if token_bool {
-                        // gen new token
-                        let _ = methods::tokens::rm_token_by_binary(hex::decode(access_token.token).unwrap()).await;
-                        let new_token = methods::tokens::gen_token_object(&access_token.user_id, &user_agent).await;
-                        use crate::schema::access_tokens::dsl::*;
-                        let mut pool = POOL.get().unwrap();
-                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                            .values(&new_token)
-                            .get_result::<model::AccessToken>(&mut pool)
-                            .unwrap()
-                            .into();
+                Ok(valid_token) => {
+                    // token is valid
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
 
-                        let new_pm_result = stripe_veygo::create_new_payment_method(&request_body.pm_id, &request_body.cardholder_name, &access_token.user_id, &request_body.nickname).await;
-                        match new_pm_result {
-                            Ok(new_pm) => {
-                                use crate::schema::payment_methods::dsl::*;
-                                let card_in_db = diesel::select(diesel::dsl::exists(payment_methods.into_boxed().filter(is_enabled.eq(true))
-                                    .filter(fingerprint.eq(&new_pm.fingerprint))))
-                                    .get_result::<bool>(&mut pool)
-                                    .unwrap();
-                                if card_in_db {
-                                    let err_msg = helper_model::ErrorResponse {
-                                        title: "Payment Method Existed".to_string(),
-                                        message: "Please try a different credit card. ".to_string(),
-                                    };
-                                    return Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),));
-                                }
-                                // attach payment method to customer
-                                let current_renter = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
-                                let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&current_renter.stripe_id.unwrap(), &new_pm.token).await;
-                                match attach_result {
-                                    Ok(_) => {
-                                        use crate::schema::payment_methods::dsl::*;
-                                        let inserted_pm_card: model::PublishPaymentMethod = diesel::insert_into(payment_methods)
-                                            .values(&new_pm)
-                                            .get_result::<model::PaymentMethod>(&mut pool)
-                                            .unwrap()
-                                            .into();
-
-                                        let msg = serde_json::json!({
-                                            "new_payment_method": inserted_pm_card,
-                                        });
-                                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&msg), StatusCode::CREATED)),))
-                                    }
-                                    Err(error) => {
-                                        if let StripeError::Stripe(request_error) = error {
-                                            eprintln!("Stripe API error: {:?}", request_error);
-                                            if request_error.error_type == ErrorType::Card {
-                                                return methods::standard_replies::card_declined_wrapped(new_token_in_db_publish);
-                                            }
-                                        }
-                                        methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone())
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Payment Method Invalid".to_string(),
-                                    message: "Payment method is invalid. Please try a different credit card. ".to_string(),
-                                };
-                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, warp::reply::with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE)),))
+                    match ext_result {
+                        Ok(bool) => {
+                            if !bool {
+                                return methods::standard_replies::internal_server_error_response();
                             }
                         }
-                    } else {
-                        methods::tokens::token_invalid_wrapped_return()
+                        Err(_) => {
+                            return methods::standard_replies::internal_server_error_response();
+                        }
+                    }
+
+                    let new_pm_result = stripe_veygo::retrieve_payment_method_from_stripe
+                        (
+                            &request_body.pm_id,
+                            &request_body.cardholder_name,
+                            &access_token.user_id,
+                            &request_body.nickname
+                        )
+                        .await;
+
+                    match new_pm_result {
+                        Ok(new_pm) => {
+                            use crate::schema::payment_methods::dsl as pm_q;
+                            let mut pool = POOL.get().unwrap();
+                            let card_in_db = diesel::select
+                                (
+                                    diesel::dsl::exists(pm_q::payment_methods.into_boxed()
+                                        .filter(pm_q::is_enabled)
+                                        .filter(pm_q::fingerprint.eq(&new_pm.fingerprint))
+                                )
+                            ).get_result::<bool>(&mut pool);
+
+                            let Ok(card_in_db) = card_in_db else {
+                                return methods::standard_replies::internal_server_error_response()
+                            };
+                            if card_in_db {
+                                let err_msg = helper_model::ErrorResponse {
+                                    title: "Payment Method Existed".to_string(),
+                                    message: "Please try a different credit card. ".to_string(),
+                                };
+                                return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                            }
+
+                            use crate::schema::renters::dsl as renter_q;
+                            let stripe_id = renter_q::renters
+                                .find(&access_token.user_id)
+                                .select(renter_q::stripe_id)
+                                .get_result::<String>(&mut pool);
+
+                            let Ok(stripe_id) = stripe_id else {
+                                return methods::standard_replies::internal_server_error_response()
+                            };
+
+                            let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token).await;
+
+                            match attach_result {
+                                Ok(_) => {
+                                    use crate::schema::payment_methods::dsl as pm_q;
+                                    let inserted_pm_card = diesel::insert_into(pm_q::payment_methods)
+                                        .values(&new_pm)
+                                        .get_result::<model::PaymentMethod>(&mut pool);
+                                    
+                                    return match inserted_pm_card {
+                                        Ok(pm) => {
+                                            let pub_pm: model::PublishPaymentMethod = pm.into();
+                                            methods::standard_replies::response_with_obj(pub_pm, StatusCode::CREATED)
+                                        }
+                                        Err(_) => {
+                                            methods::standard_replies::internal_server_error_response()
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    match err {
+                                        VeygoError::CardDeclined => {
+                                            methods::standard_replies::card_declined()
+                                        }
+                                        _ => {
+                                            methods::standard_replies::internal_server_error_response()
+                                        }
+                                    }
+                                }
+                            }
+
+
+                        }
+                        Err(err) => {
+                            return match err {
+                                VeygoError::CardNotSupported => {
+                                    methods::standard_replies::card_invalid()
+                                }
+                                VeygoError::InputDataError => {
+                                    methods::standard_replies::card_invalid()
+                                }
+                                _ => {
+                                    methods::standard_replies::internal_server_error_response()
+                                }
+                            }
+                        }
                     }
                 }
             };

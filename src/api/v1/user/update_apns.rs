@@ -1,9 +1,9 @@
-use crate::schema::renters::dsl::renters;
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
-use http::Method;
+use warp::http::{Method};
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply};
+use crate::helper_model::VeygoError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct UpdateApnsBody {
@@ -24,14 +24,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 user_id = match user_id_parsed_result {
                     Ok(int) => int,
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
                 let access_token = model::RequestToken {
@@ -42,45 +42,50 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_bool) => {
-                        if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            // gen new token
-                            let token_clone = access_token.clone();
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(token_clone.token).unwrap(),
-                            )
-                            .await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            )
-                            .await;
-                            use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .into();
-                            let mut usr_in_question =
-                                methods::user::get_user_by_id(&access_token.user_id)
-                                    .await
-                                    .unwrap();
-                            usr_in_question.apple_apns = Option::from(body.apns.clone());
-                            let renter_updated: model::PublishRenter =
-                                diesel::update(renters.find(&access_token.user_id))
-                                    .set(&usr_in_question)
-                                    .get_result::<model::Renter>(&mut pool)
-                                    .unwrap()
-                                    .into();
-                            return methods::standard_replies::renter_wrapped(
-                                new_token_in_db_publish,
-                                &renter_updated,
-                            );
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
+                            }
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
                         }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+
+                        use crate::schema::renters::dsl as r_q;
+                        let mut pool = POOL.get().unwrap();
+
+                        let update_result = diesel::update
+                            (
+                                r_q::renters
+                                    .find(&access_token.user_id)
+                            )
+                            .set(r_q::apple_apns.eq(Some(&body.apns)))
+                            .get_result::<model::Renter>(&mut pool);
+
+                        let Ok(renter) = update_result else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
+
+                        return methods::standard_replies::response_with_obj(renter, http::StatusCode::OK);
                     }
                 };
             },

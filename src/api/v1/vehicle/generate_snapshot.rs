@@ -1,10 +1,11 @@
 use crate::{POOL, methods, model, integration, helper_model};
 use diesel::prelude::*;
-use warp::{Filter, http::Method, http::StatusCode, reply::with_status, Rejection};
+use warp::{Filter, http::Method, http::StatusCode, Rejection};
 use sha2::{Sha256, Digest};
 use futures::{stream::FuturesUnordered, StreamExt};
 
 use serde::Deserialize;
+use crate::helper_model::VeygoError;
 
 #[derive(Debug, Deserialize)]
 struct TeslaVehicleDataEnvelope {
@@ -95,14 +96,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
 
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
-                return methods::tokens::token_invalid_wrapped_return();
+                return methods::tokens::token_invalid_return();
             }
             let user_id;
             let user_id_parsed_result = token_and_id[1].parse::<i32>();
             user_id = match user_id_parsed_result {
                 Ok(int) => int,
                 Err(_) => {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
             };
 
@@ -115,120 +116,126 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                     .await;
 
             return match if_token_valid {
-                Err(_) => methods::tokens::token_not_hex_warp_return(),
-                Ok(token_is_valid) => {
-                    if !token_is_valid {
-                        methods::tokens::token_invalid_wrapped_return()
-                    } else {
-                        // token is valid
-                        let token_clone = access_token.clone();
-                        methods::tokens::rm_token_by_binary(
-                            hex::decode(token_clone.token).unwrap(),
-                        )
-                            .await;
-                        let new_token = methods::tokens::gen_token_object(
-                            &access_token.user_id,
-                            &user_agent,
-                        )
-                            .await;
-                        use crate::schema::access_tokens::dsl::*;
-                        let mut pool = POOL.get().unwrap();
-                        let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                            .values(&new_token)
-                            .get_result::<model::AccessToken>(&mut pool)
-                            .unwrap()
-                            .into();
+                Err(err) => {
+                    match err {
+                        VeygoError::TokenFormatError => {
+                            methods::tokens::token_not_hex_warp_return()
+                        }
+                        VeygoError::InvalidToken => {
+                            methods::tokens::token_invalid_return()
+                        }
+                        _ => {
+                            methods::standard_replies::internal_server_error_response()
+                        }
+                    }
+                }
+                Ok(valid_token) => {
+                    // token is valid
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
 
-                        match vehicle.remote_mgmt {
-                            model::RemoteMgmtType::Tesla => {
-                                // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
-                                let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
+                    match ext_result {
+                        Ok(bool) => {
+                            if !bool {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+                        Err(_) => {
+                            return methods::standard_replies::internal_server_error_response();
+                        }
+                    }
 
-                                for i in 0..16 { // up to ~10s total
-                                    if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
-                                        if let Ok(body_text) = response.text().await {
-                                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
-                                                let state = json
-                                                    .get("response")
-                                                    .and_then(|r| r.get("state"))
-                                                    .and_then(|s| s.as_str())
-                                                    .unwrap_or("");
-                                                if state == "online" {
-                                                    break;
-                                                }
-                                                // Only on the first iteration, if offline, send wake_up once
-                                                if i == 0 {
-                                                    let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
-                                                    let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
-                                                }
+                    match vehicle.remote_mgmt {
+                        model::RemoteMgmtType::Tesla => {
+                            // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                            let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
+
+                            for i in 0..16 { // up to ~10s total
+                                if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                    if let Ok(body_text) = response.text().await {
+                                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                            let state = json
+                                                .get("response")
+                                                .and_then(|r| r.get("state"))
+                                                .and_then(|s| s.as_str())
+                                                .unwrap_or("");
+                                            if state == "online" {
+                                                break;
+                                            }
+                                            // Only on the first iteration, if offline, send wake_up once
+                                            if i == 0 {
+                                                let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                                                let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
                                             }
                                         }
                                     }
-                                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                 }
+                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                            }
 
-                                // Fetch live Tesla vehicle data (odometer + battery level)
-                                let vehicle_tag = &vehicle.remote_mgmt_id;
-                                let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+                            // Fetch live Tesla vehicle data (odometer + battery level)
+                            let vehicle_tag = &vehicle.remote_mgmt_id;
+                            let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
 
-                                let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
-                                    Ok(r) => r,
-                                    Err(_) => {
-                                        return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
-                                    }
-                                };
-
-                                if !tesla_resp.status().is_success() {
-                                    return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
+                            let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
+                                Ok(r) => r,
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response();
                                 }
+                            };
 
-                                let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
-                                    Ok(b) => b,
-                                    Err(_) => {
-                                        return methods::standard_replies::internal_server_error_response(new_token_in_db_publish.clone());
-                                    }
-                                };
-
-                                let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
-                                let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
-
-                                vehicle.odometer = odometer_i32;
-                                vehicle.tank_level_percentage = battery_level_i32;
-
-                                diesel::update(v_q::vehicles.find(vehicle.id)).set(&vehicle).execute(&mut pool).unwrap();
+                            if !tesla_resp.status().is_success() {
+                                return methods::standard_replies::internal_server_error_response();
                             }
-                            _ => {
 
-                            }
+                            let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
+                                Ok(b) => b,
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            };
+
+                            let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
+                            let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
+
+                            vehicle.odometer = odometer_i32;
+                            vehicle.tank_level_percentage = battery_level_i32;
+
+                            let _ = diesel::update(v_q::vehicles.find(vehicle.id)).set(&vehicle).execute(&mut pool);
                         }
+                        _ => {
 
-                        let snapshot_to_be_inserted = model::NewVehicleSnapshot {
-                            left_image: body.left_image_path.clone(),
-                            right_image: body.right_image_path.clone(),
-                            front_image: body.front_image_path.clone(),
-                            back_image: body.back_image_path.clone(),
-                            odometer: vehicle.odometer,
-                            level: vehicle.tank_level_percentage,
-                            vehicle_id: vehicle.id,
-                            rear_right: body.back_right_image_path.clone(),
-                            rear_left: body.back_left_image_path.clone(),
-                            front_right: body.front_right_image_path.clone(),
-                            front_left: body.front_left_image_path.clone(),
-                            dashboard: None,
-                            renter_id: access_token.user_id,
-                        };
+                        }
+                    }
 
-                        use crate::schema::vehicle_snapshots::dsl as v_s_q;
+                    let snapshot_to_be_inserted = model::NewVehicleSnapshot {
+                        left_image: body.left_image_path.clone(),
+                        right_image: body.right_image_path.clone(),
+                        front_image: body.front_image_path.clone(),
+                        back_image: body.back_image_path.clone(),
+                        odometer: vehicle.odometer,
+                        level: vehicle.tank_level_percentage,
+                        vehicle_id: vehicle.id,
+                        rear_right: body.back_right_image_path.clone(),
+                        rear_left: body.back_left_image_path.clone(),
+                        front_right: body.front_right_image_path.clone(),
+                        front_left: body.front_left_image_path.clone(),
+                        dashboard: None,
+                        renter_id: access_token.user_id,
+                    };
 
-                        let v_snap = diesel::insert_into(v_s_q::vehicle_snapshots)
-                            .values(&snapshot_to_be_inserted)
-                            .get_result::<model::VehicleSnapshot>(&mut pool)
-                            .unwrap();
+                    use crate::schema::vehicle_snapshots::dsl as v_s_q;
 
-                        Ok::<_, Rejection>((methods::tokens::wrap_json_reply_with_token(
-                            new_token_in_db_publish,
-                            with_status(warp::reply::json(&v_snap), StatusCode::OK),
-                        ),))
+                    let v_snap = diesel::insert_into(v_s_q::vehicle_snapshots)
+                        .values(&snapshot_to_be_inserted)
+                        .get_result::<model::VehicleSnapshot>(&mut pool);
+
+                    match v_snap {
+                        Ok(vs) => {
+                            methods::standard_replies::response_with_obj(vs, StatusCode::CREATED)
+                        }
+                        Err(_) => {
+                            methods::standard_replies::internal_server_error_response()
+                        }
                     }
                 }
             }

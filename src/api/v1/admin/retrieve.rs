@@ -1,7 +1,7 @@
-use crate::{POOL, methods, model, schema};
-use diesel::prelude::*;
+use http::StatusCode;
+use crate::{methods, model};
 use warp::{Filter, Reply, http::Method};
-use crate::model::{PublishAccessToken, PublishRenter};
+use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("retrieve")
@@ -16,60 +16,60 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 user_id = match user_id_parsed_result {
                     Ok(int) => int,
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
 
                 let access_token = model::RequestToken {
                     user_id,
-                    token: token_and_id[0].parse().unwrap(),
+                    token: String::from(token_and_id[0]),
                 };
                 let if_token_valid =
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_bool) => {
-                        if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            let token_clone = access_token.clone();
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(token_clone.token).unwrap(),
-                            )
-                            .await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            )
-                            .await;
-                            use schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap();
-                            let new_token_in_db_publish = PublishAccessToken::from(new_token_in_db);
-                            let user = methods::user::get_user_by_id(&access_token.user_id)
-                                .await
-                                .unwrap();
-                            if !methods::user::user_is_manager(&user) {
-                                let token_clone = new_token_in_db_publish.clone();
-                                return methods::standard_replies::user_not_admin_wrapped_return(
-                                    token_clone,
-                                );
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
                             }
-                            methods::standard_replies::admin_wrapped(
-                                new_token_in_db_publish,
-                                &PublishRenter::from(user),
-                            )
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(token) => {
+                        let user = methods::user::get_user_by_id(&access_token.user_id)
+                            .await;
+                        let Ok(user) = user else {
+                            return methods::standard_replies::internal_server_error_response();
+                        };
+                        
+                        if !user.is_manager() {
+                            return methods::standard_replies::user_not_admin();
+                        }
+                        let result = methods::tokens::extend_token(token.1, &user_agent);
+                        match result {
+                            Ok(is_renewed) => {
+                                if is_renewed {
+                                    methods::standard_replies::response_with_obj::<model::PublishRenter>(user.into(), StatusCode::OK)
+                                } else {
+                                    methods::standard_replies::internal_server_error_response()
+                                }
+                            }
+                            Err(_) => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
                         }
                     }
                 };

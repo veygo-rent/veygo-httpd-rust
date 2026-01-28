@@ -1,28 +1,34 @@
 use crate::model::Apartment;
-use crate::{POOL, schema};
+use crate::{POOL, schema, methods};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use warp::Filter;
+use http::Method;
+use warp::{Filter, Reply};
 use warp::http::StatusCode;
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("get-universities")
-        .and(warp::get())
+        .and(warp::method())
         .and(warp::path::end())
-        .and_then(async move || {
+        .and_then(async move |method: Method| {
+            if method != Method::GET {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             use schema::apartments::dsl::*;
             let mut pool = POOL.get().unwrap();
-            let results: Vec<Apartment> = apartments
+            let results = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))
                 .filter(uni_id.eq(1))
                 .filter(id.ne(1))
-                .load::<Apartment>(&mut pool)
-                .unwrap_or_default();
+                .load::<Apartment>(&mut pool);
 
-            let msg = serde_json::json!({"universities": results});
-            Ok::<_, warp::Rejection>((warp::reply::with_status(
-                warp::reply::json(&msg),
-                StatusCode::OK,
-            ),))
+            match results {
+                Ok(apt) => {
+                    methods::standard_replies::response_with_obj(apt, StatusCode::OK)
+                }
+                Err(_) => {
+                    methods::standard_replies::internal_server_error_response()
+                }
+            }
         })
 }

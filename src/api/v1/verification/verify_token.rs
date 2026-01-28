@@ -1,10 +1,10 @@
-use crate::{POOL, methods, model};
+use crate::{POOL, methods, model, helper_model};
 use chrono::{Datelike, Utc};
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
-use warp::reply::with_status;
 use warp::{Filter, Reply};
+use crate::helper_model::VeygoError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct BodyData {
@@ -25,7 +25,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         user_agent: String| {
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -34,7 +34,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         int
                     }
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
 
@@ -45,79 +45,89 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 )
                     .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_bool) => {
-                        if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            // gen new token
-                            let token_clone = access_token.clone();
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(token_clone.token).unwrap(),
-                            )
-                                .await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            )
-                                .await;
-                            use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .into();
-                            let mut renter = methods::user::get_user_by_id(&access_token.user_id)
-                                .await
-                                .unwrap();
-                            use crate::schema::verifications::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let now_utc = Utc::now();
-                            let if_verify = diesel::select(diesel::dsl::exists(
-                                verifications
-                                    .into_boxed()
-                                    .filter(verification_method.eq(body.verification_method))
-                                    .filter(renter_id.eq(access_token.user_id))
-                                    .filter(expires_at.ge(now_utc))
-                                    .filter(code.eq(body.code.clone())),
-                            )).get_result::<bool>(&mut pool).unwrap();
-                            if if_verify {
-                                use crate::schema::verifications::dsl::*;
-                                diesel::delete(verifications
-                                    .filter(verification_method.eq(body.verification_method))
-                                    .filter(renter_id.eq(access_token.user_id))
-                                    .filter(code.eq(body.code.clone()))
-                                ).execute(&mut pool).unwrap();
-                                renter = match body.verification_method {
-                                    model::VerificationType::Phone => {
-                                        renter.phone_is_verified = true;
-                                        renter
-                                    }
-                                    model::VerificationType::Email => {
-                                        let now = Utc::now().date_naive();
-                                        let two_years_from_now = now.with_year(now.year() + 1).unwrap();
-                                        renter.student_email_expiration = Some(two_years_from_now);
-                                        renter
-                                    }
-                                };
-                                use crate::schema::renters::dsl::*;
-                                let new_renter: model::PublishRenter = diesel::update(renters.find(&renter.id.clone()))
-                                    .set(renter)
-                                    .get_result::<model::Renter>(&mut pool)
-                                    .unwrap()
-                                    .into();
-                                let msg = serde_json::json!({"verified_renter": new_renter});
-                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
-                                    new_token_in_db_publish,
-                                    with_status(warp::reply::json(&msg), StatusCode::OK),
-                                ),))
-                            } else {
-                                let msg = serde_json::json!({"code": body.code, "error": "Cannot be verified"});
-                                Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
-                                    new_token_in_db_publish,
-                                    with_status(warp::reply::json(&msg), StatusCode::NOT_ACCEPTABLE),
-                                ),))
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
+                            }
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+
+                        let mut pool = POOL.get().unwrap();
+
+                        use crate::schema::verifications::dsl as verify_q;
+                        let now_utc = Utc::now();
+
+                        let delete_result = diesel::delete
+                        (
+                            verify_q::verifications
+                                .filter(verify_q::verification_method.eq(&body.verification_method))
+                                .filter(verify_q::renter_id.eq(&access_token.user_id))
+                                .filter(verify_q::expires_at.ge(&now_utc))
+                                .filter(verify_q::code.eq(&body.code))
+                        ).execute(&mut pool);
+
+                        match delete_result {
+                            Ok(count) => {
+                                if count >= 1 {
+                                    use crate::schema::renters::dsl as r_q;
+                                    let updated_renter = match body.verification_method {
+                                        model::VerificationType::Email => {
+                                            let now = Utc::now().date_naive();
+                                            let one_years_from_now = now.with_year(now.year() + 1).unwrap();
+                                            diesel::update
+                                                (
+                                                    r_q::renters
+                                                        .find(&access_token.user_id)
+                                                )
+                                                .set(r_q::student_email_expiration.eq(Some(one_years_from_now)))
+                                                .get_result::<model::Renter>(&mut pool)
+                                        }
+                                        model::VerificationType::Phone => {
+                                            diesel::update
+                                                (
+                                                    r_q::renters
+                                                        .find(&access_token.user_id)
+                                                )
+                                                .set(r_q::phone_is_verified.eq(true))
+                                                .get_result::<model::Renter>(&mut pool)
+                                        }
+                                    };
+
+                                    let Ok(updated_renter) = updated_renter else {
+                                        return methods::standard_replies::internal_server_error_response()
+                                    };
+
+                                    methods::standard_replies::response_with_obj(updated_renter, StatusCode::OK)
+                                } else {
+                                    let msg = helper_model::ErrorResponse{
+                                        title: "Cannot Verify OTP".to_string(), message: "The OTP you provided is not valid. ".to_string()
+                                    };
+                                    methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
+                                }
+                            }
+                            Err(_) => {
+                                methods::standard_replies::internal_server_error_response()
                             }
                         }
                     }

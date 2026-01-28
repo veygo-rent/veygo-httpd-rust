@@ -1,50 +1,58 @@
-use crate::model;
+use crate::{model, helper_model};
 use std::env;
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::sync::OnceCell;
-use stripe::{
-    Client, CreateCustomer, CreatePaymentIntent, CreatePaymentIntentAutomaticPaymentMethods,
-    CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects, PaymentMethodId, SetupIntent,
-    CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCard,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization, PaymentMethod,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization, Currency,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreateSetupIntent,
-    CreateSetupIntentAutomaticPaymentMethods, StripeError, CancelPaymentIntent, Customer,
-    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects, CustomerId, RefundReasonFilter,
-    PaymentIntent, PaymentIntentCaptureMethod, PaymentIntentOffSession, CreateRefund, Refund,
-    PaymentIntentId
+
+use stripe::{Client, StripeError, ApiErrorsType, ApiErrorsCode};
+use stripe_types::Currency;
+
+use stripe_core::payment_intent::{
+    CapturePaymentIntent, CancelPaymentIntent, CreatePaymentIntent, CreatePaymentIntentOffSession,
+    CreatePaymentIntentAutomaticPaymentMethods, CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects,
+    CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization,
+    CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
+};
+use stripe_core::setup_intent::{
+    CreateSetupIntent, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects
+};
+use stripe_core::refund::{CreateRefund};
+use stripe_core::customer::{CreateCustomer};
+
+use stripe_core::{
+    PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer
 };
 
-static STRIPE_CLIENT: OnceCell<Arc<Client>> = OnceCell::const_new();
+use stripe_payment::payment_method::{RetrievePaymentMethod};
 
-async fn stripe_client() -> Arc<Client> {
+static STRIPE_CLIENT: OnceCell<Client> = OnceCell::const_new();
+
+async fn stripe_client() -> &'static Client {
     STRIPE_CLIENT
         .get_or_init(|| async {
             let stripe_secret_key = env::var("STRIPE_SECRET_KEY")
                 .expect("STRIPE_SECRET_KEY must be set");
-            Arc::new(Client::new(stripe_secret_key))
+            Client::new(stripe_secret_key)
         })
         .await
-        .clone()
 }
 
-pub async fn create_new_payment_method(
-    pm_id: &str,
-    cardholder_name: &String, // Required as Stripe does not return the full name
-    renter_id: &i32,          // Must be provided
-    nickname: &Option<String>, // Optional user-defined alias
-) -> Result<model::NewPaymentMethod, StripeError> {
+pub async fn retrieve_payment_method_from_stripe(
+    pi_id: &str,
+    cardholder_name: &String,   // Required as Stripe does not return the full name
+    renter_id: &i32,            // Must be provided
+    nickname: &Option<String>,  // Optional user-defined alias
+) -> Result<model::NewPaymentMethod, helper_model::VeygoError> {
     let client = stripe_client().await;
-    let payment_id = PaymentMethodId::from_str(pm_id).unwrap();
-    let payment_method = PaymentMethod::retrieve(&client, &payment_id, &[]).await;
-
+    let payment_method = RetrievePaymentMethod::new(pi_id).send(client).await;
     match payment_method {
         Ok(payment_method) => {
             let card = payment_method.card.unwrap();
             let accepted_cards: &[&str] = &[ "amex", "mastercard", "visa", "discover" ];
-            if !accepted_cards.contains(&card.brand.as_str()) {
-                return Err(StripeError::Stripe(Default::default()))
+            let accepted_funding_methods: &[&str] = &[ "credit", "debit" ];
+            if !accepted_cards.contains(&card.brand.as_str()) &&
+                !accepted_funding_methods.contains(&card.funding.as_str())
+            {
+                return Err(helper_model::VeygoError::CardNotSupported)
             }
             let mut masked_card_number = format!("**** **** **** {}", card.last4);
             if card.brand == "amex" {
@@ -58,7 +66,7 @@ pub async fn create_new_payment_method(
                 masked_card_number,
                 network,
                 expiration,
-                token: pm_id.to_string(),
+                token: pi_id.to_string(),
                 fingerprint: card.fingerprint.unwrap(),
                 nickname: nickname.clone(),
                 is_enabled: true,
@@ -66,7 +74,19 @@ pub async fn create_new_payment_method(
                 last_used_date_time: None,
             })
         }
-        Err(error) => Err(error),
+        Err(e) => {
+            match e {
+                StripeError::Stripe(err, _) => {
+                    if err.type_ == ApiErrorsType::InvalidRequestError {
+                        return Err(helper_model::VeygoError::InputDataError)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
+        }
     }
 }
 
@@ -74,141 +94,208 @@ pub async fn create_stripe_customer(
     name_data: &String,
     phone_data: &String,
     email_data: &String,
-) -> Result<Customer, StripeError> {
+) -> Result<Customer, helper_model::VeygoError> {
     let client = stripe_client().await;
-    Customer::create(
-        &client,
-        CreateCustomer {
-            name: Some(name_data),
-            email: Some(email_data),
-            phone: Some(phone_data),
+    let result = CreateCustomer::new()
+        .name(name_data)
+        .email(email_data)
+        .phone(phone_data)
+        .send(client)
+        .await;
 
-            ..Default::default()
-        },
-    )
-    .await
+    match result {
+        Ok(cus) => { Ok(cus) }
+        Err(_) => { Err(helper_model::VeygoError::InternalServerError) }
+    }
 }
 
 #[allow(dead_code)]
 pub async fn create_stripe_refund(
-    customer_id: &CustomerId,
-    payment_intent_id: &PaymentIntentId,
-    amount: &i64,
-) -> Result<Refund, StripeError> {
+    customer_id: &String,
+    payment_intent_id: &String,
+    amount: i64,
+) -> Result<Refund, helper_model::VeygoError> {
     let client = stripe_client().await;
-    Refund::create(
-        &client,
-        CreateRefund {
-            amount: Some(amount.clone()),
-            charge: None,
-            currency: Some(Currency::USD),
-            customer: Some(customer_id.clone()),
-            expand: &[],
-            instructions_email: None,
-            metadata: None,
-            origin: None,
-            payment_intent: Some(payment_intent_id.clone()),
-            reason: Some(RefundReasonFilter::RequestedByCustomer),
-            refund_application_fee: None,
-            reverse_transfer: None,
+    let result = CreateRefund::new()
+        .amount(amount)
+        .customer(customer_id)
+        .payment_intent(payment_intent_id)
+        .currency(Currency::USD)
+        .send(client)
+        .await;
+
+    match result {
+        Ok(refund) => { Ok(refund) }
+        Err(err) => {
+            match err {
+                StripeError::Stripe(stp_err, _) => {
+                    if let Some(code) = stp_err.code &&
+                        vec![
+                            ApiErrorsCode::ChargeAlreadyRefunded,
+                            ApiErrorsCode::ChargeDisputed,
+                        ].contains(&code) {
+                        return Err(helper_model::VeygoError::CanNotRefund)
+                    } else if stp_err.type_ == ApiErrorsType::InvalidRequestError {
+                        return Err(helper_model::VeygoError::CanNotRefund)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
         }
-    ).await
+    }
 }
 
 pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: &String,
     pm_id: &String,
-) -> Result<SetupIntent, StripeError> {
+) -> Result<SetupIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
-    let payment_method_id = PaymentMethodId::from_str(pm_id.as_str()).unwrap();
-    let customer_id = CustomerId::from_str(stripe_customer_id.as_str()).unwrap();
-    SetupIntent::create(
-        &client,
-        CreateSetupIntent {
-            attach_to_self: Some(false),
-            automatic_payment_methods: Some(CreateSetupIntentAutomaticPaymentMethods {
-                allow_redirects: Some(
-                    CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never,
-                ),
-                enabled: true,
-            }),
-            confirm: Some(true),
-            customer: Some(customer_id),
-            expand: &[],
-            payment_method: Some(payment_method_id),
-            ..Default::default()
-        },
-    )
-    .await
+    let result = CreateSetupIntent::new()
+        .attach_to_self(false)
+        .customer(stripe_customer_id)
+        .payment_method(pm_id)
+        .confirm(true)
+        .automatic_payment_methods(CreateSetupIntentAutomaticPaymentMethods {
+            allow_redirects: Some(CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never),
+            enabled: true
+        })
+        .send(client)
+        .await;
+
+    match result {
+        Ok(si) => {
+            Ok(si)
+        }
+        Err(e) => {
+            match e {
+                StripeError::Stripe(api_err, _) => {
+                    let api_error = api_err.type_;
+                    if api_error == ApiErrorsType::CardError {
+                        return Err(helper_model::VeygoError::CardDeclined)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
+        }
+    }
 }
 
 pub async fn create_payment_intent(
-    description: &String,
     customer_id_data: &String,
     payment_id_data: &String,
-    amount: &i64,
+    amount: i64,
     capture_method: PaymentIntentCaptureMethod,
-    statement_descriptor_suffix: Option<&str>,
-) -> Result<PaymentIntent, StripeError> {
+    description: &String,
+) -> Result<PaymentIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
-    let customer_id = CustomerId::from_str(customer_id_data).unwrap();
-    let payment_method_id = PaymentMethodId::from_str(payment_id_data).unwrap();
-    PaymentIntent::create(
-        &client,
-        CreatePaymentIntent {
-            amount: amount.clone(),
-            application_fee_amount: None,
-            automatic_payment_methods: Some(CreatePaymentIntentAutomaticPaymentMethods{
+    let result = CreatePaymentIntent::new(amount, Currency::USD)
+        .expand(vec![String::from("latest_charge")])
+        .capture_method(capture_method)
+        .confirm(true)
+        .customer(customer_id_data)
+        .payment_method(payment_id_data)
+        .statement_descriptor_suffix(String::from("VEYGO SVC PMT"))
+        .description(description)
+        .off_session(CreatePaymentIntentOffSession::Bool(true))
+        .payment_method_types(vec![String::from("card")])
+        .automatic_payment_methods(
+            CreatePaymentIntentAutomaticPaymentMethods {
                 allow_redirects: Some(CreatePaymentIntentAutomaticPaymentMethodsAllowRedirects::Never),
                 enabled: true,
-            }),
-            capture_method: Some(capture_method),
-            confirm: Some(true),
-            confirmation_method: None,
-            currency: Currency::USD,
-            customer: Some(customer_id),
-            description: Some(description),
-            error_on_requires_action: None,
-            expand: &["latest_charge"],
-            mandate: None,
-            mandate_data: None,
-            metadata: None,
-            off_session: Some(PaymentIntentOffSession::Exists(true)),
-            on_behalf_of: None,
-            payment_method: Some(payment_method_id),
-            payment_method_configuration: None,
-            payment_method_data: None,
-            payment_method_options: Some(CreatePaymentIntentPaymentMethodOptions{
-                card: Some(CreatePaymentIntentPaymentMethodOptionsCard{
-                    request_extended_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable),
-                    request_incremental_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization::IfAvailable),
-                    request_multicapture: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture::IfAvailable),
-                    ..Default::default()
-                }),
+            }
+        )
+        .payment_method_options(CreatePaymentIntentPaymentMethodOptions {
+            card: Some(CreatePaymentIntentPaymentMethodOptionsCard {
+                request_extended_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable),
+                request_incremental_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization::IfAvailable),
+                request_multicapture: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture::IfAvailable),
                 ..Default::default()
             }),
-            payment_method_types: None,
-            radar_options: None,
-            receipt_email: None,
-            return_url: None,
-            setup_future_usage: None,
-            shipping: None,
-            statement_descriptor: None,
-            statement_descriptor_suffix,
-            transfer_data: None,
-            transfer_group: None,
-            use_stripe_sdk: None,
+            ..Default::default()
+        })
+        .send(client)
+        .await;
+
+    match result {
+        Ok(pi) => {
+            Ok(pi)
         }
-    ).await
+        Err(e) => {
+            match e {
+                StripeError::Stripe(api_err, _) => {
+                    let api_error = api_err.type_;
+                    if api_error == ApiErrorsType::CardError {
+                        return Err(helper_model::VeygoError::CardDeclined)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
+        }
+    }
 }
 
-pub async fn drop_auth(intent_id: &PaymentIntentId) -> Result<PaymentIntent, StripeError> {
+pub async fn drop_auth(intent_id: &str) -> Result<PaymentIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
-    PaymentIntent::cancel(
-        &client,
-        &intent_id,
-        CancelPaymentIntent {
-            cancellation_reason: None,
+    let result = CancelPaymentIntent::new(intent_id).send(client).await;
+
+    match result {
+        Ok(result) => { Ok(result) }
+        Err(e) => {
+            match e {
+                StripeError::Stripe(api_err, _) => {
+                    let api_error = api_err.type_;
+                    if api_error == ApiErrorsType::InvalidRequestError {
+                        return Err(helper_model::VeygoError::CanNotRefund)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
         }
-    ).await
+    }
+}
+
+pub async fn capture_payment(intent_id: &str, amount_final: Option<(i64, bool)>) -> Result<PaymentIntent, helper_model::VeygoError> {
+    let client = stripe_client().await;
+    let result = if let Some(amount_final) = amount_final {
+        CapturePaymentIntent::new(intent_id)
+            .amount_to_capture(amount_final.0)
+            .final_capture(amount_final.1)
+            .send(client)
+            .await
+    } else {
+        CapturePaymentIntent::new(intent_id)
+            .final_capture(true)
+            .send(client)
+            .await
+    };
+
+    match result {
+        Ok(result) => { Ok(result) }
+        Err(e) => {
+            match e {
+                StripeError::Stripe(api_err, _) => {
+                    let api_error = api_err.type_;
+                    if api_error == ApiErrorsType::InvalidRequestError {
+                        return Err(helper_model::VeygoError::CanNotCapture)
+                    }
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+                _ => {
+                    Err(helper_model::VeygoError::InternalServerError)
+                }
+            }
+        }
+    }
 }

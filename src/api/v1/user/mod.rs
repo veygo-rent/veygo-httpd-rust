@@ -1,7 +1,7 @@
 mod change_plan;
 mod create;
 mod get_files;
-mod get_users;
+mod get;
 mod login;
 mod retrieve;
 mod rm_token;
@@ -27,7 +27,7 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                 .or(retrieve::main())
                 .or(rm_token::main())
                 .or(update_apns::main())
-                .or(get_users::main())
+                .or(get::main())
                 .or(verify_promo::main())
         )
         .and(warp::path::end())

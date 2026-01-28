@@ -75,15 +75,15 @@ diesel::table! {
         user_billing_address -> UsAddress,
         rsvp_pickup_time -> Timestamptz,
         rsvp_drop_off_time -> Timestamptz,
-        liability_protection_rate -> Nullable<Float8>,
-        pcdw_protection_rate -> Nullable<Float8>,
-        pcdw_ext_protection_rate -> Nullable<Float8>,
-        rsa_protection_rate -> Nullable<Float8>,
-        pai_protection_rate -> Nullable<Float8>,
+        liability_protection_rate -> Nullable<Numeric>,
+        pcdw_protection_rate -> Nullable<Numeric>,
+        pcdw_ext_protection_rate -> Nullable<Numeric>,
+        rsa_protection_rate -> Nullable<Numeric>,
+        pai_protection_rate -> Nullable<Numeric>,
         actual_pickup_time -> Nullable<Timestamptz>,
         actual_drop_off_time -> Nullable<Timestamptz>,
-        msrp_factor -> Float8,
-        duration_rate -> Float8,
+        msrp_factor -> Numeric,
+        duration_rate -> Numeric,
         vehicle_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Int4,
@@ -91,13 +91,13 @@ diesel::table! {
         vehicle_snapshot_after -> Nullable<Int4>,
         #[max_length = 16]
         promo_id -> Nullable<Varchar>,
-        manual_discount -> Nullable<Float8>,
+        manual_discount -> Nullable<Numeric>,
         location_id -> Int4,
         mileage_package_id -> Nullable<Int4>,
-        mileage_conversion -> Float8,
-        mileage_rate_overwrite -> Nullable<Float8>,
-        mileage_package_overwrite -> Nullable<Float8>,
-        utilization_factor -> Float8,
+        mileage_conversion -> Numeric,
+        mileage_rate_overwrite -> Nullable<Numeric>,
+        mileage_package_overwrite -> Nullable<Numeric>,
+        utilization_factor -> Numeric,
         date_of_creation -> Timestamptz,
     }
 }
@@ -133,25 +133,25 @@ diesel::table! {
         address -> UsAddress,
         #[max_length = 16]
         accepted_school_email_domain -> Varchar,
-        free_tier_hours -> Float8,
-        silver_tier_hours -> Nullable<Float8>,
-        silver_tier_rate -> Nullable<Float8>,
-        gold_tier_hours -> Nullable<Float8>,
-        gold_tier_rate -> Nullable<Float8>,
-        platinum_tier_hours -> Nullable<Float8>,
-        platinum_tier_rate -> Nullable<Float8>,
-        duration_rate -> Float8,
-        liability_protection_rate -> Nullable<Float8>,
-        pcdw_protection_rate -> Nullable<Float8>,
-        pcdw_ext_protection_rate -> Nullable<Float8>,
-        rsa_protection_rate -> Nullable<Float8>,
-        pai_protection_rate -> Nullable<Float8>,
+        free_tier_hours -> Numeric,
+        silver_tier_hours -> Nullable<Numeric>,
+        silver_tier_rate -> Nullable<Numeric>,
+        gold_tier_hours -> Nullable<Numeric>,
+        gold_tier_rate -> Nullable<Numeric>,
+        platinum_tier_hours -> Nullable<Numeric>,
+        platinum_tier_rate -> Nullable<Numeric>,
+        duration_rate -> Numeric,
+        liability_protection_rate -> Nullable<Numeric>,
+        pcdw_protection_rate -> Nullable<Numeric>,
+        pcdw_ext_protection_rate -> Nullable<Numeric>,
+        rsa_protection_rate -> Nullable<Numeric>,
+        pai_protection_rate -> Nullable<Numeric>,
         is_operating -> Bool,
         is_public -> Bool,
         uni_id -> Int4,
-        mileage_rate_overwrite -> Nullable<Float8>,
-        mileage_package_overwrite -> Nullable<Float8>,
-        mileage_conversion -> Float8,
+        mileage_rate_overwrite -> Nullable<Numeric>,
+        mileage_package_overwrite -> Nullable<Numeric>,
+        mileage_conversion -> Numeric,
     }
 }
 
@@ -180,7 +180,7 @@ diesel::table! {
         id -> Int4,
         name -> Text,
         time -> Timestamptz,
-        amount -> Float8,
+        amount -> Numeric,
         note -> Nullable<Text>,
         agreement_id -> Nullable<Int4>,
         vehicle_id -> Int4,
@@ -196,8 +196,9 @@ diesel::table! {
         note -> Nullable<Text>,
         time -> Timestamptz,
         agreement_id -> Int4,
-        admin_fee -> Nullable<Float8>,
-        tow_charge -> Nullable<Float8>,
+        admin_fee -> Nullable<Numeric>,
+        tow_charge -> Nullable<Numeric>,
+        citation -> Nullable<Numeric>,
     }
 }
 
@@ -227,9 +228,9 @@ diesel::table! {
         third_image -> Nullable<Text>,
         fourth_image -> Nullable<Text>,
         fixed_date -> Nullable<Timestamptz>,
-        fixed_amount -> Nullable<Float8>,
-        depreciation -> Nullable<Float8>,
-        lost_of_use -> Nullable<Float8>,
+        fixed_amount -> Nullable<Numeric>,
+        depreciation -> Nullable<Numeric>,
+        lost_of_use -> Nullable<Numeric>,
         claim_id -> Int4,
         vehicle_id -> Int4,
     }
@@ -303,14 +304,14 @@ diesel::table! {
         id -> Int4,
         payment_type -> PaymentTypeEnum,
         time -> Timestamptz,
-        amount -> Float8,
+        amount -> Numeric,
         note -> Nullable<Text>,
         #[max_length = 18]
         reference_number -> Nullable<Varchar>,
         agreement_id -> Int4,
         renter_id -> Int4,
         payment_method_id -> Nullable<Int4>,
-        amount_authorized -> Float8,
+        amount_authorized -> Numeric,
         capture_before -> Nullable<Timestamptz>,
         is_deposit -> Bool,
     }
@@ -334,7 +335,7 @@ diesel::table! {
         code -> Varchar,
         #[max_length = 16]
         name -> Varchar,
-        amount -> Float8,
+        amount -> Numeric,
         is_enabled -> Bool,
         is_one_time -> Bool,
         exp -> Timestamptz,
@@ -349,7 +350,7 @@ diesel::table! {
         id -> Int4,
         renter_id -> Int4,
         apartment_id -> Int4,
-        multiplier -> Float8,
+        multiplier -> Numeric,
         exp -> Timestamptz,
     }
 }
@@ -366,7 +367,7 @@ diesel::table! {
         #[max_length = 26]
         name -> Varchar,
         #[max_length = 22]
-        stripe_id -> Nullable<Varchar>,
+        stripe_id -> Varchar,
         #[max_length = 36]
         student_email -> Varchar,
         student_email_expiration -> Nullable<Date>,
@@ -400,7 +401,6 @@ diesel::table! {
         plan_renewal_day -> Varchar,
         #[max_length = 6]
         plan_expire_month_year -> Varchar,
-        plan_available_duration -> Float8,
         is_plan_annual -> Bool,
         employee_tier -> EmployeeTierEnum,
         subscription_payment_method_id -> Nullable<Int4>,
@@ -414,7 +414,7 @@ diesel::table! {
     reward_transactions (id) {
         id -> Int4,
         agreement_id -> Nullable<Int4>,
-        duration -> Float8,
+        duration -> Numeric,
         transaction_time -> Timestamptz,
         renter_id -> Int4,
     }
@@ -447,12 +447,9 @@ diesel::table! {
         renter_billing_address -> UsAddress,
         time -> Timestamptz,
         is_annual -> Bool,
-        amount -> Float8,
+        amount -> Numeric,
         plan_tier -> PlanTierEnum,
-        #[max_length = 2]
-        plan_renewal_day -> Varchar,
-        #[max_length = 6]
-        plan_expire_month_year -> Varchar,
+        plan_renewal_day -> Date,
     }
 }
 
@@ -464,8 +461,7 @@ diesel::table! {
         id -> Int4,
         #[max_length = 32]
         name -> Varchar,
-        multiplier -> Float8,
-        is_effective -> Bool,
+        multiplier -> Numeric,
         is_sales_tax -> Bool,
         tax_type -> TaxTypeEnum,
     }
@@ -535,11 +531,11 @@ diesel::table! {
         make -> Varchar,
         #[max_length = 12]
         model -> Varchar,
-        msrp_factor -> Float8,
+        msrp_factor -> Numeric,
         #[max_length = 255]
         image_link -> Nullable<Varchar>,
         odometer -> Int4,
-        tank_size -> Float8,
+        tank_size -> Numeric,
         tank_level_percentage -> Int4,
         #[max_length = 26]
         first_transponder_number -> Nullable<Varchar>,

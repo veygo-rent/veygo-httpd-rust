@@ -13,15 +13,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
             use crate::schema::mileage_packages::dsl as mileage_package_query;
             let mut pool = POOL.get().unwrap();
-            let mps: Vec<model::MileagePackage> = mileage_package_query::mileage_packages
+            let mps = mileage_package_query::mileage_packages
                 .filter(mileage_package_query::is_active)
                 .order(mileage_package_query::miles)
-                .get_results(&mut pool)
-                .unwrap_or_default();
-            let msg = serde_json::json!({"mileage_packages": mps});
-            Ok::<_, warp::Rejection>((warp::reply::with_status(
-                warp::reply::json(&msg),
-                StatusCode::OK,
-            ).into_response(),))
+                .get_results::<model::MileagePackage>(&mut pool);
+
+            let Ok(mps) = mps else {
+                return methods::standard_replies::internal_server_error_response();
+            };
+
+            methods::standard_replies::response_with_obj(mps, StatusCode::OK)
         })
 }

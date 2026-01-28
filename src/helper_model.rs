@@ -1,5 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 use crate::model;
+use rust_decimal::prelude::*;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ErrorResponse {
@@ -47,7 +48,7 @@ pub struct GenerateSnapshotRequest {
 pub struct CheckOutRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
-    pub hours_using_reward: f64,
+    pub hours_using_reward: Decimal,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -55,3 +56,35 @@ pub struct CheckInRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
 }
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy)]
+pub enum VeygoError {
+    InternalServerError,
+    RecordNotFound,
+    TokenFormatError,
+    InvalidToken,
+    CardNotSupported,
+    CardDeclined,
+    CanNotCapture,
+    CanNotRefund,
+    InputDataError
+}
+
+impl std::fmt::Display for VeygoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VeygoError::InternalServerError => write!(f, "Internal Server Error"),
+            VeygoError::RecordNotFound => write!(f, "Record Not Found"),
+            VeygoError::TokenFormatError => write!(f, "Token Format Error"),
+            VeygoError::InvalidToken => write!(f, "Invalid Token"),
+            VeygoError::CardNotSupported => write!(f, "Card Not Supported"),
+            VeygoError::CardDeclined => write!(f, "Card Declined"),
+            VeygoError::CanNotRefund => write!(f, "Cannot Refund"),
+            VeygoError::CanNotCapture => write!(f, "Cannot Capture"),
+            VeygoError::InputDataError => write!(f, "Input Data Error"),
+        }
+    }
+}
+
+impl std::error::Error for VeygoError {}

@@ -1,31 +1,33 @@
 use crate::{POOL, methods, model, helper_model, methods::diesel_fn};
-use bytes::BufMut;
 use currency_rs::Currency;
-use diesel::dsl::exists;
 use diesel::prelude::*;
-use futures::TryStreamExt;
 use std::collections::HashSet;
-use warp::Filter;
-use warp::http::StatusCode;
-use warp::multipart::FormData;
-use warp::reply::with_status;
+use warp::{Filter, Reply};
+use warp::http::{StatusCode, Method};
+use bytes::{Bytes};
+use rust_decimal::Decimal;
+use crate::helper_model::VeygoError;
 
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path("upload-tolls")
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("upload-tolls" / i32)
         .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::multipart::form().max_length(5 * 1024 * 1024))
+        .and(warp::method())
+        .and(warp::body::bytes())
         .and(warp::header::<String>("auth"))
-        .and(warp::header::<String>("toll-id"))
         .and(warp::header::<String>("user-agent"))
         .and_then(
-            async move |form: FormData,
+            async move |toll_id: i32,
+                        method: Method,
+                        body: Bytes,
                         auth: String,
-                        toll_id: String,
                         user_agent: String| {
+                if method != Method::POST {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
+                
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
@@ -34,29 +36,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         int
                     }
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
-                };
-
-                let field_names: Vec<_> = form
-                    .and_then(|mut field| async move {
-                        let mut bytes: Vec<u8> = Vec::new();
-
-                        // field.data() only returns a piece of the content, you should call over it until it replies to None
-                        while let Some(content) = field.data().await {
-                            let content = content.unwrap();
-                            bytes.put(content);
-                        }
-                        Ok((
-                            bytes,
-                        ))
-                    })
-                    .try_collect()
-                    .await
-                    .unwrap();
-                let file_count = field_names.len() as i32;
-                if file_count != 1 {
-                    return methods::standard_replies::bad_request("Please upload exactly one file");
                 };
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
@@ -65,197 +46,225 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     &access_token.token,
                 )
                 .await;
+
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_is_valid) => {
-                        if !token_is_valid {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            // Token is valid
-                            let admin = methods::user::get_user_by_id(&access_token.user_id).await.unwrap();
-                            let token_clone = access_token.clone();
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(token_clone.token).unwrap(),
-                            )
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
+                            }
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+
+                        let admin = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            )
-                            .await;
-                            use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .into();
-                            let toll_id_int: i32 = match toll_id.parse() {
-                                Ok(int) => int,
+
+                        let Ok(admin) = admin else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
+
+                        if !admin.is_operational_admin() {
+                            return methods::standard_replies::admin_not_verified()
+                        }
+                        let mut pool = POOL.get().unwrap();
+
+                        let toll_company = {
+                            use crate::schema::transponder_companies::dsl::*;
+
+                            let selected_tc_result = transponder_companies
+                                .find(&toll_id)
+                                .get_result::<model::TransponderCompany>(&mut pool);
+
+                            match selected_tc_result {
+                                Ok(tc) => { tc }
                                 Err(_) => {
-                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                        warp::reply::json(&serde_json::json!({ "error": "Toll company invalid" })),
-                                        StatusCode::NOT_ACCEPTABLE
-                                    )),));
-                                }
-                            };
-                            let toll_company = {
-                                use crate::schema::transponder_companies::dsl::*;
-                                let if_exists = diesel::select(exists(transponder_companies
-                                    .into_boxed().filter(id.eq(toll_id_int)))).get_result::<bool>(&mut pool).unwrap();
-                                if !if_exists {
-                                    return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                        warp::reply::json(&serde_json::json!({ "error": "Toll company not found" })),
-                                        StatusCode::NOT_ACCEPTABLE
-                                    )),));
-                                }
-                                transponder_companies
-                                    .into_boxed().filter(id.eq(toll_id_int))
-                                    .get_result::<model::TransponderCompany>(&mut pool).unwrap()
-                            };
-                            if !methods::user::user_is_operational_admin(&admin) {
-                                let token_clone = new_token_in_db_publish.clone();
-                                return methods::standard_replies::user_not_admin_wrapped_return(
-                                    token_clone,
-                                );
-                            }
-                            // Parse CSV and convert to a JSON array
-                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(field_names[0].0.as_slice());
-
-                            // Try to get headers from the CSV; if this fails, return a BAD_REQUEST response
-                            let headers = match rdr.headers() {
-                                Ok(h) => h.clone(),
-                                Err(e) => return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                    warp::reply::json(&serde_json::json!({ "error": format!("CSV header error: {}", e) })),
-                                    StatusCode::NOT_ACCEPTABLE
-                                )),))
-                            };
-
-                            let mut json_records = Vec::new();
-                            for result in rdr.records() {
-                                match result {
-                                    Ok(record) => {
-                                        let mut map = serde_json::Map::new();
-                                        for (header, field) in headers.iter().zip(record.iter()) {
-                                            map.insert(header.to_string(), serde_json::Value::String(field.to_string()));
-                                        }
-                                        json_records.push(serde_json::Value::Object(map));
-                                    },
-                                    Err(e) => {
-                                        return Ok((methods::tokens::wrap_json_reply_with_token(new_token_in_db_publish, with_status(
-                                            warp::reply::json(&serde_json::json!({ "message": format!("CSV record error: {}", e) })),
-                                            StatusCode::NOT_ACCEPTABLE
-                                        )),));
-                                    }
+                                    return methods::standard_replies::internal_server_error_response()
                                 }
                             }
-                            let toll_company_clone = toll_company.clone();
-                            let required: HashSet<&str> = 
-                                [
-                                    toll_company_clone.corresponding_key_for_transaction_amount.as_str(),
-                                    toll_company_clone.corresponding_key_for_transaction_name.as_str(), 
-                                    toll_company_clone.corresponding_key_for_transaction_time.as_str(), 
-                                    toll_company_clone.corresponding_key_for_vehicle_id.as_str(), 
-                                ]
-                                .into_iter()
-                                .collect();
-                            let csv_cols: HashSet<&str> = headers.iter().collect();
-                            let missing: Vec<&str> = required
-                                .difference(&csv_cols)
-                                .copied()
-                                .collect();
-                            if !missing.is_empty() {
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Missing Columns".to_string(),
-                                    message: "CSV is missing required columns: ".to_string() + missing.join(", ").as_str(),
-                                };
-                                return Ok((methods::tokens::wrap_json_reply_with_token(
-                                    new_token_in_db_publish,
-                                    with_status(warp::reply::json(&err_msg), StatusCode::NOT_ACCEPTABLE),
-                                ),));
+                        };
+
+                        // Parse CSV and convert to a JSON array
+                        let file_bytes = body.to_vec();
+                        let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(file_bytes.as_slice());
+
+                        let headers = match (&mut rdr).headers() {
+                            Ok(h) => { h.clone() }
+                            Err(_) => {
+                                let msg = helper_model::ErrorResponse { title: "CSV File Error".to_string(), message: "No headers found. Please check the file again. ".to_string() };
+                                return methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
                             }
+                        };
 
-                            // Clone what we need into the background task
-                            let records = json_records.clone();
-                            let tc = toll_company.clone();
+                        let required: HashSet<&str> =
+                            [
+                                toll_company.corresponding_key_for_transaction_amount.as_str(),
+                                toll_company.corresponding_key_for_transaction_name.as_str(),
+                                toll_company.corresponding_key_for_transaction_time.as_str(),
+                                toll_company.corresponding_key_for_vehicle_id.as_str(),
+                            ].into_iter().collect();
+                        let csv_cols: HashSet<&str> = headers.iter().collect();
 
-                            // Spawn background processing of each record
-                            tokio::spawn(async move {
-                                for record in records {
-                                    let toll_company_clone = tc.clone();
-                                    let toll_company_id = toll_company_clone.id;
-                                    let vehicle_identifier_str = record[toll_company_clone.corresponding_key_for_vehicle_id].to_string();
-                                    let transaction_time_string = record[toll_company_clone.corresponding_key_for_transaction_time].to_string();
-                                    let transaction_amount_string = record[toll_company_clone.corresponding_key_for_transaction_amount].to_string();
-                                    let transaction_time = methods::timestamps::to_utc(&transaction_time_string, &toll_company_clone.timestamp_format, toll_company_clone.timezone).unwrap();
-                                    let transaction_amount = Currency::new_string(&transaction_amount_string, None).unwrap().value().abs();
-                                    let transaction_name = record[toll_company_clone.corresponding_key_for_transaction_name].to_string();
-                                    use crate::schema::charges::dsl as ch_q;
-                                    let mut pool = POOL.get().unwrap();
+                        let missing: Vec<&str> = required
+                            .difference(&csv_cols)
+                            .copied()
+                            .collect();
 
-                                    let mut charge_record = model::NewCharge {
-                                        name: toll_company_clone.custom_prefix_for_transaction_name + &*" ".to_string() + &*transaction_name,
-                                        time: transaction_time,
-                                        amount: transaction_amount,
-                                        note: None,
-                                        agreement_id: None,
-                                        vehicle_id: 0,
-                                        transponder_company_id: Option::from(toll_company_id),
-                                        vehicle_identifier: Option::from(vehicle_identifier_str.clone()),
-                                    };
+                        if !missing.is_empty() {
+                            let err_msg = helper_model::ErrorResponse {
+                                title: "CSV File Error".to_string(),
+                                message: "CSV is missing required columns: ".to_string() + missing.join(", ").as_str(),
+                            };
+                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::NOT_ACCEPTABLE)
+                        }
 
-                                    let charge_exists = diesel::select(
-                                        diesel::dsl::exists(
-                                            ch_q::charges
-                                                .filter(ch_q::name.eq(&charge_record.name))
-                                                .filter(ch_q::time.eq(&charge_record.time))
-                                                .filter(ch_q::transponder_company_id.eq(&charge_record.transponder_company_id))
-                                                .filter(ch_q::vehicle_identifier.eq(&charge_record.vehicle_identifier))
-                                        )
-                                    ).get_result::<bool>(&mut pool).unwrap_or(true);
+                        let transaction_amount_index = headers
+                            .iter()
+                            .position(|h| h == toll_company.corresponding_key_for_transaction_amount.as_str());
+                        let Some(transaction_amount_index) = transaction_amount_index else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
 
-                                    if !charge_exists {
+                        let transaction_name_index = headers
+                            .iter()
+                            .position(|h| h == toll_company.corresponding_key_for_transaction_name.as_str());
+                        let Some(transaction_name_index) = transaction_name_index else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
+
+                        let transaction_time_index = headers
+                            .iter()
+                            .position(|h| h == toll_company.corresponding_key_for_transaction_time.as_str());
+                        let Some(transaction_time_index) = transaction_time_index else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
+
+                        let vehicle_id_index = headers
+                            .iter()
+                            .position(|h| h == toll_company.corresponding_key_for_vehicle_id.as_str());
+                        let Some(vehicle_id_index) = vehicle_id_index else {
+                            return methods::standard_replies::internal_server_error_response()
+                        };
+
+                        let file_bytes_to_move = file_bytes.clone();
+                        let toll_company_to_move = toll_company.clone();
+                        tokio::spawn(async move {
+                            let mut pool = POOL.get().unwrap();
+                            let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(file_bytes_to_move.as_slice());
+                            let _ = (&mut rdr).headers();
+
+                            for record_res in (&mut rdr).records() {
+                                match record_res {
+                                    Ok(result) => {
+                                        let transaction_amount = match result.get(transaction_amount_index) {
+                                            None => { continue }
+                                            Some(str) => {
+                                                let temp = Currency::new_string(str, None);
+                                                let Ok(transaction_amount_in_currency) = temp else {
+                                                    continue
+                                                };
+                                                let cents = transaction_amount_in_currency.cents();
+                                                Decimal::new(cents as i64, 2)
+                                            }
+                                        };
+                                        let transaction_name = match result.get(transaction_name_index) {
+                                            None => { continue }
+                                            Some(str) => { str }
+                                        };
+                                        let transaction_time = match result.get(transaction_time_index) {
+                                            None => { continue }
+                                            Some(str) => { str }
+                                        };
+                                        let vehicle_id_str = match result.get(vehicle_id_index) {
+                                            None => { continue }
+                                            Some(str) => { str }
+                                        };
+
                                         use crate::schema::vehicles::dsl as v_q;
-                                        let vehicle_result: QueryResult<i32> = v_q::vehicles
+                                        let vehicle_result = v_q::vehicles
                                             .into_boxed()
                                             .filter(
-                                                v_q::first_transponder_company_id.eq(toll_company_id).and(v_q::first_transponder_number.eq(&vehicle_identifier_str))
-                                                    .or(v_q::second_transponder_company_id.eq(toll_company_id).and(v_q::second_transponder_number.eq(&vehicle_identifier_str)))
-                                                    .or(v_q::third_transponder_company_id.eq(toll_company_id).and(v_q::third_transponder_number.eq(&vehicle_identifier_str)))
-                                                    .or(v_q::fourth_transponder_company_id.eq(toll_company_id).and(v_q::fourth_transponder_number.eq(&vehicle_identifier_str)))
+                                                v_q::first_transponder_company_id.eq(&toll_company_to_move.id).and(v_q::first_transponder_number.eq(&vehicle_id_str))
+                                                    .or(v_q::second_transponder_company_id.eq(&toll_company_to_move.id).and(v_q::second_transponder_number.eq(&vehicle_id_str)))
+                                                    .or(v_q::third_transponder_company_id.eq(&toll_company_to_move.id).and(v_q::third_transponder_number.eq(&vehicle_id_str)))
+                                                    .or(v_q::fourth_transponder_company_id.eq(&toll_company_to_move.id).and(v_q::fourth_transponder_number.eq(&vehicle_id_str)))
                                             )
                                             .select(v_q::id)
                                             .get_result::<i32>(&mut pool);
+                                        let Ok(vehicle_id) = vehicle_result else { continue };
 
-                                        if let Ok(vehicle) = vehicle_result {
-                                            charge_record.vehicle_id = vehicle;
 
-                                            use crate::schema::agreements::dsl as ag_q;
-                                            let affected_agreement = ag_q::agreements
-                                                .filter(ag_q::actual_pickup_time.le(&charge_record.time))
-                                                .filter(diesel_fn::coalesce(ag_q::actual_drop_off_time, diesel::dsl::now).ge(&charge_record.time))
-                                                .filter(ag_q::vehicle_id.eq(&charge_record.vehicle_id))
-                                                .get_result::<model::Agreement>(&mut pool);
+                                        let transaction_time = methods::timestamps::to_utc(
+                                            &transaction_time, &toll_company_to_move.timestamp_format, toll_company_to_move.timezone.clone()
+                                        );
+                                        let Ok(transaction_time) = transaction_time else { continue };
 
-                                            if let Ok(ag) = affected_agreement {
-                                                charge_record.agreement_id = Some(ag.id);
+                                        let charge_record = model::NewCharge {
+                                            name: toll_company_to_move.custom_prefix_for_transaction_name.clone() + &*" ".to_string() + &*transaction_name,
+                                            time: transaction_time,
+                                            amount: transaction_amount,
+                                            note: None,
+                                            agreement_id: None,
+                                            vehicle_id,
+                                            transponder_company_id: Option::from(toll_company_to_move.id),
+                                            vehicle_identifier: Option::from(String::from(vehicle_id_str)),
+                                        };
+
+                                        use crate::schema::charges::dsl as c_q;
+                                        let insert_result = diesel::insert_into(c_q::charges)
+                                            .values(&charge_record)
+                                            .get_result::<model::Charge>(&mut pool);
+
+                                        match insert_result {
+                                            Ok(chg) => {
+                                                use crate::schema::agreements::dsl as ag_q;
+                                                let affected_agreement = ag_q::agreements
+                                                    .filter(ag_q::actual_pickup_time.le(&chg.time))
+                                                    .filter(diesel_fn::coalesce(ag_q::actual_drop_off_time, diesel::dsl::now).ge(&chg.time))
+                                                    .filter(ag_q::vehicle_id.eq(&chg.vehicle_id))
+                                                    .select(ag_q::id)
+                                                    .get_result::<i32>(&mut pool);
+
+                                                if let Ok(ag) = affected_agreement {
+                                                    let _ = diesel::update
+                                                        (
+                                                            c_q::charges
+                                                                .find(&chg.id)
+                                                        )
+                                                        .set(c_q::agreement_id.eq(ag))
+                                                        .execute(&mut pool);
+                                                }
+
                                             }
-
-                                            let _ = diesel::insert_into(ch_q::charges).values(&charge_record).execute(&mut pool);
+                                            Err(_err) => {}
                                         }
                                     }
-
+                                    Err(_) => continue
                                 }
-                            });
+                            }
+                        });
 
-                            // Immediately respond OK; records are processing in the background
-                            return Ok((
-                                methods::tokens::wrap_json_reply_with_token(
-                                    new_token_in_db_publish,
-                                    with_status(warp::reply::json(&json_records), StatusCode::OK),
-                                ),
-                            ));
-                        }
+                        let msg = serde_json::json!({});
+                        Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK).into_response(),))
                     }
                 };
             },

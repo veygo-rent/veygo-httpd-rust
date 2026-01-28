@@ -1,8 +1,7 @@
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::{Filter, Reply};
 use warp::http::{Method, StatusCode};
-use warp::reply::with_status;
-use crate::{methods, model, POOL};
+use crate::{helper_model, methods, model, POOL};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("get")
@@ -21,7 +20,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     // RETURN: UNAUTHORIZED
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 let user_id = match user_id_parsed_result {
@@ -30,47 +29,55 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Err(_) => {
                         // RETURN: UNAUTHORIZED
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
 
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 let if_token_valid_result = methods::tokens::verify_user_token(&access_token.user_id, &access_token.token).await;
-                if if_token_valid_result.is_err() {
-                    return methods::tokens::token_not_hex_warp_return();
-                }
-                let token_bool = if_token_valid_result.unwrap();
+                match if_token_valid_result {
+                    Err(e) => {
+                        match e {
+                            helper_model::VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
+                            }
+                            helper_model::VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
 
-                if !token_bool {
-                    // RETURN: UNAUTHORIZED
-                    methods::tokens::token_invalid_wrapped_return()
-                } else {
-                    // gen new token
-                    let token_clone = access_token.clone();
-                    methods::tokens::rm_token_by_binary(
-                        hex::decode(token_clone.token).unwrap(),
-                    ).await;
-                    let new_token = methods::tokens::gen_token_object(
-                        &access_token.user_id,
-                        &user_agent,
-                    ).await;
-                    use crate::schema::access_tokens::dsl::*;
-                    let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                        .values(&new_token)
-                        .get_result::<model::AccessToken>(&mut pool)
-                        .unwrap()
-                        .into();
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
 
-                    use crate::schema::agreements::dsl as agreement_query;
-                    let agreements = agreement_query::agreements.filter(agreement_query::renter_id.eq(&access_token.user_id)).get_results::<model::Agreement>(&mut pool).unwrap_or_default();
-
-                    let msg = serde_json::json!({
-                            "agreements": agreements,
-                        });
-                    Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(
-                        new_token_in_db_publish,
-                        with_status(warp::reply::json(&msg), StatusCode::OK),
-                    ),))
+                        use crate::schema::agreements::dsl as agreement_query;
+                        let agreements = agreement_query::agreements
+                            .filter(agreement_query::renter_id.eq(&access_token.user_id))
+                            .get_results::<model::Agreement>(&mut pool);
+                        
+                        match agreements {
+                            Ok(ags) => {
+                                methods::standard_replies::response_with_obj(ags, StatusCode::OK)
+                            }
+                            Err(_) => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
                 }
             }
         )

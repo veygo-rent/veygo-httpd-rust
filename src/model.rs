@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::prelude::*;
+use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 use warp::http::header::{HeaderMap, HeaderValue};
 
@@ -116,13 +117,13 @@ pub enum PaymentType {
     VeygoInsurance,
 }
 
-impl From<stripe::PaymentIntentStatus> for PaymentType {
-    fn from(status: stripe::PaymentIntentStatus) -> Self {
+impl From<stripe_core::PaymentIntentStatus> for PaymentType {
+    fn from(status: stripe_core::PaymentIntentStatus) -> Self {
         match status {
-            stripe::PaymentIntentStatus::Canceled => PaymentType::Canceled,
-            stripe::PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
-            stripe::PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
-            stripe::PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
+            stripe_core::PaymentIntentStatus::Canceled => PaymentType::Canceled,
+            stripe_core::PaymentIntentStatus::RequiresCapture => PaymentType::RequiresCapture,
+            stripe_core::PaymentIntentStatus::RequiresPaymentMethod => PaymentType::RequiresPaymentMethod,
+            stripe_core::PaymentIntentStatus::Succeeded => PaymentType::Succeeded,
             _ => PaymentType::Canceled,
         }
     }
@@ -399,7 +400,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 pub struct RewardTransaction {
     pub id: i32,
     pub agreement_id: Option<i32>,
-    pub duration: f64,
+    pub duration: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
     pub renter_id: i32,
@@ -413,7 +414,7 @@ pub struct RewardTransaction {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRewardTransaction {
     pub agreement_id: Option<i32>,
-    pub duration: f64,
+    pub duration: Decimal,
     pub renter_id: i32,
 }
 
@@ -435,7 +436,7 @@ pub struct Renter {
     // Absolutely No Frontend Access
     pub id: i32,
     pub name: String,
-    pub stripe_id: Option<String>,
+    pub stripe_id: String,
     pub student_email: String,
     pub student_email_expiration: Option<NaiveDate>,
     pub password: String,
@@ -464,7 +465,6 @@ pub struct Renter {
     pub plan_tier: PlanTier,
     pub plan_renewal_day: String,
     pub plan_expire_month_year: String,
-    pub plan_available_duration: f64,
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
     pub subscription_payment_method_id: Option<i32>,
@@ -503,7 +503,6 @@ impl From<Renter> for PublishRenter {
             plan_tier: renter.plan_tier,
             plan_renewal_day: renter.plan_renewal_day,
             plan_expire_month_year: renter.plan_expire_month_year,
-            plan_available_duration: renter.plan_available_duration,
             is_plan_annual: renter.is_plan_annual,
             employee_tier: renter.employee_tier,
             subscription_payment_method_id: renter.subscription_payment_method_id,
@@ -543,7 +542,6 @@ pub struct PublishRenter {
     pub plan_tier: PlanTier,
     pub plan_renewal_day: String,
     pub plan_expire_month_year: String,
-    pub plan_available_duration: f64,
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
     pub subscription_payment_method_id: Option<i32>,
@@ -556,6 +554,7 @@ pub struct PublishRenter {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRenter {
     pub name: String,
+    pub stripe_id: String,
     pub student_email: String,
     pub password: String,
     pub phone: String,
@@ -563,7 +562,6 @@ pub struct NewRenter {
     pub apartment_id: i32,
     pub plan_renewal_day: String,
     pub plan_expire_month_year: String,
-    pub plan_available_duration: f64,
     pub employee_tier: EmployeeTier,
 }
 
@@ -660,25 +658,25 @@ pub struct Apartment {
     pub phone: String,
     pub address: UsAddress,
     pub accepted_school_email_domain: String,
-    pub free_tier_hours: f64,
-    pub silver_tier_hours: Option<f64>,
-    pub silver_tier_rate: Option<f64>,
-    pub gold_tier_hours: Option<f64>,
-    pub gold_tier_rate: Option<f64>,
-    pub platinum_tier_hours: Option<f64>,
-    pub platinum_tier_rate: Option<f64>,
-    pub duration_rate: f64,
-    pub liability_protection_rate: Option<f64>,
-    pub pcdw_protection_rate: Option<f64>,
-    pub pcdw_ext_protection_rate: Option<f64>,
-    pub rsa_protection_rate: Option<f64>,
-    pub pai_protection_rate: Option<f64>,
+    pub free_tier_hours: Decimal,
+    pub silver_tier_hours: Option<Decimal>,
+    pub silver_tier_rate: Option<Decimal>,
+    pub gold_tier_hours: Option<Decimal>,
+    pub gold_tier_rate: Option<Decimal>,
+    pub platinum_tier_hours: Option<Decimal>,
+    pub platinum_tier_rate: Option<Decimal>,
+    pub duration_rate: Decimal,
+    pub liability_protection_rate: Option<Decimal>,
+    pub pcdw_protection_rate: Option<Decimal>,
+    pub pcdw_ext_protection_rate: Option<Decimal>,
+    pub rsa_protection_rate: Option<Decimal>,
+    pub pai_protection_rate: Option<Decimal>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
-    pub mileage_rate_overwrite: Option<f64>,
-    pub mileage_package_overwrite: Option<f64>,
-    pub mileage_conversion: f64,
+    pub mileage_rate_overwrite: Option<Decimal>,
+    pub mileage_package_overwrite: Option<Decimal>,
+    pub mileage_conversion: Decimal,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -691,25 +689,25 @@ pub struct NewApartment {
     pub phone: String,
     pub address: UsAddress,
     pub accepted_school_email_domain: String,
-    pub free_tier_hours: f64,
-    pub silver_tier_hours: Option<f64>,
-    pub silver_tier_rate: Option<f64>,
-    pub gold_tier_hours: Option<f64>,
-    pub gold_tier_rate: Option<f64>,
-    pub platinum_tier_hours: Option<f64>,
-    pub platinum_tier_rate: Option<f64>,
-    pub duration_rate: f64,
-    pub liability_protection_rate: Option<f64>,
-    pub pcdw_protection_rate: Option<f64>,
-    pub pcdw_ext_protection_rate: Option<f64>,
-    pub rsa_protection_rate: Option<f64>,
-    pub pai_protection_rate: Option<f64>,
+    pub free_tier_hours: Decimal,
+    pub silver_tier_hours: Option<Decimal>,
+    pub silver_tier_rate: Option<Decimal>,
+    pub gold_tier_hours: Option<Decimal>,
+    pub gold_tier_rate: Option<Decimal>,
+    pub platinum_tier_hours: Option<Decimal>,
+    pub platinum_tier_rate: Option<Decimal>,
+    pub duration_rate: Decimal,
+    pub liability_protection_rate: Option<Decimal>,
+    pub pcdw_protection_rate: Option<Decimal>,
+    pub pcdw_ext_protection_rate: Option<Decimal>,
+    pub rsa_protection_rate: Option<Decimal>,
+    pub pai_protection_rate: Option<Decimal>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
-    pub mileage_rate_overwrite: Option<f64>,
-    pub mileage_package_overwrite: Option<f64>,
-    pub mileage_conversion: f64,
+    pub mileage_rate_overwrite: Option<Decimal>,
+    pub mileage_package_overwrite: Option<Decimal>,
+    pub mileage_conversion: Decimal,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -787,10 +785,10 @@ pub struct Vehicle {
     pub year: String,
     pub make: String,
     pub model: String,
-    pub msrp_factor: f64,
+    pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
-    pub tank_size: f64,
+    pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
     pub first_transponder_company_id: Option<i32>,
@@ -823,10 +821,10 @@ pub struct PublishRenterVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
-    pub msrp_factor: f64,
+    pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
-    pub tank_size: f64,
+    pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub location_id: i32,
     pub remote_mgmt: RemoteMgmtType,
@@ -850,10 +848,10 @@ pub struct PublishAdminVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
-    pub msrp_factor: f64,
+    pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
-    pub tank_size: f64,
+    pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
     pub first_transponder_company_id: Option<i32>,
@@ -958,9 +956,9 @@ pub struct NewVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
-    pub msrp_factor: f64,
+    pub msrp_factor: Decimal,
     pub odometer: i32,
-    pub tank_size: f64,
+    pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
     pub first_transponder_company_id: Option<i32>,
@@ -1016,8 +1014,9 @@ pub struct Claim {
     pub note: Option<String>,
     pub time: DateTime<Utc>,
     pub agreement_id: i32,
-    pub admin_fee: Option<f64>,
-    pub tow_charge: Option<f64>,
+    pub admin_fee: Option<Decimal>,
+    pub tow_charge: Option<Decimal>,
+    pub citation: Option<Decimal>,
 }
 
 #[derive(
@@ -1042,9 +1041,9 @@ pub struct Damage {
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
-    pub fixed_amount: Option<f64>,
-    pub depreciation: Option<f64>,
-    pub lost_of_use: Option<f64>,
+    pub fixed_amount: Option<Decimal>,
+    pub depreciation: Option<Decimal>,
+    pub lost_of_use: Option<Decimal>,
     pub claim_id: i32,
     pub vehicle_id: i32,
 }
@@ -1068,9 +1067,9 @@ pub struct NewDamage {
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
-    pub fixed_amount: Option<f64>,
-    pub depreciation: Option<f64>,
-    pub lost_of_use: Option<f64>,
+    pub fixed_amount: Option<Decimal>,
+    pub depreciation: Option<Decimal>,
+    pub lost_of_use: Option<Decimal>,
     pub claim_id: i32,
     pub vehicle_id: i32,
 }
@@ -1127,7 +1126,7 @@ pub struct NewVehicleSnapshot {
 pub struct Promo {
     pub code: String,
     pub name: String,
-    pub amount: f64,
+    pub amount: Decimal,
     pub is_enabled: bool,
     pub is_one_time: bool,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -1141,7 +1140,7 @@ pub struct Promo {
 pub struct PublishPromo {
     pub code: String,
     pub name: String,
-    pub amount: f64,
+    pub amount: Decimal,
     pub is_enabled: bool,
     pub is_one_time: bool,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -1192,30 +1191,30 @@ pub struct Agreement {
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
-    pub liability_protection_rate: Option<f64>,
-    pub pcdw_protection_rate: Option<f64>,
-    pub pcdw_ext_protection_rate: Option<f64>,
-    pub rsa_protection_rate: Option<f64>,
-    pub pai_protection_rate: Option<f64>,
+    pub liability_protection_rate: Option<Decimal>,
+    pub pcdw_protection_rate: Option<Decimal>,
+    pub pcdw_ext_protection_rate: Option<Decimal>,
+    pub rsa_protection_rate: Option<Decimal>,
+    pub pai_protection_rate: Option<Decimal>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_pickup_time: Option<DateTime<Utc>>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_drop_off_time: Option<DateTime<Utc>>,
-    pub msrp_factor: f64,
-    pub duration_rate: f64,
+    pub msrp_factor: Decimal,
+    pub duration_rate: Decimal,
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
     pub promo_id: Option<String>,
-    pub manual_discount: Option<f64>,
+    pub manual_discount: Option<Decimal>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
-    pub mileage_conversion: f64,
-    pub mileage_rate_overwrite: Option<f64>,
-    pub mileage_package_overwrite: Option<f64>,
-    pub utilization_factor: f64,
+    pub mileage_conversion: Decimal,
+    pub mileage_rate_overwrite: Option<Decimal>,
+    pub mileage_package_overwrite: Option<Decimal>,
+    pub utilization_factor: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_creation: DateTime<Utc>,
 }
@@ -1239,23 +1238,23 @@ pub struct NewAgreement {
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
-    pub liability_protection_rate: Option<f64>,
-    pub pcdw_protection_rate: Option<f64>,
-    pub pcdw_ext_protection_rate: Option<f64>,
-    pub rsa_protection_rate: Option<f64>,
-    pub pai_protection_rate: Option<f64>,
-    pub msrp_factor: f64,
-    pub duration_rate: f64,
+    pub liability_protection_rate: Option<Decimal>,
+    pub pcdw_protection_rate: Option<Decimal>,
+    pub pcdw_ext_protection_rate: Option<Decimal>,
+    pub rsa_protection_rate: Option<Decimal>,
+    pub pai_protection_rate: Option<Decimal>,
+    pub msrp_factor: Decimal,
+    pub duration_rate: Decimal,
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub promo_id: Option<String>,
-    pub manual_discount: Option<f64>,
+    pub manual_discount: Option<Decimal>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
-    pub mileage_conversion: f64,
-    pub mileage_rate_overwrite: Option<f64>,
-    pub mileage_package_overwrite: Option<f64>,
+    pub mileage_conversion: Decimal,
+    pub mileage_rate_overwrite: Option<Decimal>,
+    pub mileage_package_overwrite: Option<Decimal>,
 }
 
 #[derive(
@@ -1269,7 +1268,7 @@ pub struct Charge {
     pub name: String,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
     pub vehicle_id: i32,
@@ -1285,7 +1284,7 @@ pub struct NewCharge {
     pub name: String,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
     pub vehicle_id: i32,
@@ -1294,7 +1293,7 @@ pub struct NewCharge {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset
 )]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
@@ -1306,13 +1305,13 @@ pub struct Payment {
     pub payment_type: PaymentType,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub note: Option<String>,
     pub reference_number: Option<String>,
     pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
-    pub amount_authorized: f64,
+    pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
     pub is_deposit: bool,
@@ -1326,13 +1325,13 @@ pub struct Payment {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPayment {
     pub payment_type: PaymentType,
-    pub amount: f64,
+    pub amount: Decimal,
     pub note: Option<String>,
     pub reference_number: Option<String>,
     pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
-    pub amount_authorized: f64,
+    pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
     pub is_deposit: bool,
@@ -1423,7 +1422,7 @@ pub struct RequestToken {
     pub token: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, AsChangeset)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, AsChangeset, Queryable)]
 #[diesel(table_name = verifications)]
 #[diesel(belongs_to(Renter))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1451,8 +1450,7 @@ pub struct NewVerification {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewTax {
     pub name: String,
-    pub multiplier: f64,
-    pub is_effective: bool,
+    pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
 }
@@ -1463,8 +1461,7 @@ pub struct NewTax {
 pub struct Tax {
     pub id: i32,
     pub name: String,
-    pub multiplier: f64,
-    pub is_effective: bool,
+    pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
 }
@@ -1561,7 +1558,7 @@ pub struct RateOffer {
     pub id: i32,
     pub renter_id: i32,
     pub apartment_id: i32,
-    pub multiplier: f64,
+    pub multiplier: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
 }
@@ -1572,7 +1569,7 @@ pub struct RateOffer {
 pub struct NewRateOffer {
     pub renter_id: i32,
     pub apartment_id: i32,
-    pub multiplier: f64,
+    pub multiplier: Decimal,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Queryable, Identifiable)]
@@ -1590,10 +1587,9 @@ pub struct SubscriptionPayment {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub is_annual: bool,
-    pub amount: f64,
+    pub amount: Decimal,
     pub plan_tier: PlanTier,
-    pub plan_renewal_day: String,
-    pub plan_expire_month_year: String,
+    pub plan_renewal_day: NaiveDate,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Insertable)]
@@ -1610,8 +1606,7 @@ pub struct NewSubscriptionPayment {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub is_annual: bool,
-    pub amount: f64,
+    pub amount: Decimal,
     pub plan_tier: PlanTier,
-    pub plan_renewal_day: String,
-    pub plan_expire_month_year: String,
+    pub plan_renewal_day: NaiveDate,
 }

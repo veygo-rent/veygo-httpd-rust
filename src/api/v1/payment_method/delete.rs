@@ -1,36 +1,35 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{POOL, methods, model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use serde_derive::{Deserialize, Serialize};
+use http::Method;
 use warp::http::StatusCode;
-use warp::{Filter, Rejection};
+use warp::{Filter, Rejection, Reply};
+use crate::helper_model::VeygoError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CreatePaymentMethodsRequestBody {
-    card_id: i32,
-}
-
-pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
-    warp::path("delete")
-        .and(warp::post())
-        .and(warp::body::json())
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    warp::path!("delete" / i32)
+        .and(warp::method())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
         .and(warp::path::end())
         .and_then(
-            async move |request_body: CreatePaymentMethodsRequestBody,
+            async move |payment_id: i32,
+                        method: Method,
                         auth: String,
                         user_agent: String| {
+                if method != Method::GET {
+                    return methods::standard_replies::method_not_allowed_response();
+                }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
-                    return methods::tokens::token_invalid_wrapped_return();
+                    return methods::tokens::token_invalid_return();
                 }
                 let user_id;
                 let user_id_parsed_result = token_and_id[1].parse::<i32>();
                 user_id = match user_id_parsed_result {
                     Ok(int) => int,
                     Err(_) => {
-                        return methods::tokens::token_invalid_wrapped_return();
+                        return methods::tokens::token_invalid_return();
                     }
                 };
 
@@ -42,107 +41,55 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                     methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                         .await;
                 return match if_token_valid {
-                    Err(_) => methods::tokens::token_not_hex_warp_return(),
-                    Ok(token_bool) => {
-                        if !token_bool {
-                            methods::tokens::token_invalid_wrapped_return()
-                        } else {
-                            // gen new token
-                            methods::tokens::rm_token_by_binary(
-                                hex::decode(access_token.token.clone()).unwrap(),
+                    Err(err) => {
+                        match err {
+                            VeygoError::TokenFormatError => {
+                                methods::tokens::token_not_hex_warp_return()
+                            }
+                            VeygoError::InvalidToken => {
+                                methods::tokens::token_invalid_return()
+                            }
+                            _ => {
+                                methods::standard_replies::internal_server_error_response()
+                            }
+                        }
+                    }
+                    Ok(valid_token) => {
+                        // token is valid
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+
+                        match ext_result {
+                            Ok(bool) => {
+                                if !bool {
+                                    return methods::standard_replies::internal_server_error_response();
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response();
+                            }
+                        }
+
+                        use crate::schema::payment_methods::dsl as pm_q;
+                        let mut pool = POOL.get().unwrap();
+                        let result = diesel::update
+                            (
+                                pm_q::payment_methods
+                                    .find(&payment_id)
                             )
-                            .await;
-                            let new_token = methods::tokens::gen_token_object(
-                                &access_token.user_id,
-                                &user_agent,
-                            )
-                            .await;
-                            use crate::schema::access_tokens::dsl::*;
-                            let mut pool = POOL.get().unwrap();
-                            let new_token_in_db_publish: model::PublishAccessToken = diesel::insert_into(access_tokens)
-                                .values(&new_token)
-                                .get_result::<model::AccessToken>(&mut pool)
-                                .unwrap()
-                                .into();
-                            // check if the pm in question exists as an active pm
-                            let if_pm_in_question_exists = {
-                                use crate::schema::payment_methods::dsl::*;
-                                let mut pool = POOL.get().unwrap();
-                                diesel::select(diesel::dsl::exists(
-                                    payment_methods
-                                        .filter(id.eq(&request_body.card_id))
-                                        .filter(is_enabled.eq(true)),
-                                ))
-                                .get_result::<bool>(&mut pool)
+                            .set(pm_q::is_enabled.eq(false))
+                            .execute(&mut pool);
+                        match result {
+                            Ok(count) => {
+                                if count != 1{
+                                    methods::standard_replies::bad_request("Payment method not found.")
+                                } else {
+                                    let msg = serde_json::json!({});
+                                    Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK).into_response(),))
+                                }
                             }
-                            .unwrap();
-                            if !if_pm_in_question_exists {
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Invalid Payment Method".to_string(),
-                                    message: "Please try a different credit card. ".to_string(),
-                                };
-                                return Ok::<_, Rejection>((
-                                    methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        warp::reply::with_status(
-                                            warp::reply::json(&err_msg),
-                                            StatusCode::NOT_ACCEPTABLE,
-                                        ),
-                                    ),
-                                ));
+                            Err(_) => {
+                                methods::standard_replies::internal_server_error_response()
                             }
-                            // check if pm match user id
-                            let mut pm = payment_methods
-                                .filter(
-                                    crate::schema::payment_methods::id.eq(&request_body.card_id),
-                                )
-                                .get_result::<model::PaymentMethod>(&mut pool)
-                                .unwrap();
-                            if pm.renter_id != access_token.user_id {
-                                let err_msg = helper_model::ErrorResponse {
-                                    title: "Invalid Payment Method".to_string(),
-                                    message: "Please try a different credit card. ".to_string(),
-                                };
-                                return Ok::<_, Rejection>((
-                                    methods::tokens::wrap_json_reply_with_token(
-                                        new_token_in_db_publish,
-                                        warp::reply::with_status(
-                                            warp::reply::json(&err_msg),
-                                            StatusCode::NOT_ACCEPTABLE,
-                                        ),
-                                    ),
-                                ));
-                            }
-                            pm.is_enabled = false;
-                            use crate::schema::payment_methods::dsl::*;
-                            let pmt_id_clone = request_body.card_id.clone();
-                            diesel::update(payment_methods.find(pmt_id_clone))
-                                .set(&pm)
-                                .execute(&mut pool)
-                                .unwrap();
-                            let payment_method_query_result = payment_methods
-                                .into_boxed()
-                                .filter(is_enabled.eq(true))
-                                .filter(renter_id.eq(&access_token.user_id))
-                                .load::<model::PaymentMethod>(&mut pool)
-                                .unwrap();
-                            let publish_payment_methods: Vec<model::PublishPaymentMethod> =
-                                payment_method_query_result
-                                    .iter()
-                                    .map(|x| model::PublishPaymentMethod::from(x.clone()))
-                                    .collect();
-                            let msg = serde_json::json!({
-                                "payment_methods": publish_payment_methods,
-                            });
-                            return Ok::<_, Rejection>((
-                                methods::tokens::wrap_json_reply_with_token(
-                                    new_token_in_db_publish,
-                                    warp::reply::with_status(
-                                        warp::reply::json(&msg),
-                                        StatusCode::OK,
-                                    ),
-                                ),
-                            ));
                         }
                     }
                 };

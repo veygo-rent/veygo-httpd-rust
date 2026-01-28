@@ -2,9 +2,9 @@ use crate::{POOL, methods, model, helper_model};
 use bcrypt::verify;
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
+use diesel::result::Error;
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
-use warp::reply::with_status;
 use warp::{Filter, Reply, http::Method};
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -25,15 +25,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
             let mut pool = POOL.get().unwrap();
             use crate::schema::renters::dsl::*;
-            let result: QueryResult<model::Renter> = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);
+            let result = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);
             return match result {
                 Ok(admin) => {
-                    if !methods::user::user_is_manager(&admin) {
+                    if !admin.is_manager() {
                         let error_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
-                        return Ok::<_, warp::Rejection>((with_status(warp::reply::json(&error_msg), StatusCode::UNAUTHORIZED).into_response(),));
+                        return methods::standard_replies::response_with_obj(error_msg, StatusCode::UNAUTHORIZED);
                     }
                     return if verify(&login_data.password, &admin.password).unwrap_or(false) {
                         // user and password are verified
@@ -46,26 +46,30 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 
                             .unwrap();
 
-                        let pub_token = model::PublishAccessToken::from(insert_token_result);
+                        let pub_token = insert_token_result.into();
                         let pub_renter: model::PublishRenter = admin.into();
-                        let renter_msg = serde_json::json!({
-                            "admin": pub_renter,
-                        });
-                        Ok::<_, warp::Rejection>((methods::tokens::wrap_json_reply_with_token(pub_token, with_status(warp::reply::json(&renter_msg), StatusCode::OK)),))
+                        methods::standard_replies::auth_renter_reply(&pub_renter, &pub_token, false)
                     } else {
                         let err_msg = helper_model::ErrorResponse {
                             title: "Credentials Invalid".to_string(),
                             message: "Please check your credentials again. ".to_string(),
                         };
-                        Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                        return methods::standard_replies::response_with_obj(err_msg, StatusCode::UNAUTHORIZED);
                     }
                 },
-                Err(_) => {
-                    let err_msg = helper_model::ErrorResponse {
-                        title: "Credentials Invalid".to_string(),
-                        message: "Please check your credentials again. ".to_string(),
-                    };
-                    Ok::<_, warp::Rejection>((with_status(warp::reply::json(&err_msg), StatusCode::UNAUTHORIZED).into_response(),))
+                Err(err) => {
+                    match err {
+                        Error::NotFound => {
+                            let err_msg = helper_model::ErrorResponse {
+                                title: "Credentials Invalid".to_string(),
+                                message: "Please check your credentials again. ".to_string(),
+                            };
+                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::UNAUTHORIZED);
+                        }
+                        _ => {
+                            methods::standard_replies::internal_server_error_response()
+                        }
+                    }
                 }
             };
         })

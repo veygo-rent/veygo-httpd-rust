@@ -1,12 +1,11 @@
 use crate::{model, helper_model, POOL};
-use crate::schema::access_tokens::dsl::*;
+use crate::schema::access_tokens::dsl as at_q;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use hex::FromHexError;
 use secrets::Secret;
 use std::ops::Add;
+use diesel::result::Error;
 use warp::http::StatusCode;
-use warp::reply::{Json, WithStatus, with_header};
 use warp::{Rejection, Reply};
 
 async fn generate_unique_token() -> Vec<u8> {
@@ -15,50 +14,81 @@ async fn generate_unique_token() -> Vec<u8> {
     token_vec
 }
 
-pub async fn gen_token_object(_user_id: &i32, user_agent: &String) -> model::NewAccessToken {
-    let mut _exp: DateTime<Utc> = Utc::now().add(chrono::Duration::seconds(600));
-    if user_agent.contains("veygo") {
-        _exp = Utc::now().add(chrono::Duration::days(28));
-    }
+pub async fn gen_token_object(user_id: &i32, user_agent: &String) -> model::NewAccessToken {
+    let exp: DateTime<Utc> = if user_agent.contains("veygo") {
+        Utc::now().add(chrono::Duration::days(28))
+    } else {
+        Utc::now().add(chrono::Duration::seconds(600))
+    };
     model::NewAccessToken {
-        user_id: *_user_id,
+        user_id: *user_id,
         token: generate_unique_token().await,
-        exp: _exp,
+        exp,
     }
 }
 
-pub async fn verify_user_token(_user_id: &i32, token_data: &String) -> Result<bool, FromHexError> {
+pub fn extend_token(verified_token_id: i32, user_agent: &String) -> Result<bool, helper_model::VeygoError> {
+    let mut pool = POOL.get().unwrap();
+    let exp: DateTime<Utc> = if user_agent.contains("veygo") {
+        Utc::now().add(chrono::Duration::days(28))
+    } else {
+        Utc::now().add(chrono::Duration::seconds(600))
+    };
+    let result = diesel::update
+        (
+            at_q::access_tokens
+                .find(verified_token_id)
+        )
+        .set(at_q::exp.eq(exp))
+        .execute(&mut pool);
+    match result {
+        Ok(count) => {
+            if count == 1 {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        Err(_) => {
+            Err(helper_model::VeygoError::InternalServerError)
+        }
+    }
+}
+
+pub async fn verify_user_token(user_id: &i32, token_data: &String) -> Result<(Vec<u8>, i32), helper_model::VeygoError> {
     let binary_token = hex::decode(token_data.clone());
     match binary_token {
-        Err(error) => Err(error),
+        Err(_) => Err(helper_model::VeygoError::TokenFormatError),
         Ok(binary_token) => {
-            let token_clone = binary_token.clone();
             let mut pool = POOL.get().unwrap();
 
-            let token_db_result = access_tokens
-                .filter(user_id.eq(&_user_id))
-                .filter(token.eq(&token_clone))
-                .get_result::<model::AccessToken>(&mut pool);
+            let token_db_result = at_q::access_tokens
+                .filter(at_q::user_id.eq(&user_id))
+                .filter(at_q::token.eq(&binary_token))
+                .select((at_q::exp, at_q::id))
+                .get_result::<(DateTime<Utc>, i32)>(&mut pool);
 
             match token_db_result {
-                Err(_) => Ok(false),
-                Ok(token_db) => {
-                    let token_exp = token_db.exp;
+                Err(e) => {
+                    match e {
+                        Error::NotFound => {
+                            Err(helper_model::VeygoError::InvalidToken)
+                        }
+                        _ => {
+                            Err(helper_model::VeygoError::InternalServerError)
+                        }
+                    }
+                },
+                Ok((token_exp, id)) => {
                     if token_exp >= Utc::now() {
-                        Ok(true)
+                        Ok((binary_token, id))
                     } else {
-                        Ok(false)
+                        Err(helper_model::VeygoError::InvalidToken)
                     }
                 },
             }
         }
     }
-}
-
-pub async fn rm_token_by_binary(token_bit: Vec<u8>) {
-    let mut pool = POOL.get().unwrap();
-    let _ = diesel::delete(access_tokens.filter(token.eq(token_bit)))
-        .execute(&mut pool);
 }
 
 pub fn token_not_hex_warp_return() -> Result<(warp::reply::Response,), Rejection> {
@@ -73,7 +103,7 @@ pub fn token_not_hex_warp_return() -> Result<(warp::reply::Response,), Rejection
     .into_response(),))
 }
 
-pub fn token_invalid_wrapped_return() -> Result<(warp::reply::Response,), Rejection> {
+pub fn token_invalid_return() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model ::ErrorResponse {
         title: String::from("Invalid Token"),
         message: String::from("Please login again."),
@@ -85,11 +115,11 @@ pub fn token_invalid_wrapped_return() -> Result<(warp::reply::Response,), Reject
     .into_response(),))
 }
 
-pub fn wrap_json_reply_with_token(
-    token_data: model::PublishAccessToken,
-    reply: WithStatus<Json>,
-) -> warp::reply::Response {
-    let reply = with_header(reply, "token", token_data.token);
-    let reply = with_header(reply, "exp", token_data.exp.timestamp());
-    reply.into_response()
+pub fn rm_token(token: Vec<u8>, user_id: i32) {
+    let mut pool = POOL.get().unwrap();
+    let _ = diesel::delete(
+        at_q::access_tokens
+            .filter(at_q::token.eq(&token))
+            .filter(at_q::user_id.eq(&user_id))
+    ).execute(&mut pool);
 }
