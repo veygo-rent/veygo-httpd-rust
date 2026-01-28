@@ -226,7 +226,12 @@ pub async fn create_payment_intent(
 
     match result {
         Ok(pi) => {
-            Ok(pi)
+            let pi_status: model::PaymentType = pi.status.clone().into();
+            if vec![model::PaymentType::Succeeded, model::PaymentType::RequiresCapture].contains(&pi_status) {
+                Ok(pi)
+            } else {
+                Err(helper_model::VeygoError::CardDeclined)
+            }
         }
         Err(e) => {
             match e {
