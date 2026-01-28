@@ -201,7 +201,6 @@ pub async fn create_payment_intent(
         .confirm(true)
         .customer(customer_id_data)
         .payment_method(payment_id_data)
-        .statement_descriptor_suffix(String::from("VEYGO SVC PMT"))
         .description(description)
         .off_session(CreatePaymentIntentOffSession::Bool(true))
         .payment_method_types(vec![String::from("card")])
