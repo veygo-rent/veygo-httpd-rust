@@ -39,4 +39,4 @@ a2 = "0.10.0"
 askama = "0.15.3"
 http = "1.4.0"
 sha2 = "0.10.9"
-rust_decimal = { version = "1.40.0", features = ["db-diesel-postgres", "macros"] }
+rust_decimal = { version = "1.40.0", features = ["db-diesel-postgres", "macros", "serde-float"] }

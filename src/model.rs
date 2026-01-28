@@ -400,6 +400,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 pub struct RewardTransaction {
     pub id: i32,
     pub agreement_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub transaction_time: DateTime<Utc>,
@@ -414,6 +415,7 @@ pub struct RewardTransaction {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRewardTransaction {
     pub agreement_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration: Decimal,
     pub renter_id: i32,
 }
@@ -658,24 +660,40 @@ pub struct Apartment {
     pub phone: String,
     pub address: UsAddress,
     pub accepted_school_email_domain: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub free_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub silver_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub silver_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub gold_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub gold_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub platinum_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub platinum_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub liability_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_ext_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub rsa_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pai_protection_rate: Option<Decimal>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_rate_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_package_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub mileage_conversion: Decimal,
 }
 
@@ -689,24 +707,40 @@ pub struct NewApartment {
     pub phone: String,
     pub address: UsAddress,
     pub accepted_school_email_domain: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub free_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub silver_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub silver_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub gold_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub gold_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub platinum_tier_hours: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub platinum_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub liability_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_ext_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub rsa_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pai_protection_rate: Option<Decimal>,
     pub is_operating: bool,
     pub is_public: bool,
     pub uni_id: i32,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_rate_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_package_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub mileage_conversion: Decimal,
 }
 
@@ -785,9 +819,11 @@ pub struct Vehicle {
     pub year: String,
     pub make: String,
     pub model: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
@@ -821,9 +857,11 @@ pub struct PublishRenterVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub location_id: i32,
@@ -848,9 +886,11 @@ pub struct PublishAdminVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
     pub image_link: Option<String>,
     pub odometer: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
@@ -956,8 +996,10 @@ pub struct NewVehicle {
     pub year: String,
     pub make: String,
     pub model: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
     pub odometer: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub tank_size: Decimal,
     pub tank_level_percentage: i32,
     pub first_transponder_number: Option<String>,
@@ -1014,8 +1056,11 @@ pub struct Claim {
     pub note: Option<String>,
     pub time: DateTime<Utc>,
     pub agreement_id: i32,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub admin_fee: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub tow_charge: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub citation: Option<Decimal>,
 }
 
@@ -1041,8 +1086,11 @@ pub struct Damage {
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub fixed_amount: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub depreciation: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub lost_of_use: Option<Decimal>,
     pub claim_id: i32,
     pub vehicle_id: i32,
@@ -1067,8 +1115,11 @@ pub struct NewDamage {
     pub fourth_image: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub fixed_date: Option<DateTime<Utc>>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub fixed_amount: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub depreciation: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub lost_of_use: Option<Decimal>,
     pub claim_id: i32,
     pub vehicle_id: i32,
@@ -1126,6 +1177,7 @@ pub struct NewVehicleSnapshot {
 pub struct Promo {
     pub code: String,
     pub name: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub is_enabled: bool,
     pub is_one_time: bool,
@@ -1140,6 +1192,7 @@ pub struct Promo {
 pub struct PublishPromo {
     pub code: String,
     pub name: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub is_enabled: bool,
     pub is_one_time: bool,
@@ -1191,16 +1244,23 @@ pub struct Agreement {
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub liability_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_ext_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub rsa_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pai_protection_rate: Option<Decimal>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_pickup_time: Option<DateTime<Utc>>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub actual_drop_off_time: Option<DateTime<Utc>>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration_rate: Decimal,
     pub vehicle_id: i32,
     pub renter_id: i32,
@@ -1208,12 +1268,17 @@ pub struct Agreement {
     pub vehicle_snapshot_before: Option<i32>,
     pub vehicle_snapshot_after: Option<i32>,
     pub promo_id: Option<String>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub manual_discount: Option<Decimal>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub mileage_conversion: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_rate_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_package_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub utilization_factor: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_creation: DateTime<Utc>,
@@ -1238,22 +1303,33 @@ pub struct NewAgreement {
     pub rsvp_pickup_time: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub rsvp_drop_off_time: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub liability_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pcdw_ext_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub rsa_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub pai_protection_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub msrp_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
     pub duration_rate: Decimal,
     pub vehicle_id: i32,
     pub renter_id: i32,
     pub payment_method_id: i32,
     pub promo_id: Option<String>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub manual_discount: Option<Decimal>,
     pub location_id: i32,
     pub mileage_package_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub mileage_conversion: Decimal,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_rate_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_package_overwrite: Option<Decimal>,
 }
 
@@ -1268,6 +1344,7 @@ pub struct Charge {
     pub name: String,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
@@ -1284,6 +1361,7 @@ pub struct NewCharge {
     pub name: String,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub note: Option<String>,
     pub agreement_id: Option<i32>,
@@ -1305,12 +1383,14 @@ pub struct Payment {
     pub payment_type: PaymentType,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub note: Option<String>,
     pub reference_number: Option<String>,
     pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
@@ -1325,12 +1405,14 @@ pub struct Payment {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPayment {
     pub payment_type: PaymentType,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub note: Option<String>,
     pub reference_number: Option<String>,
     pub agreement_id: i32,
     pub renter_id: i32,
     pub payment_method_id: Option<i32>,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
@@ -1450,6 +1532,7 @@ pub struct NewVerification {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewTax {
     pub name: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
@@ -1461,6 +1544,7 @@ pub struct NewTax {
 pub struct Tax {
     pub id: i32,
     pub name: String,
+    #[serde(with = "rust_decimal::serde::float")]
     pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
@@ -1558,6 +1642,7 @@ pub struct RateOffer {
     pub id: i32,
     pub renter_id: i32,
     pub apartment_id: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub multiplier: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
@@ -1569,6 +1654,7 @@ pub struct RateOffer {
 pub struct NewRateOffer {
     pub renter_id: i32,
     pub apartment_id: i32,
+    #[serde(with = "rust_decimal::serde::float")]
     pub multiplier: Decimal,
 }
 
@@ -1587,6 +1673,7 @@ pub struct SubscriptionPayment {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub is_annual: bool,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub plan_tier: PlanTier,
     pub plan_renewal_day: NaiveDate,
@@ -1606,6 +1693,7 @@ pub struct NewSubscriptionPayment {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub time: DateTime<Utc>,
     pub is_annual: bool,
+    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub plan_tier: PlanTier,
     pub plan_renewal_day: NaiveDate,

@@ -17,7 +17,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         method: Method,
                         auth: String,
                         user_agent: String| {
-                if method != Method::GET {
+                if method != Method::DELETE {
                     return methods::standard_replies::method_not_allowed_response();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
