@@ -63,7 +63,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "apartment/add-location: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -74,11 +77,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "apartment/add-location: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "apartment/add-location: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -86,7 +95,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
 
                         let Ok(admin) = admin else {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "apartment/add-location: Database error loading admin user",
+                            )
+                            .await;
                         };
 
                         if !admin.is_operational_admin() {
@@ -97,7 +109,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let insert_result = diesel::insert_into(location_query::locations)
                             .values(&body)
                             .get_result::<model::Location>(&mut pool);
-                        
+
                         match insert_result {
                             Ok(loc) => {
                                 methods::standard_replies::response_with_obj(loc, StatusCode::CREATED)
@@ -112,7 +124,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         methods::standard_replies::response_with_obj(err_msg, StatusCode::CONFLICT)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response()
+                                        methods::standard_replies::internal_server_error_response(
+                                            "apartment/add-location: SQL error inserting location",
+                                        )
+                                        .await
                                     }
                                 }
                             }

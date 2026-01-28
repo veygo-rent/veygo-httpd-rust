@@ -83,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response("agreement/check-in: Database connection error at token verification").await
                         }
                     }
                 }
@@ -94,11 +94,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response("agreement/check-in: SQL error at extending token").await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response("agreement/check-in: Database connection error at extending token").await;
                         }
                     }
 
@@ -132,7 +132,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::standard_replies::agreement_not_allowed_response()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response("agreement/check-in: Database connection error at loading vehicle snapshot").await
                             }
                         }
                     }
@@ -148,7 +148,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<(model::RemoteMgmtType, String, String)>(&mut pool);
 
                     let Ok((vehicle_remote_mgmt, mgmt_id, vin_num)) = result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at loading vehicle remote mgmt info",
+                        )
+                        .await;
                     };
 
                     match vehicle_remote_mgmt {
@@ -183,10 +186,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             let result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
 
                             let Ok(resp) = result else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Tesla API error at door_lock request",
+                                )
+                                .await;
                             };
                             if resp.status() != StatusCode::OK {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Tesla API returned non-200 at door_lock request",
+                                )
+                                .await;
                             }
                         }
                         _ => {}
@@ -216,11 +225,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match result {
                         Ok(count) => {
                             if count == 0 {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: SQL error at mapping unmapped charges (no rows updated)",
+                                )
+                                .await
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Database connection error at mapping unmapped charges",
+                            )
+                            .await
                         }
                     }
 
@@ -241,29 +256,44 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let result = integration::tesla_curl::tesla_make_request(Method::GET, &charge_history_path, None).await;
 
                         let Ok(resp) = result else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Tesla API error at fetching charging sessions",
+                            )
+                            .await
                         };
 
                         if resp.status() != StatusCode::OK {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Tesla API returned non-200 at fetching charging sessions",
+                            )
+                            .await
                         }
 
                         let body_text = match resp.text().await {
                             Ok(t) => t,
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Tesla API response body read error at charging sessions",
+                                )
+                                .await
                             }
                         };
 
                         let parsed: TeslaChargingSessionsResponse = match serde_json::from_str(&body_text) {
                             Ok(p) => p,
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: JSON parse error at charging sessions",
+                                )
+                                .await
                             }
                         };
 
                         if parsed.status_code != 1000 {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Tesla charging sessions returned failure status_code",
+                            )
+                            .await
                         }
 
                         let sessions_min: Vec<(DateTime<Utc>, String, f64, f64)> = parsed
@@ -276,7 +306,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             let charging_note = format!("Tesla charging at {}", location);
                             let incl_vat_opt = Decimal::try_from(incl_vat);
                             if incl_vat_opt.is_err() {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Decimal conversion error for Tesla charging cost",
+                                )
+                                .await
                             }
                             let new_charge = model::NewCharge{
                                 name: charging_note,
@@ -296,7 +329,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .execute(&mut pool);
 
                             if res.is_err() {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: SQL error at inserting Tesla charging charge",
+                                )
+                                .await
                             }
                         }
                     }
@@ -312,7 +348,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(total_reward_hours_result) = total_reward_hours_result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at summing reward hours",
+                        )
+                        .await
                     };
 
                     let total_reward_hours = if total_reward_hours_result.is_none() {
@@ -348,9 +387,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .find(&discount_id)
                             .get_result::<model::Promo>(&mut pool);
 
-                        if promo_result.is_err() {
-                            return methods::standard_replies::internal_server_error_response()
-                        }
+                    if promo_result.is_err() {
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at loading promo",
+                        )
+                        .await
+                    }
                         let promo = promo_result.unwrap();
 
                         total_discount += promo.amount;
@@ -375,7 +417,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(total_external_charges_result) = total_external_charges_result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at summing external charges",
+                        )
+                        .await
                     };
 
                     let total_external_charges = if let Some(sum) = total_external_charges_result {
@@ -396,7 +441,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let mp_result = mp_q::mileage_packages.find(&mp_id).get_result::<model::MileagePackage>(&mut pool);
 
                         let Ok(mp_result) = mp_result else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Database connection error at loading mileage package",
+                            )
+                            .await
                         };
 
                         let mp_rate = if let Some(overwrite_rate) = agreement_to_be_checked_in.mileage_package_overwrite {
@@ -420,7 +468,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<i32>(&mut pool);
 
                     let Ok(odometer_after) = odometer_after_result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at loading odometer after",
+                        )
+                        .await
                     };
 
                     let odometer_before_result = v_s_q::vehicle_snapshots
@@ -429,12 +480,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<i32>(&mut pool);
 
                     let Ok(odometer_before) = odometer_before_result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at loading odometer before",
+                        )
+                        .await
                     };
 
                     let total_driven = odometer_after - odometer_before;
                     if total_driven < 0 {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Invalid odometer delta (negative total driven)",
+                        )
+                        .await
                     }
                     if total_driven > included_miles {
                         let additional_miles = Decimal::new((total_driven - included_miles) as i64, 0);
@@ -475,7 +532,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_results::<model::Tax>(&mut pool);
 
                     let Ok(all_taxes_with_current_agreement) = all_taxes_with_current_agreement_result else {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-in: Database connection error at loading agreement taxes",
+                        )
+                        .await
                     };
 
                     for tax in all_taxes_with_current_agreement {
@@ -525,7 +585,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .round_dp(2)
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Database connection error at summing captured payments",
+                            )
+                            .await
                         }
                     };
 
@@ -540,7 +603,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .get_results::<(i32, Option<String>, Decimal, Decimal)>(&mut pool);
 
                         let Ok(all_pm_id_needed_to_be_completed) = all_pm_id_needed_to_be_completed else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response("agreement/check-in: Database connection error at loading uncaptured payments").await
                         };
 
                         for pm in all_pm_id_needed_to_be_completed {
@@ -553,14 +616,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let int_to_capture = total_needed_to_be_captured_2dp.mantissa() as i64;
                                     let pmi_cap = integration::stripe_veygo::capture_payment(&pi_id, Some((int_to_capture, true))).await;
                                     if pmi_cap.is_err() {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Stripe error at capturing payment",
+                                        )
+                                        .await
                                     }
                                     let pmi_cap = pmi_cap.unwrap();
                                     let pmi_status: model::PaymentType = pmi_cap.status.into();
                                     if pmi_status != model::PaymentType::Succeeded {
                                         let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
                                         if result.is_err() {
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/check-in: Stripe error at finalizing capture",
+                                            )
+                                            .await
                                         }
                                     }
                                     let result = diesel::update(p_q::payments.find(&p_id))
@@ -576,11 +645,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     match result {
                                         Ok(count) => {
                                             if count == 0 {
-                                                return methods::standard_replies::internal_server_error_response()
+                                                return methods::standard_replies::internal_server_error_response(
+                                                    "agreement/check-in: SQL error at updating payment after capture (no rows updated)",
+                                                )
+                                                .await
                                             }
                                         }
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/check-in: Database connection error at updating payment after capture",
+                                            )
+                                            .await
                                         }
                                     }
 
@@ -590,14 +665,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let int_to_capture = can_capture_2dp.mantissa() as i64;
                                     let pmi_cap = integration::stripe_veygo::capture_payment(&pi_id, Some((int_to_capture, true))).await;
                                     if pmi_cap.is_err() {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Stripe error at capturing payment",
+                                        )
+                                        .await
                                     }
                                     let pmi_cap = pmi_cap.unwrap();
                                     let pmi_status: model::PaymentType = pmi_cap.status.into();
                                     if pmi_status != model::PaymentType::Succeeded {
                                         let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
                                         if result.is_err() {
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/check-in: Stripe error at finalizing capture",
+                                            )
+                                            .await
                                         }
                                     }
                                     let result = diesel::update(p_q::payments.find(&p_id))
@@ -613,11 +694,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     match result {
                                         Ok(count) => {
                                             if count == 0 {
-                                                return methods::standard_replies::internal_server_error_response()
+                                                return methods::standard_replies::internal_server_error_response(
+                                                    "agreement/check-in: SQL error at updating payment after capture (no rows updated)",
+                                                )
+                                                .await
                                             }
                                         }
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/check-in: Database connection error at updating payment after capture",
+                                            )
+                                            .await
                                         }
                                     }
 
@@ -628,13 +715,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 let pi = if pm.2 != Decimal::zero() {
                                     let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
                                     if result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Stripe error at finalizing capture",
+                                        )
+                                        .await
                                     }
                                     result.unwrap()
                                 } else {
                                     let result = integration::stripe_veygo::drop_auth(&pi_id).await;
                                     if result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Stripe error at dropping authorization",
+                                        )
+                                        .await
                                     }
                                     result.unwrap()
                                 };
@@ -645,11 +738,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 match result {
                                     Ok(count) => {
                                         if count == 0 {
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/check-in: SQL error at updating payment after capture (no rows updated)",
+                                            )
+                                            .await
                                         }
                                     }
                                     Err(_) => {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Database connection error at updating payment after capture",
+                                        )
+                                        .await
                                     }
                                 }
                             }
@@ -665,7 +764,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_result::<String>(&mut pool);
 
                             let Ok(p_id) = p_id else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Database connection error at loading payment method token",
+                                )
+                                .await
                             };
                             // process total_needed_to_be_captured_2dp
                             let int_to_capture = total_needed_to_be_captured_2dp.mantissa() as i64;
@@ -677,7 +779,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_result::<String>(&mut pool);
 
                             let Ok(stripe_id) = stripe_id else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-in: Database connection error at loading renter stripe_id",
+                                )
+                                .await
                             };
 
                             let description = "RSVP #".to_owned() + &*agreement_to_be_checked_in.confirmation.clone();
@@ -690,7 +795,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         methods::standard_replies::card_declined()
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response()
+                                        methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: Stripe error at creating payment intent",
+                                        )
+                                        .await
                                     }
                                 }
                             }
@@ -722,11 +830,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         .execute(&mut pool);
 
                                     if insert_result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: SQL error at inserting new payment",
+                                        )
+                                        .await
                                     }
                                 }
                                 _ => {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-in: Stripe error at creating payment intent",
+                                    )
+                                    .await
                                 }
                             }
                         }
@@ -739,7 +853,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .select((p_q::id, p_q::reference_number, p_q::amount))
                             .get_results::<(i32, Option<String>, Decimal)>(&mut pool);
                         if all_pm_id_needed_to_be_completed.is_err() {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: Database connection error at loading payments requiring completion",
+                            )
+                            .await
                         }
 
                         let all_pm_id_needed_to_be_completed = all_pm_id_needed_to_be_completed.unwrap();
@@ -749,13 +866,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             let pi = if !pm.2.is_zero() {
                                 let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
                                 if result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-in: Stripe error at finalizing capture",
+                                    )
+                                    .await
                                 }
                                 result.unwrap()
                             } else {
                                 let result = integration::stripe_veygo::drop_auth(&pi_id).await;
                                 if result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-in: Stripe error at dropping authorization",
+                                    )
+                                    .await
                                 }
                                 result.unwrap()
                             };
@@ -766,11 +889,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             match result {
                                 Ok(count) => {
                                     if count == 0 {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/check-in: SQL error at updating payment after capture (no rows updated)",
+                                        )
+                                        .await
                                     }
                                 }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-in: Database connection error at updating payment after capture",
+                                    )
+                                    .await
                                 }
                             }
                         }
@@ -785,7 +914,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::standard_replies::response_with_obj::<model::Agreement>(ag, StatusCode::OK)
                         }
                         Err(_err) => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "agreement/check-in: SQL error at saving agreement check-in",
+                            )
+                            .await
                         }
                     }
                 }

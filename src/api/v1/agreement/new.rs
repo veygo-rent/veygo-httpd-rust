@@ -79,28 +79,39 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "agreement/new: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
                     Ok(valid_token) => {
                         // token is valid
                         let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
-
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/new: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/new: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
                         let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await;
                         let Ok(user_in_request) = user_in_request else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Database error loading renter",
+                            )
+                            .await
                         };
 
                         // Check if Renter DL exp
@@ -144,7 +155,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Apartment>(&mut pool);
 
                         let Ok(renter_apt) = renter_apt else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Database error loading renter apartment",
+                            )
+                            .await
                         };
 
                         if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.is_none() {
@@ -174,7 +188,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let dnr_records = user_in_request.get_dnr_count();
                         let Ok(record_count) = dnr_records else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Database error checking DNR records",
+                            )
+                            .await
                         };
                         if record_count > 0 {
                             let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -205,7 +222,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<i64>(&mut pool);
 
                         let Ok(renter_agreements_blocking_count) = renter_agreements_blocking_count else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Database error checking blocking agreements",
+                            )
+                            .await
                         };
 
                         if renter_agreements_blocking_count > 0 {
@@ -317,7 +337,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_results::<model::Tax>(&mut pool);
 
                         let Ok(taxes) = taxes else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Database error loading apartment taxes",
+                            )
+                            .await
                         };
 
                         let mut local_tax_rate_percent = Decimal::one();
@@ -340,7 +363,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let conf_id = methods::agreement::generate_unique_agreement_confirmation();
                         let Ok(conf_id) = conf_id else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/new: Failed to generate agreement confirmation",
+                            )
+                            .await
                         };
 
                         let deposit_amount_2dp = (vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * local_tax_rate_percent
@@ -359,7 +385,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::card_declined()
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response()
+                                        methods::standard_replies::internal_server_error_response(
+                                            "agreement/new: Stripe error creating payment intent",
+                                        )
+                                        .await
                                     }
                                 }
                             }
@@ -381,7 +410,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         )
                                 )).get_result::<bool>(&mut pool);
                                 let Ok(is_conflict) = is_conflict else {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/new: Database error checking vehicle conflict",
+                                    )
+                                    .await
                                 };
 
                                 if is_conflict {
@@ -432,7 +464,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                     Err(_) => {
                                         let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
-                                        return methods::standard_replies::internal_server_error_response();
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/new: SQL error inserting agreement",
+                                        )
+                                        .await;
                                     }
                                 };
 
@@ -455,7 +490,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let Ok(payment) = payment_result else {
                                     let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
                                     let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/new: SQL error inserting deposit payment",
+                                    )
+                                    .await;
                                 };
 
                                 use crate::schema::agreements_taxes::dsl as ag_tx_q;
@@ -475,7 +513,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 let _ = diesel::delete(payment_query::payments.find(&payment.id)).execute(&mut pool);
                                                 let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
                                                 let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
-                                                return methods::standard_replies::internal_server_error_response()
+                                                return methods::standard_replies::internal_server_error_response(
+                                                    "agreement/new: SQL error inserting agreement tax (no rows updated)",
+                                                )
+                                                .await
                                             }
                                         }
                                         Err(_) => {
@@ -483,7 +524,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             let _ = diesel::delete(payment_query::payments.find(&payment.id)).execute(&mut pool);
                                             let _ = diesel::delete(ag_q::agreements.find(&new_publish_agreement.id)).execute(&mut pool);
                                             let _ = integration::stripe_veygo::drop_auth(&pmi.id).await;
-                                            return methods::standard_replies::internal_server_error_response()
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "agreement/new: Database error inserting agreement tax",
+                                            )
+                                            .await
                                         }
                                     }
                                 }

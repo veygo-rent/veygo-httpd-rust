@@ -62,7 +62,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "vehicle/upload-image: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -73,11 +76,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "vehicle/upload-image: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "vehicle/upload-image: Token extension error",
+                                )
+                                .await;
                             }
                         }
 

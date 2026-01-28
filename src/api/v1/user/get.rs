@@ -46,7 +46,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "user/get: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -57,11 +60,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/get: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "user/get: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -69,7 +78,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .await;
 
                     let Ok(admin) = admin else {
-                        return methods::standard_replies::internal_server_error_response();
+                        return methods::standard_replies::internal_server_error_response(
+                            "user/get: Database error loading admin user",
+                        )
+                        .await;
                     };
 
                     if !admin.is_operational_manager() {
@@ -89,7 +101,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .find(&usr_id)
                             .get_result::<model::Renter>(&mut pool)
                     };
-                    
+
                     let user = match user {
                         Ok(usr) => { usr }
                         Err(err) => {
@@ -99,7 +111,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "user/get: Database error loading renter",
+                                    )
+                                    .await
                                 }
                             }
                         }

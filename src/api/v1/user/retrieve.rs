@@ -43,7 +43,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "user/retrieve: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -54,11 +57,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "user/retrieve: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/retrieve: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -69,7 +78,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 pub_renter
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/retrieve: Database error loading renter",
+                                )
+                                .await;
                             }
                         };
                         methods::standard_replies::response_with_obj(user, http::StatusCode::OK)

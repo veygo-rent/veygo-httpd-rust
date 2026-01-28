@@ -59,7 +59,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "user/change-plan: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -70,11 +73,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "user/change-plan: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/change-plan: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -84,12 +93,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut user_in_request = match user_in_request {
                             Ok(temp) => { temp }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/change-plan: Database error loading renter",
+                                )
+                                .await
                             }
                         };
 
                         let mut pool = POOL.get().unwrap();
-                        
+
                         use schema::apartments::dsl as apt_q;
                         let apartment = apt_q::apartments
                             .filter(apt_q::id.eq(&user_in_request.apartment_id))
@@ -98,7 +110,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let apartment = match apartment {
                             Ok(apt) => { apt }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/change-plan: Database error loading apartment",
+                                )
+                                .await
                             }
                         };
 
@@ -115,11 +130,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match result {
                                 Ok(count) => {
                                     if count != 1 {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "user/change-plan: SQL error updating renter to Free (unexpected row count)",
+                                        )
+                                        .await
                                     }
                                 }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "user/change-plan: Database error updating renter to Free",
+                                    )
+                                    .await
                                 }
                             }
                             return methods::standard_replies::apartment_not_operational();
@@ -141,7 +162,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::response_with_obj(pub_renter, StatusCode::OK)
                                 }
                                 Err(_) => {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "user/change-plan: SQL error saving renter Free plan",
+                                    )
+                                    .await
                                 }
                             }
                         } else {
@@ -159,17 +183,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             model::PlanTier::Platinum => apartment.platinum_tier_rate,
                                         };
                                         let Some(_plan_rate) = plan_rate else {
-                                            let msg = helper_model::ErrorResponse{ 
+                                            let msg = helper_model::ErrorResponse{
                                                 title: "Plan Not Available".to_string(), message: "The plan is currently not available, please try a different plan. ".to_string()
                                             };
                                             return methods::standard_replies::response_with_obj(msg, StatusCode::FORBIDDEN)
                                         };
-                                        
-                                        
-                                        // TODO: Calculate plan credits or start new plans
-                                        
 
-                                        methods::standard_replies::internal_server_error_response()
+
+                                        // TODO: Calculate plan credits or start new plans
+
+
+                                        methods::standard_replies::internal_server_error_response(
+                                            "user/change-plan: Not implemented (plan change calculation)",
+                                        )
+                                        .await
                                     }
                                     Err(err) => {
                                         match err {
@@ -177,7 +204,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 methods::standard_replies::card_invalid()
                                             }
                                             _ => {
-                                                methods::standard_replies::internal_server_error_response()
+                                                methods::standard_replies::internal_server_error_response(
+                                                    "user/change-plan: Database error loading payment method",
+                                                )
+                                                .await
                                             }
                                         }
                                     }

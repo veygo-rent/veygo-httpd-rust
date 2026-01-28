@@ -51,7 +51,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "user/update-apns: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -62,11 +65,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "user/update-apns: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "user/update-apns: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -82,7 +91,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "user/update-apns: SQL error updating apple_apns",
+                            )
+                            .await;
                         };
 
                         let renter: model::PublishRenter = renter.into();

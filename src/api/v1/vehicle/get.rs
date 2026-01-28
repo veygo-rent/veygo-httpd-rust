@@ -34,7 +34,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
             let if_token_valid =
                 methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                     .await;
-            
+
             return match if_token_valid {
                 Err(err) => {
                     match err {
@@ -45,7 +45,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "vehicle/get: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -56,11 +59,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "vehicle/get: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "vehicle/get: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -68,7 +77,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .await;
 
                     let Ok(admin) = admin else {
-                        return methods::standard_replies::internal_server_error_response();
+                        return methods::standard_replies::internal_server_error_response(
+                            "vehicle/get: Database error loading admin user",
+                        )
+                        .await;
                     };
 
                     if !admin.is_operational_manager() {
@@ -82,13 +94,16 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .offset(((pagination - 1) * 10) as i64)
                         .limit(10)
                         .get_results::<model::Vehicle>(&mut pool);
-                    
+
                     match results {
                         Ok(res) => {
                             methods::standard_replies::response_with_obj(res, StatusCode::OK)
                         }
                         Err(_) => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "vehicle/get: Database error loading vehicles",
+                            )
+                            .await
                         }
                     }
                 }

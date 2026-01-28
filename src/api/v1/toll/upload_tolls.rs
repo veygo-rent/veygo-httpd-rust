@@ -57,7 +57,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "toll/upload-tolls: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -68,11 +71,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "toll/upload-tolls: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "toll/upload-tolls: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -80,7 +89,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
 
                         let Ok(admin) = admin else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/upload-tolls: Database error loading admin user",
+                            )
+                            .await
                         };
 
                         if !admin.is_operational_admin() {
@@ -98,7 +110,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match selected_tc_result {
                                 Ok(tc) => { tc }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "toll/upload-tolls: Database error loading transponder company",
+                                    )
+                                    .await
                                 }
                             }
                         };
@@ -141,28 +156,40 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .iter()
                             .position(|h| h == toll_company.corresponding_key_for_transaction_amount.as_str());
                         let Some(transaction_amount_index) = transaction_amount_index else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/upload-tolls: CSV header missing transaction amount column",
+                            )
+                            .await
                         };
 
                         let transaction_name_index = headers
                             .iter()
                             .position(|h| h == toll_company.corresponding_key_for_transaction_name.as_str());
                         let Some(transaction_name_index) = transaction_name_index else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/upload-tolls: CSV header missing transaction name column",
+                            )
+                            .await
                         };
 
                         let transaction_time_index = headers
                             .iter()
                             .position(|h| h == toll_company.corresponding_key_for_transaction_time.as_str());
                         let Some(transaction_time_index) = transaction_time_index else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/upload-tolls: CSV header missing transaction time column",
+                            )
+                            .await
                         };
 
                         let vehicle_id_index = headers
                             .iter()
                             .position(|h| h == toll_company.corresponding_key_for_vehicle_id.as_str());
                         let Some(vehicle_id_index) = vehicle_id_index else {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/upload-tolls: CSV header missing vehicle id column",
+                            )
+                            .await
                         };
 
                         let file_bytes_to_move = file_bytes.clone();

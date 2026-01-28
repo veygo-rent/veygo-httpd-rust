@@ -44,7 +44,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "toll/get-company: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -55,11 +58,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "toll/get-company: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "toll/get-company: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -67,7 +76,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .await;
 
                     let Ok(admin) = admin else {
-                        return methods::standard_replies::internal_server_error_response();
+                        return methods::standard_replies::internal_server_error_response(
+                            "toll/get-company: Database error loading admin user",
+                        )
+                        .await;
                     };
 
                     if !admin.is_operational_admin() {
@@ -84,7 +96,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             methods::standard_replies::response_with_obj(temp, StatusCode::OK)
                         }
                         Err(_) => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "toll/get-company: Database error loading transponder companies",
+                            )
+                            .await
                         }
                     }
                 }

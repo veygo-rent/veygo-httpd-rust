@@ -27,7 +27,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     methods::standard_replies::response_with_obj(apt, StatusCode::OK)
                 }
                 Err(_) => {
-                    methods::standard_replies::internal_server_error_response()
+                    methods::standard_replies::internal_server_error_response(
+                        "apartment/get-universities: Database error loading universities",
+                    )
+                    .await
                 }
             }
         })

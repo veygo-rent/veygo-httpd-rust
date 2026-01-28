@@ -57,7 +57,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "agreement/check-out: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -68,11 +71,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-out: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -106,7 +115,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::standard_replies::agreement_not_allowed_response()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: Database error loading agreement and vehicle snapshot",
+                                )
+                                .await
                             }
                         }
                     }
@@ -115,7 +127,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     let current_user = methods::user::get_user_by_id(&access_token.user_id).await;
                     if current_user.is_err() {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-out: Database error loading renter",
+                        )
+                        .await
                     }
                     let current_user = current_user.unwrap();
 
@@ -152,7 +167,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let user_plan_renew_date = current_user.plan_renewal_date();
 
                         let is_active_plan = match user_plan_renew_date {
-                            Err(_) => return methods::standard_replies::internal_server_error_response(),
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: Plan renewal date parse error",
+                                )
+                                .await;
+                            },
                             Ok(date) => date >= current_naive_date
                         };
 
@@ -209,7 +229,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .select(diesel::dsl::sum(reward_q::duration))
                             .first::<Option<Decimal>>(&mut pool);
                         if used_free_hours.is_err() {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-out: Database error summing used reward hours",
+                            )
+                            .await
                         }
                         let used_free_hours = used_free_hours.unwrap().unwrap_or(Decimal::zero());
 
@@ -245,7 +268,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .get_result::<Decimal>(&mut pool);
 
                         if amount_result.is_err() {
-                            return methods::standard_replies::internal_server_error_response()
+                            return methods::standard_replies::internal_server_error_response(
+                                "agreement/check-out: Database error loading promo amount",
+                            )
+                            .await
                         }
                         duration_revenue_after_discount -= amount_result.unwrap();
                     }
@@ -289,7 +315,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_results::<model::Tax>(&mut pool);
 
                     if taxes.is_err() {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-out: Database error loading agreement taxes",
+                        )
+                        .await
                     }
                     let taxes = taxes.unwrap();
 
@@ -323,7 +352,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<String>(&mut pool);
 
                     if user_stripe_id.is_err() {
-                        return methods::standard_replies::internal_server_error_response()
+                        return methods::standard_replies::internal_server_error_response(
+                            "agreement/check-out: Database error loading renter stripe_id",
+                        )
+                        .await
                     }
                     let user_stripe_id = user_stripe_id.unwrap();
 
@@ -346,7 +378,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     methods::standard_replies::card_declined()
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-out: Stripe error creating payment intent",
+                                    )
+                                    .await
                                 }
                             }
                         }
@@ -373,7 +408,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .values(&new_payment)
                                     .get_result::<model::Payment>(&mut pool);
                                 if payment_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-out: SQL error inserting reservation payment",
+                                    )
+                                    .await
                                 }
                             }
 
@@ -389,7 +427,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .values(&new_reward_transaction)
                                     .get_result::<model::RewardTransaction>(&mut pool);
                                 if reward_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-out: SQL error inserting reward transaction",
+                                    )
+                                    .await
                                 }
                             }
 
@@ -401,9 +442,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 )
                                 .set(&agreement_to_be_checked_out)
                                 .get_result::<model::Agreement>(&mut pool);
-                            
+
                             let Ok(updated_agreement) = updated_agreement else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: SQL error saving agreement check-out",
+                                )
+                                .await
                             };
 
                             // Drop auth charges
@@ -416,7 +460,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_results::<(i32, Option<String>)>(&mut pool);
 
                             if payments.is_err() {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: Database error loading payments requiring drop_auth",
+                                )
+                                .await
                             }
                             let payments = payments.unwrap();
 
@@ -424,7 +471,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 let pi_id = payment.1.unwrap();
                                 let drop_result = integration::stripe_veygo::drop_auth(&pi_id).await;
                                 if drop_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response()
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/check-out: Stripe error dropping authorization",
+                                    )
+                                    .await
                                 }
                             }
 
@@ -434,9 +484,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .find(&agreement_to_be_checked_out.vehicle_id)
                                 .select((v_q::remote_mgmt, v_q::remote_mgmt_id))
                                 .get_result::<(model::RemoteMgmtType, String)>(&mut pool);
-                            
+
                             let Ok((vehicle_remote_mgmt, mgmt_id)) = result else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "agreement/check-out: Database error loading vehicle remote mgmt info",
+                                )
+                                .await
                             };
 
                             match vehicle_remote_mgmt {

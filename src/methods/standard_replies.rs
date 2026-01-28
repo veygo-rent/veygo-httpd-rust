@@ -1,4 +1,4 @@
-use crate::{model, helper_model};
+use crate::{model, helper_model, integration};
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -12,7 +12,16 @@ pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection>
         StatusCode::BAD_REQUEST,
     ).into_response(),))
 }
-pub fn internal_server_error_response() -> Result<(warp::reply::Response,), Rejection> {
+pub async fn internal_server_error_response(msg: &str) -> Result<(warp::reply::Response,), Rejection> {
+    let dev = integration::sendgrid_veygo::make_email_obj("dev@veygo.rent", "Veygo Dev Team");
+    let _ = integration::sendgrid_veygo::send_email(
+        Option::from("Veygo Server"),
+        dev,
+        "Internal Server Error",
+        msg,
+        None,
+        None,
+    ).await;
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Internal Server Error"),
         message: String::from("Please try again later. If issue present, contact us at dev@veygo.rent "),

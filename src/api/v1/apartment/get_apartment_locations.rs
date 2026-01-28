@@ -45,7 +45,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "apartment/get-apartment-locations: Token verification unexpected error",
+                                )
+                                .await;
                             }
                         }
                     }
@@ -56,11 +59,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "apartment/get-apartment-locations: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "apartment/get-apartment-locations: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -68,7 +77,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
 
                         let Ok(admin) = admin else {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "apartment/get-apartment-locations: Database error loading admin user",
+                            )
+                            .await;
                         };
 
                         if !admin.is_operational_manager() {
@@ -88,7 +100,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_results::<model::Location>(&mut pool);
 
                         let Ok(publish_locations) = publish_locations else {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "apartment/get-apartment-locations: Database error loading locations",
+                            )
+                            .await;
                         };
 
                         methods::standard_replies::response_with_obj(publish_locations, StatusCode::OK)

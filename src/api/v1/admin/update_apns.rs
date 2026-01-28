@@ -51,13 +51,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "admin/update-apns: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     },
                     Ok(token) => {
                         let result = methods::tokens::extend_token(token.1, &user_agent);
-                        
+
                         match result {
                             Ok(is_renewed) => {
                                 if is_renewed {
@@ -71,26 +74,35 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                     let mut pool = POOL.get().unwrap();
                                     use crate::schema::renters::dsl as r_q;
-                                    let renter_updated = 
+                                    let renter_updated =
                                         diesel::update(r_q::renters.find(&access_token.user_id))
                                             .set(r_q::admin_apple_apns.eq(Some(&body.apns)))
                                             .get_result::<model::Renter>(&mut pool);
-                                    
+
                                     match renter_updated {
                                         Ok(renter) => {
                                             let pub_renter: model::PublishRenter = renter.into();
                                             methods::standard_replies::response_with_obj(pub_renter, StatusCode::OK)
                                         }
                                         Err(_) => {
-                                            methods::standard_replies::internal_server_error_response()
+                                            methods::standard_replies::internal_server_error_response(
+                                                "admin/update-apns: SQL error updating admin_apple_apns",
+                                            )
+                                            .await
                                         }
                                     }
                                 } else {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "admin/update-apns: Token extension failed (returned false)",
+                                    )
+                                    .await
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "admin/update-apns: Token extension error",
+                                )
+                                .await
                             }
                         }
                     }

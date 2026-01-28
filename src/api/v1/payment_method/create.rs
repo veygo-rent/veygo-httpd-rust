@@ -59,7 +59,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "payment-method/create: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -70,11 +73,17 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "payment-method/create: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "payment-method/create: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -100,7 +109,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                             ).get_result::<bool>(&mut pool);
 
                             let Ok(card_in_db) = card_in_db else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "payment-method/create: Database error checking existing card fingerprint",
+                                )
+                                .await
                             };
                             if card_in_db {
                                 let err_msg = helper_model::ErrorResponse {
@@ -117,7 +129,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 .get_result::<String>(&mut pool);
 
                             let Ok(stripe_id) = stripe_id else {
-                                return methods::standard_replies::internal_server_error_response()
+                                return methods::standard_replies::internal_server_error_response(
+                                    "payment-method/create: Database error loading renter stripe_id",
+                                )
+                                .await
                             };
 
                             let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token).await;
@@ -128,14 +143,17 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                     let inserted_pm_card = diesel::insert_into(pm_q::payment_methods)
                                         .values(&new_pm)
                                         .get_result::<model::PaymentMethod>(&mut pool);
-                                    
+
                                     return match inserted_pm_card {
                                         Ok(pm) => {
                                             let pub_pm: model::PublishPaymentMethod = pm.into();
                                             methods::standard_replies::response_with_obj(pub_pm, StatusCode::CREATED)
                                         }
                                         Err(_) => {
-                                            methods::standard_replies::internal_server_error_response()
+                                            methods::standard_replies::internal_server_error_response(
+                                                "payment-method/create: SQL error inserting payment method",
+                                            )
+                                            .await
                                         }
                                     }
                                 }
@@ -145,7 +163,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                             methods::standard_replies::card_declined()
                                         }
                                         _ => {
-                                            methods::standard_replies::internal_server_error_response()
+                                            methods::standard_replies::internal_server_error_response(
+                                                "payment-method/create: Stripe error attaching payment method to customer",
+                                            )
+                                            .await
                                         }
                                     }
                                 }
@@ -162,7 +183,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                     methods::standard_replies::card_invalid()
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "payment-method/create: Stripe error retrieving payment method",
+                                    )
+                                    .await
                                 }
                             }
                         }

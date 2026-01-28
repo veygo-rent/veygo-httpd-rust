@@ -54,7 +54,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "verification/verify-token: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -65,11 +68,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "verification/verify-token: Token extension failed (returned false)",
+                                    )
+                                    .await;
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "verification/verify-token: Token extension error",
+                                )
+                                .await;
                             }
                         }
 
@@ -115,7 +124,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     };
 
                                     let Ok(updated_renter) = updated_renter else {
-                                        return methods::standard_replies::internal_server_error_response()
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "verification/verify-token: SQL error updating renter verification state",
+                                        )
+                                        .await;
                                     };
 
                                     methods::standard_replies::response_with_obj(updated_renter, StatusCode::OK)
@@ -127,7 +139,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "verification/verify-token: SQL error deleting verification row",
+                                )
+                                .await
                             }
                         }
                     }

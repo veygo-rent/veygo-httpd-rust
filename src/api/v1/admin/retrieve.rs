@@ -44,7 +44,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "admin/retrieve: Token verification unexpected error",
+                                )
+                                .await
                             }
                         }
                     }
@@ -52,9 +55,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let user = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(user) = user else {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "admin/retrieve: Database error loading renter by id",
+                            )
+                            .await;
                         };
-                        
+
                         if !user.is_manager() {
                             return methods::standard_replies::user_not_admin();
                         }
@@ -64,11 +70,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if is_renewed {
                                     methods::standard_replies::response_with_obj::<model::PublishRenter>(user.into(), StatusCode::OK)
                                 } else {
-                                    methods::standard_replies::internal_server_error_response()
+                                    methods::standard_replies::internal_server_error_response(
+                                        "admin/retrieve: Token extension failed (returned false)",
+                                    )
+                                    .await
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response()
+                                methods::standard_replies::internal_server_error_response(
+                                    "admin/retrieve: Token extension error",
+                                )
+                                .await
                             }
                         }
                     }

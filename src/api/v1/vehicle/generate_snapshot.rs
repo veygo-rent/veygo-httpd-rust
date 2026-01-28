@@ -29,7 +29,8 @@ struct TeslaVehicleState {
 }
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
-    warp::path("generate-snapshot")
+    warp::path("vehicle")
+        .and(warp::path("generate-snapshot"))
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::body::json())
@@ -125,7 +126,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "vehicle/generate-snapshot: Token verification unexpected error",
+                            )
+                            .await
                         }
                     }
                 }
@@ -136,11 +140,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "vehicle/generate-snapshot: Token extension failed (returned false)",
+                                )
+                                .await;
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response();
+                            return methods::standard_replies::internal_server_error_response(
+                                "vehicle/generate-snapshot: Token extension error",
+                            )
+                            .await;
                         }
                     }
 
@@ -179,18 +189,27 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                 Ok(r) => r,
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "vehicle/generate-snapshot: Tesla API error fetching vehicle_data",
+                                    )
+                                    .await;
                                 }
                             };
 
                             if !tesla_resp.status().is_success() {
-                                return methods::standard_replies::internal_server_error_response();
+                                return methods::standard_replies::internal_server_error_response(
+                                    "vehicle/generate-snapshot: Tesla API returned non-success for vehicle_data",
+                                )
+                                .await;
                             }
 
                             let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
                                 Ok(b) => b,
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response();
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "vehicle/generate-snapshot: Tesla API response JSON decode error",
+                                    )
+                                    .await;
                                 }
                             };
 
@@ -234,7 +253,10 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             methods::standard_replies::response_with_obj(vs, StatusCode::CREATED)
                         }
                         Err(_) => {
-                            methods::standard_replies::internal_server_error_response()
+                            methods::standard_replies::internal_server_error_response(
+                                "vehicle/generate-snapshot: SQL error inserting vehicle snapshot",
+                            )
+                            .await
                         }
                     }
                 }
