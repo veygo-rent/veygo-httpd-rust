@@ -18,9 +18,7 @@ use stripe_core::setup_intent::{
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer};
 
-use stripe_core::{
-    PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer
-};
+use stripe_core::{PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer, SetupIntentStatus};
 
 use stripe_payment::payment_method::{RetrievePaymentMethod};
 
@@ -167,7 +165,11 @@ pub async fn attach_payment_method_to_stripe_customer(
 
     match result {
         Ok(si) => {
-            Ok(si)
+            if si.status == SetupIntentStatus::Succeeded {
+                Ok(si)
+            } else {
+                Err(helper_model::VeygoError::CardDeclined)
+            }
         }
         Err(e) => {
             match e {
