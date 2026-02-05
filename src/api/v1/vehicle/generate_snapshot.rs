@@ -29,8 +29,7 @@ struct TeslaVehicleState {
 }
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
-    warp::path("vehicle")
-        .and(warp::path("generate-snapshot"))
+    warp::path("generate-snapshot")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::body::json())
