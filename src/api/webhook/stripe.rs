@@ -55,17 +55,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 });
                             }
-                            EventObject::PayoutPaid(_) => {
-                                let _ = integration::sendgrid_veygo::send_email(
-                                    Option::from("Veygo Server"),
-                                    integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-                                    "Payout paid webhook received!",
-                                    "Please check Chase balance",
-                                    None,
-                                    None,
-                                )
-                                    .await;
-                            }
                             _ => {}
                         }
                         let empty_msg = serde_json::json!({});
