@@ -4,7 +4,7 @@ use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use http::StatusCode;
 use stripe_webhook::{Webhook, EventObject};
 use warp::reply::with_status;
-use crate::{methods, POOL, model};
+use crate::{methods, POOL, model, integration};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("stripe")
@@ -54,6 +54,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         Err(_) => {}
                                     }
                                 });
+                            }
+                            EventObject::PayoutPaid(_) => {
+                                let _ = integration::sendgrid_veygo::send_email(
+                                    Option::from("Veygo Server"),
+                                    integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
+                                    "Payout paid webhook received!",
+                                    "Please check Chase balance",
+                                    None,
+                                    None,
+                                )
+                                    .await;
                             }
                             _ => {}
                         }
