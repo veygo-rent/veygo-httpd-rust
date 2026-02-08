@@ -4,7 +4,7 @@ use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use http::StatusCode;
 use stripe_webhook::{Webhook, EventObject};
 use warp::reply::with_status;
-use crate::{methods, POOL, model, integration};
+use crate::{methods, POOL, model};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("stripe")

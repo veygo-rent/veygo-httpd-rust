@@ -279,7 +279,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             vehicles: Vec<LocationWithVehicles>,
                         }
                         let new_rate_offer = model::NewRateOffer{
-                            renter_id: valid_token.1,
+                            renter_id: user_id,
                             apartment_id: body.apartment_id,
                             multiplier: Decimal::new(100, 2),
                         };
