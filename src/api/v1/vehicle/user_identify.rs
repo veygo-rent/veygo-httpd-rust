@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, integration};
+use crate::{POOL, methods, model, integration, proj_config};
 use diesel::prelude::*;
 use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
@@ -88,7 +88,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         use crate::schema::agreements::dsl as agreement_query;
                         use crate::schema::vehicles::dsl as vehicle_query;
                         let now = chrono::Utc::now();
-                        let now_plus_buffer = now + chrono::Duration::minutes(15);
+                        let now_plus_buffer = now + chrono::Duration::minutes(proj_config::RSVP_BUFFER);
                         let current_vehicle_result = agreement_query::agreements
                             .inner_join(vehicle_query::vehicles)
                             .filter(agreement_query::renter_id.eq(&user_in_request.id))

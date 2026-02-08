@@ -148,13 +148,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .filter(agreements_query::status.eq(model::AgreementStatus::Rental))
                             .filter(
                                 methods::diesel_fn::coalesce(agreements_query::actual_pickup_time, agreements_query::rsvp_pickup_time)
-                                    .lt(body.end_time + Duration::minutes(15))
+                                    .lt(body.end_time + Duration::minutes(proj_config::RSVP_BUFFER))
                                     .and(
                                         methods::diesel_fn::coalesce(
                                             agreements_query::actual_drop_off_time,
                                             methods::diesel_fn::greatest(agreements_query::rsvp_drop_off_time, diesel::dsl::now)
                                         )
-                                            .gt(body.start_time - Duration::minutes(15))
+                                            .gt(body.start_time - Duration::minutes(proj_config::RSVP_BUFFER))
                                     )
                             )
                             .count()
