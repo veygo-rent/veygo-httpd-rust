@@ -1,6 +1,7 @@
 use crate::{POOL, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
+use rust_decimal::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use diesel::result::Error;
@@ -270,7 +271,32 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                         let locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
                         // RETURN: OK
-                        methods::standard_replies::response_with_obj(locations_with_vehicles, StatusCode::OK)
+                        #[derive(
+                            Serialize, Deserialize,
+                        )]
+                        struct Availability {
+                            offer: model::RateOffer,
+                            vehicles: Vec<LocationWithVehicles>,
+                        }
+                        let new_rate_offer = model::NewRateOffer{
+                            renter_id: valid_token.1,
+                            apartment_id: body.apartment_id,
+                            multiplier: Decimal::new(100, 2),
+                        };
+                        use crate::schema::rate_offers::dsl as rate_offers_query;
+                        let rate_offer_add_result = diesel::insert_into(rate_offers_query::rate_offers)
+                            .values(&new_rate_offer)
+                            .get_result::<model::RateOffer>(&mut pool);
+
+                        let Ok(rate_offer) = rate_offer_add_result else {
+                            return methods::standard_replies::internal_server_error_response(
+                                "vehicle/availability: Database error inserting rate offer",
+                            ).await
+                        };
+
+                        let resp = Availability{ offer: rate_offer, vehicles: locations_with_vehicles };
+
+                        methods::standard_replies::response_with_obj(resp, StatusCode::OK)
                     }
                 }
             },
