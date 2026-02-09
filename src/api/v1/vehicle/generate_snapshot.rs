@@ -153,7 +153,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                         }
                     }
 
-                    match vehicle.remote_mgmt {
+                    let (fuel, odo) = match vehicle.remote_mgmt {
                         model::RemoteMgmtType::Tesla => {
                             // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
                             let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
@@ -219,19 +219,21 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             vehicle.tank_level_percentage = battery_level_i32;
 
                             let _ = diesel::update(v_q::vehicles.find(vehicle.id)).set(&vehicle).execute(&mut pool);
+
+                            (battery_level_i32, odometer_i32)
                         }
                         _ => {
-
+                            (0, 0)
                         }
-                    }
+                    };
 
                     let snapshot_to_be_inserted = model::NewVehicleSnapshot {
                         left_image: body.left_image_path.clone(),
                         right_image: body.right_image_path.clone(),
                         front_image: body.front_image_path.clone(),
                         back_image: body.back_image_path.clone(),
-                        odometer: vehicle.odometer,
-                        level: vehicle.tank_level_percentage,
+                        odometer: odo,
+                        level: fuel,
                         vehicle_id: vehicle.id,
                         rear_right: body.back_right_image_path.clone(),
                         rear_left: body.back_left_image_path.clone(),
