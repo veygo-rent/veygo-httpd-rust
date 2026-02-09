@@ -181,7 +181,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     if promo.is_one_time {
                         let count_of_agreements = agreement_query::agreements
                             .filter(agreement_query::promo_id.eq(Some(&promo.code)))
-                            .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
+                            .filter(agreement_query::status.ne(model::AgreementStatus::Canceled))
                             .count()
                             .get_result::<i64>(&mut pool);
                         let Ok(count_of_agreements) = count_of_agreements else {
@@ -197,15 +197,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     {
                         // check if the promo code is for a specific renter
-                        if let Some(specified_user_id) = promo.user_id && renter.id != specified_user_id {
+                        if let Some(specified_user_id) = promo.user_id &&
+                            renter.id != specified_user_id
+                        {
                             return methods::standard_replies::promo_code_not_allowed_response(&body.code);
                         }
                         // check if the promo code is for a specific apartment
-                        if let Some(specified_apartment_id) = promo.apt_id && body.apartment_id != specified_apartment_id {
+                        if let Some(specified_apartment_id) = promo.apt_id &&
+                            !(apt.uni_id != 1 && apt.id == specified_apartment_id)
+                        {
                             return methods::standard_replies::promo_code_not_allowed_response(&body.code);
                         }
                         // check if the promo code is for a specific university
-                        if let Some(specified_uni_id) = promo.uni_id && apt.uni_id != specified_uni_id && apt.id != specified_uni_id {
+                        if let Some(specified_uni_id) = promo.uni_id &&
+                            !(apt.uni_id == 1 && apt.id == specified_uni_id || apt.uni_id == specified_uni_id)
+                        {
                             return methods::standard_replies::promo_code_not_allowed_response(&body.code);
                         }
                     }

@@ -24,6 +24,7 @@ struct NewAgreementRequestBodyData {
     pai: bool,
     rate_offer_id: Option<i32>,
     mileage_package_id: Option<i32>,
+    promo_code: Option<String>,
 }
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
@@ -271,6 +272,94 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
+                        let verified_promo: Option<String> = match body.promo_code {
+                            None => { None }
+                            Some(code) => {
+                                use crate::schema::promos::dsl as promos_query;
+                                let promo = promos_query::promos
+                                    .filter(promos_query::code.eq(&code))
+                                    .filter(promos_query::is_enabled)
+                                    .filter(promos_query::exp.gt(&body.start_time))
+                                    .get_result::<model::Promo>(&mut pool);
+                                let promo: model::Promo = match promo {
+                                    Ok(promo) => { promo }
+                                    Err(err) => {
+                                        return match err {
+                                            Error::NotFound => {
+                                                methods::standard_replies::promo_code_not_allowed_response(&code)
+                                            }
+                                            _ => {
+                                                methods::standard_replies::internal_server_error_response(
+                                                    "agreement/new: Database error loading promo",
+                                                )
+                                                    .await
+                                            }
+                                        }
+                                    }
+                                };
+
+                                // check if this renter already uses the promo code
+                                use crate::schema::agreements::dsl as agreement_query;
+                                let count_of_this_renter_usage = agreement_query::agreements
+                                    .filter(agreement_query::promo_id.eq(Some(&promo.code)))
+                                    .filter(agreement_query::status.ne(model::AgreementStatus::Canceled))
+                                    .filter(agreement_query::renter_id.eq(&access_token.user_id))
+                                    .count()
+                                    .get_result::<i64>(&mut pool);
+                                let Ok(count_of_this_renter_usage) = count_of_this_renter_usage else {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "agreement/new: Database error counting renter promo usage",
+                                    )
+                                        .await
+                                };
+                                if count_of_this_renter_usage >= 1 {
+                                    return methods::standard_replies::promo_code_not_allowed_response(&code);
+                                }
+
+                                // check if someone else already uses the promo code when it's one-time only
+                                if promo.is_one_time {
+                                    let count_of_agreements = agreement_query::agreements
+                                        .filter(agreement_query::promo_id.eq(Some(&promo.code)))
+                                        .filter(agreement_query::status.ne(model::AgreementStatus::Canceled))
+                                        .count()
+                                        .get_result::<i64>(&mut pool);
+                                    let Ok(count_of_agreements) = count_of_agreements else {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            "agreement/new: Database error counting promo usage",
+                                        )
+                                            .await
+                                    };
+                                    if count_of_agreements >= 1 {
+                                        return methods::standard_replies::promo_code_not_allowed_response(&code);
+                                    }
+                                }
+
+                                {
+                                    // check if the promo code is for a specific renter
+                                    if let Some(specified_user_id) = promo.user_id &&
+                                        access_token.user_id != specified_user_id
+                                    {
+                                        return methods::standard_replies::promo_code_not_allowed_response(&code);
+                                    }
+                                    // check if the promo code is for a specific apartment
+                                    if let Some(specified_apartment_id) = promo.apt_id &&
+                                        !(vehicle_with_location.2.id == specified_apartment_id && vehicle_with_location.2.uni_id != 1)
+                                    {
+                                        return methods::standard_replies::promo_code_not_allowed_response(&code);
+                                    }
+                                    // check if the promo code is for a specific university
+                                    if let Some(specified_uni_id) = promo.uni_id &&
+                                        !(vehicle_with_location.2.id == specified_uni_id && vehicle_with_location.2.uni_id == 1 ||
+                                            vehicle_with_location.2.uni_id == specified_uni_id)
+                                    {
+                                        return methods::standard_replies::promo_code_not_allowed_response(&code);
+                                    }
+                                }
+
+                                Some(code)
+                            }
+                        };
+
                         if vehicle_with_location.2.id <= 1 {
                             // RETURN: FORBIDDEN
                             return methods::standard_replies::apartment_not_allowed_response(vehicle_with_location.2.id);
@@ -445,7 +534,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     vehicle_id: vehicle_with_location.0.id,
                                     renter_id: user_in_request.id,
                                     payment_method_id: body.payment_id,
-                                    promo_id: None,
+                                    promo_id: verified_promo,
                                     manual_discount: None,
                                     location_id: vehicle_with_location.1.id,
                                     mileage_package_id: body.mileage_package_id,
