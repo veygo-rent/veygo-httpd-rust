@@ -1,7 +1,7 @@
 create type gender_enum as enum ('Male', 'Female', 'Other', 'PNTS');
 create type plan_tier_enum as enum ('Free', 'Silver', 'Gold', 'Platinum');
 create type employee_tier_enum as enum ('User', 'GeneralEmployee', 'Maintenance', 'Admin');
-create type verification_type_enum as enum ('email', 'phone');
+create type verification_type_enum as enum ('email', 'phone', 'reset_password');
 create type remote_mgmt_enum as enum ('revers', 'geotab', 'tesla', 'none');
 create type agreement_status_enum as enum ('Rental', 'Void', 'Canceled');
 create type payment_type_enum as enum ('canceled', 'requires_capture', 'requires_payment_method', 'succeeded', 'veygo.bad_debt', 'veygo.insurance');

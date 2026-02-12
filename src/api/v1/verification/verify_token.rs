@@ -81,6 +81,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .await;
                             }
                         }
+                        
+                        if body.verification_method == model::VerificationType::ResetPassword {
+                            let msg = helper_model::ErrorResponse{
+                                title: "Cannot Verify OTP".to_string(), message: "Please do not submit password reset code here. ".to_string()
+                            };
+                            return methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
+                        }
 
                         let mut pool = POOL.get().unwrap();
 
@@ -90,10 +97,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let delete_result = diesel::delete
                         (
                             verify_q::verifications
+                                .filter(verify_q::code.eq(&body.code))
                                 .filter(verify_q::verification_method.eq(&body.verification_method))
                                 .filter(verify_q::renter_id.eq(&access_token.user_id))
                                 .filter(verify_q::expires_at.ge(&now_utc))
-                                .filter(verify_q::code.eq(&body.code))
                         ).execute(&mut pool);
 
                         match delete_result {
@@ -120,6 +127,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 )
                                                 .set(r_q::phone_is_verified.eq(true))
                                                 .get_result::<model::Renter>(&mut pool)
+                                        }
+                                        model::VerificationType::ResetPassword => {
+                                            return methods::standard_replies::internal_server_error_response(
+                                                "verification/verify-token: Wrong verification method called. ",
+                                            ).await;
                                         }
                                     };
 

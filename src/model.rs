@@ -78,6 +78,7 @@ pub enum AuditActionType {
 pub enum VerificationType {
     Email,
     Phone,
+    ResetPassword
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
@@ -278,6 +279,7 @@ impl ToSql<sql_types::VerificationTypeEnum, Pg> for VerificationType {
         match *self {
             VerificationType::Phone => out.write_all(b"phone")?,
             VerificationType::Email => out.write_all(b"email")?,
+            VerificationType::ResetPassword => out.write_all(b"reset_password")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -288,6 +290,7 @@ impl FromSql<sql_types::VerificationTypeEnum, Pg> for VerificationType {
         match bytes.as_bytes() {
             b"phone" => Ok(VerificationType::Phone),
             b"email" => Ok(VerificationType::Email),
+            b"reset_password" => Ok(VerificationType::ResetPassword),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

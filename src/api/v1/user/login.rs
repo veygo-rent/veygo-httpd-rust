@@ -34,6 +34,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
                         let mut pool = POOL.get().unwrap();
                         use crate::schema::access_tokens::dsl::*;
+                        let _ = diesel::delete(access_tokens.filter(user_id.eq(&user_id_data))).execute(&mut pool);
                         let insert_token_result = diesel::insert_into(access_tokens)
                             .values(&new_access_token)
                             .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 

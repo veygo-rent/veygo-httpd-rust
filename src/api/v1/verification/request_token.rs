@@ -151,6 +151,33 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .await;
                                 }
                             }
+                            model::VerificationType::ResetPassword => {
+                                let email = integration::sendgrid_veygo::make_email_obj(
+                                    &renter.student_email,
+                                    &renter.name,
+                                );
+                                #[derive(Template)]
+                                #[template(path = "email_verification.html")]
+                                struct EmailVerificationTemplate<'a> {
+                                    verification_code: &'a str,
+                                }
+                                let email_content = EmailVerificationTemplate { verification_code: &otp };
+                                let email_result = integration::sendgrid_veygo::send_email(
+                                    None,
+                                    email,
+                                    "Your Password Reset Code",
+                                    &email_content.render().unwrap(),
+                                    None,
+                                    None,
+                                )
+                                    .await;
+                                if email_result.is_err() {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        "verification/request-token: SendGrid error sending verification email",
+                                    )
+                                        .await;
+                                }
+                            }
                         }
 
                         let msg = serde_json::json!({});
