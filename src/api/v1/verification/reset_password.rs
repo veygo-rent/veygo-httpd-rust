@@ -71,6 +71,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 match result {
                     Ok(updated_account_count) => {
                         if updated_account_count == 1 {
+                            use schema::access_tokens::dsl as at_q;
+                            let _ = diesel::delete(at_q::access_tokens.filter(at_q::user_id.eq(&user_id))).execute(&mut pool);
                             let msg = serde_json::json!({});
                             methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                         } else {

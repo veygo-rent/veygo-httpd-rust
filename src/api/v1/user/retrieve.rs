@@ -1,4 +1,5 @@
-use crate::{methods, model};
+use diesel::prelude::*;
+use crate::{methods, model, POOL};
 use warp::{Filter, Reply, http::Method};
 use crate::helper_model::VeygoError;
 
@@ -84,6 +85,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .await;
                             }
                         };
+                        use crate::schema::access_tokens::dsl as at_q;
+                        let mut pool = POOL.get().unwrap();
+                        let _ = diesel::delete(
+                            at_q::access_tokens
+                                .filter(at_q::user_id.eq(&user_id))
+                                .filter(at_q::id.ne(&valid_token.1))
+                        ).execute(&mut pool);
                         methods::standard_replies::response_with_obj(user, http::StatusCode::OK)
                     }
                 };
