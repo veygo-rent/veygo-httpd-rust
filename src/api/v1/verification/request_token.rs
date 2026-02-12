@@ -1,4 +1,4 @@
-use crate::{POOL, integration, methods, model};
+use crate::{POOL, integration, methods, model, helper_model};
 use askama::Template;
 use diesel::prelude::*;
 use rand::Rng;
@@ -82,6 +82,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         }
 
+                        if body.verification_method == model::VerificationType::ResetPassword {
+                            let msg = helper_model::ErrorResponse{
+                                title: "Cannot Request OTP".to_string(), message: "Please do not request password reset code here. ".to_string()
+                            };
+                            return methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
+                        }
+
                         let otp = rand::rng().random_range(100000..=999999).to_string();
                         let to_be_inserted = model::NewVerification {
                             verification_method: body.verification_method,
@@ -152,31 +159,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             model::VerificationType::ResetPassword => {
-                                let email = integration::sendgrid_veygo::make_email_obj(
-                                    &renter.student_email,
-                                    &renter.name,
-                                );
-                                #[derive(Template)]
-                                #[template(path = "email_verification.html")]
-                                struct EmailVerificationTemplate<'a> {
-                                    verification_code: &'a str,
-                                }
-                                let email_content = EmailVerificationTemplate { verification_code: &otp };
-                                let email_result = integration::sendgrid_veygo::send_email(
-                                    None,
-                                    email,
-                                    "Your Password Reset Code",
-                                    &email_content.render().unwrap(),
-                                    None,
-                                    None,
-                                )
-                                    .await;
-                                if email_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "verification/request-token: SendGrid error sending verification email",
-                                    )
-                                        .await;
-                                }
+                                return methods::standard_replies::internal_server_error_response(
+                                    "verification/request-token: Should not request reset password code here",
+                                ).await;
                             }
                         }
 
