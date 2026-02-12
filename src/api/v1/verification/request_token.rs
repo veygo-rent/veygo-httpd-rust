@@ -89,7 +89,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
                         }
 
-                        let otp = rand::rng().random_range(100000..=999999).to_string();
+                        let otp = rand::rng().random_range(10000000..=99999999).to_string();
                         let to_be_inserted = model::NewVerification {
                             verification_method: body.verification_method,
                             renter_id: access_token.user_id,

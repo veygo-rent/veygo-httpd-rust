@@ -44,7 +44,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
             };
 
-            let otp = rand::rng().random_range(100000..=999999).to_string();
+            let otp = rand::rng().random_range(10000000..=99999999).to_string();
 
             let new_verification = model::NewVerification {
                 verification_method: model::VerificationType::ResetPassword,
