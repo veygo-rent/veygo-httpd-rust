@@ -153,6 +153,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                         }
                     }
 
+                    let usr_in_question =
+                        methods::user::get_user_by_id(&access_token.user_id)
+                            .await
+                            .unwrap();
+                    if !usr_in_question.is_email_verified() {
+                        return methods::standard_replies::user_email_not_verified();
+                    }
+
                     let (fuel, odo) = match vehicle.remote_mgmt {
                         model::RemoteMgmtType::Tesla => {
                             // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}

@@ -89,6 +89,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 .await;
                             }
                         }
+                        
+                        let usr_in_question =
+                            methods::user::get_user_by_id(&access_token.user_id)
+                                .await
+                                .unwrap();
+                        if !usr_in_question.is_email_verified() {
+                            return methods::standard_replies::user_email_not_verified();
+                        }
 
                         let mut hasher = Sha256::new();
                         let data = vehicle.vin.into_bytes();

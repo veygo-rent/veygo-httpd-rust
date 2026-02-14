@@ -35,6 +35,15 @@ impl model::Renter {
         user_is_operational_manager(self)
     }
 
+    pub fn is_email_verified (&self) -> bool {
+        if let Some(email_expiration) = self.student_email_expiration {
+            let today = Utc::now().date_naive();
+            email_expiration > today
+        } else {
+            false
+        }
+    }
+
     pub fn get_dnr_count (&self) -> Result<i64, VeygoError> {
         let mut pool = POOL.get().unwrap();
 
