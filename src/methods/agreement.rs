@@ -1,7 +1,7 @@
 use crate::POOL;
 use crate::helper_model::VeygoError;
 use diesel::prelude::*;
-use rand::Rng;
+use rand::{RngExt};
 use rand::seq::SliceRandom;
 
 pub fn generate_unique_agreement_confirmation() -> Result<String, VeygoError> {

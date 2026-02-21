@@ -1,7 +1,7 @@
 use crate::{POOL, integration, methods, model, helper_model};
 use askama::Template;
 use diesel::prelude::*;
-use rand::Rng;
+use rand::{RngExt};
 use serde_derive::{Deserialize, Serialize};
 use warp::http::StatusCode;
 use warp::{Filter, Reply};

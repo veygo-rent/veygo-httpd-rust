@@ -4,7 +4,7 @@ use warp::{Filter, Reply, http::method::Method};
 use crate::{schema, methods, model, POOL, integration};
 use diesel::prelude::*;
 use diesel::result::Error;
-use rand::Rng;
+use rand::{RngExt};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
