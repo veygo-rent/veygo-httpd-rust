@@ -102,7 +102,7 @@ async fn fetch_and_store_tesla_token() -> Result<TeslaToken> {
         ("client_secret", client_secret.as_str()),
         (
             "scope",
-            "vehicle_device_data vehicle_cmds vehicle_charging_cmds",
+            "vehicle_device_data vehicle_cmds vehicle_charging_cmds vehicle_location",
         ),
         ("audience", DEFAULT_AUDIENCE),
     ];
