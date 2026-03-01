@@ -1625,7 +1625,6 @@ pub struct NewAudit {
 pub struct Policy {
     pub id: i32,
     pub policy_type: PolicyType,
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub policy_effective_date: NaiveDate,
     pub content: String,
 }
