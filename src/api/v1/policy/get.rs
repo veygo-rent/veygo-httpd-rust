@@ -66,7 +66,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Error::NotFound => {
                             let msg = helper_model::ErrorResponse {
                                 title: "Not Found".to_string(),
-                                message: "No policy found".to_string()
+                                message: "No policy found. Please contact Veygo for the up-to-date information".to_string()
                             };
                             methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                         }
