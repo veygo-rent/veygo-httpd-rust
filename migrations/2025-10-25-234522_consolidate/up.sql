@@ -652,11 +652,6 @@ create table policies
     constraint policies_type_effective_date_uk unique (policy_type, policy_effective_date)
 );
 
-create index policies_policy_type_idx
-    on policies (policy_type);
-create index policies_policy_effective_date_idx
-    on policies (policy_effective_date);
-
 insert into taxes (name, multiplier, is_sales_tax, tax_type)
 values ('IN Sales Tax', 0.07, true, 'percent'),
        ('IN Car Rental Excise Tax', 0.04, false, 'percent');

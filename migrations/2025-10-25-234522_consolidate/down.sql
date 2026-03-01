@@ -1,5 +1,3 @@
-drop index if exists policies_policy_type_idx;
-drop index if exists policies_policy_effective_date_idx;
 drop table if exists audits;
 
 drop table if exists policies;
