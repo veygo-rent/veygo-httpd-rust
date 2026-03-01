@@ -81,10 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "user/upload-file: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token verification unexpected error"))
                             }
                         }
                     }
@@ -95,26 +92,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "user/upload-file: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/upload-file: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token extension error"));
                             }
                         }
 
                         let user = methods::user::get_user_by_id(&access_token.user_id).await;
                         let Ok(mut user) = user else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "user/upload-file: Database error loading renter",
-                            )
-                            .await
+                            return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Database error loading renter"))
                         };
 
                         let mut hasher = Sha256::new();
@@ -195,10 +183,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .get_result::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "user/upload-file: SQL error saving renter uploaded file",
-                            )
-                            .await
+                            return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: SQL error saving renter uploaded file"))
                         };
 
                         return methods::standard_replies::response_with_obj(renter, StatusCode::OK);

@@ -28,9 +28,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 Err(_) => {
                     methods::standard_replies::internal_server_error_response(
-                        "apartment/get-universities: Database error loading universities",
+                        String::from("apartment/get-universities: Database error loading universities"),
                     )
-                    .await
                 }
             }
         })

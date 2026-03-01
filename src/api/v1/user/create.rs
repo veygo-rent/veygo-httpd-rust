@@ -156,9 +156,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                     let Ok(customer) = stripe_result else {
                                         return methods::standard_replies::internal_server_error_response(
-                                            "user/create: Stripe error creating customer",
-                                        )
-                                        .await;
+                                            String::from("user/create: Stripe error creating customer")
+                                        );
                                     };
 
                                     let to_be_inserted = model::NewRenter {
@@ -180,9 +179,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                     let Ok(renter) = renter else {
                                         return methods::standard_replies::internal_server_error_response(
-                                            "user/create: SQL error inserting renter",
-                                        )
-                                        .await;
+                                            String::from("user/create: SQL error inserting renter")
+                                        );
                                     };
 
                                     let user_id_data = renter.id;

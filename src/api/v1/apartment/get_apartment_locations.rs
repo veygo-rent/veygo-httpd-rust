@@ -46,9 +46,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "apartment/get-apartment-locations: Token verification unexpected error",
-                                )
-                                .await;
+                                    String::from("apartment/get-apartment-locations: Token verification unexpected error")
+                                );
                             }
                         }
                     }
@@ -60,16 +59,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "apartment/get-apartment-locations: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("apartment/get-apartment-locations: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "apartment/get-apartment-locations: Token extension error",
-                                )
-                                .await;
+                                    String::from("apartment/get-apartment-locations: Token extension error")
+                                );
                             }
                         }
 
@@ -78,9 +75,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let Ok(admin) = admin else {
                             return methods::standard_replies::internal_server_error_response(
-                                "apartment/get-apartment-locations: Database error loading admin user",
-                            )
-                            .await;
+                                String::from("apartment/get-apartment-locations: Database error loading admin user")
+                            );
                         };
 
                         if !admin.is_operational_manager() {
@@ -101,9 +97,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let Ok(publish_locations) = publish_locations else {
                             return methods::standard_replies::internal_server_error_response(
-                                "apartment/get-apartment-locations: Database error loading locations",
-                            )
-                            .await;
+                                String::from("apartment/get-apartment-locations: Database error loading locations")
+                            );
                         };
 
                         methods::standard_replies::response_with_obj(publish_locations, StatusCode::OK)

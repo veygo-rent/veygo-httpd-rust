@@ -53,9 +53,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "agreement/current: Token verification unexpected error",
+                                    String::from("agreement/current: Token verification unexpected error"),
                                 )
-                                .await
                             }
                         }
                     }
@@ -67,16 +66,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "agreement/current: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("agreement/current: Token extension failed (returned false)"),
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/current: Token extension error",
-                                )
-                                .await;
+                                    String::from("agreement/current: Token extension error"),
+                                );
                             }
                         }
 
@@ -87,9 +84,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             Ok(temp) => { temp }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/current: Database error loading renter",
-                                )
-                                .await;
+                                    String::from("agreement/current: Database error loading renter"),
+                                );
                             }
                         };
 

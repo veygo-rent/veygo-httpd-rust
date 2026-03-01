@@ -44,10 +44,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "user/retrieve: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("user/retrieve: Token verification unexpected error"))
                             }
                         }
                     }
@@ -58,17 +55,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "user/retrieve: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/retrieve: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/retrieve: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/retrieve: Token extension error"));
                             }
                         }
 
@@ -79,10 +70,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 pub_renter
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/retrieve: Database error loading renter",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/retrieve: Database error loading renter"));
                             }
                         };
                         use crate::schema::access_tokens::dsl as at_q;

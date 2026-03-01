@@ -50,9 +50,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "apartment/add-apartment: Token verification unexpected error",
+                                    String::from("apartment/add-apartment: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -64,16 +63,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "apartment/add-apartment: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("apartment/add-apartment: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "apartment/add-apartment: Token extension error",
-                                )
-                                .await;
+                                    String::from("apartment/add-apartment: Token extension error")
+                                );
                             }
                         }
 
@@ -82,9 +79,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                         let Ok(admin) = admin else {
                             return methods::standard_replies::internal_server_error_response(
-                                "apartment/add-apartment: Database error loading admin user",
-                            )
-                            .await;
+                                String::from("apartment/add-apartment: Database error loading admin user")
+                            );
                         };
 
                         if !admin.is_operational_admin() {
@@ -108,9 +104,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     }
                                     _ => {
                                         methods::standard_replies::internal_server_error_response(
-                                            "apartment/add-apartment: SQL error inserting apartment",
+                                            String::from("apartment/add-apartment: SQL error inserting apartment")
                                         )
-                                        .await
                                     }
                                 }
                             }

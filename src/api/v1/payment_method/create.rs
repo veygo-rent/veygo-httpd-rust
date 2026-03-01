@@ -60,9 +60,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "payment-method/create: Token verification unexpected error",
+                                String::from("payment-method/create: Token verification unexpected error")
                             )
-                            .await
                         }
                     }
                 }
@@ -74,16 +73,14 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         Ok(bool) => {
                             if !bool {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "payment-method/create: Token extension failed (returned false)",
-                                )
-                                .await;
+                                    String::from("payment-method/create: Token extension failed (returned false)")
+                                );
                             }
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "payment-method/create: Token extension error",
-                            )
-                            .await;
+                                String::from("payment-method/create: Token extension error")
+                            );
                         }
                     }
 
@@ -110,9 +107,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
 
                             let Ok(card_in_db) = card_in_db else {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "payment-method/create: Database error checking existing card fingerprint",
+                                    String::from("payment-method/create: Database error checking existing card fingerprint")
                                 )
-                                .await
                             };
                             if card_in_db {
                                 let err_msg = helper_model::ErrorResponse {
@@ -130,9 +126,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
 
                             let Ok(stripe_id) = stripe_id else {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "payment-method/create: Database error loading renter stripe_id",
+                                    String::from("payment-method/create: Database error loading renter stripe_id")
                                 )
-                                .await
                             };
 
                             let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token).await;
@@ -151,9 +146,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                         }
                                         Err(_) => {
                                             methods::standard_replies::internal_server_error_response(
-                                                "payment-method/create: SQL error inserting payment method",
+                                                String::from("payment-method/create: SQL error inserting payment method")
                                             )
-                                            .await
                                         }
                                     }
                                 }
@@ -164,9 +158,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                         }
                                         _ => {
                                             methods::standard_replies::internal_server_error_response(
-                                                "payment-method/create: Stripe error attaching payment method to customer",
+                                                String::from("payment-method/create: Stripe error attaching payment method to customer")
                                             )
-                                            .await
                                         }
                                     }
                                 }
@@ -184,9 +177,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response(
-                                        "payment-method/create: Stripe error retrieving payment method",
+                                        String::from("payment-method/create: Stripe error retrieving payment method")
                                     )
-                                    .await
                                 }
                             }
                         }

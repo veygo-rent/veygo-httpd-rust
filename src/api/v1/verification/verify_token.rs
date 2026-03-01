@@ -54,10 +54,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "verification/verify-token: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token verification unexpected error"))
                             }
                         }
                     }
@@ -68,17 +65,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "verification/verify-token: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "verification/verify-token: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token extension error"));
                             }
                         }
                         
@@ -129,17 +120,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 .get_result::<model::Renter>(&mut pool)
                                         }
                                         model::VerificationType::ResetPassword => {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                "verification/verify-token: Wrong verification method called. ",
-                                            ).await;
+                                            return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Wrong verification method called. "));
                                         }
                                     };
 
                                     let Ok(updated_renter) = updated_renter else {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            "verification/verify-token: SQL error updating renter verification state",
-                                        )
-                                        .await;
+                                        return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: SQL error updating renter verification state"));
                                     };
 
                                     methods::standard_replies::response_with_obj(updated_renter, StatusCode::OK)
@@ -151,10 +137,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "verification/verify-token: SQL error deleting verification row",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: SQL error deleting verification row"))
                             }
                         }
                     }

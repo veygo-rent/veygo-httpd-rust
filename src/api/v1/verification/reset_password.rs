@@ -41,7 +41,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::response_with_obj(msg, StatusCode::NOT_ACCEPTABLE)
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response("verification/reset-password: Fetching user info error").await
+                            methods::standard_replies::internal_server_error_response(String::from("verification/reset-password: Fetching user info error"))
                         }
                     }
                 }
@@ -60,7 +60,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 ).execute(&mut pool);
 
             let Ok(count) = delete_result else {
-                return methods::standard_replies::internal_server_error_response("verification/reset-password: Verifying code error").await
+                return methods::standard_replies::internal_server_error_response(String::from("verification/reset-password: Verifying code error"))
             };
 
             if count >= 1 {
@@ -76,11 +76,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let msg = serde_json::json!({});
                             methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                         } else {
-                            methods::standard_replies::internal_server_error_response(format!("{}{}{}", "verification/reset-password: [URGENT] Updating password error, ", updated_account_count, "account(s) updated").as_str()).await
+                            methods::standard_replies::internal_server_error_response(format!("{}{}{}", "verification/reset-password: [URGENT] Updating password error, ", updated_account_count, "account(s) updated"))
                         }
                     }
                     Err(_) => {
-                        methods::standard_replies::internal_server_error_response("verification/reset-password: Updating password error").await
+                        methods::standard_replies::internal_server_error_response(String::from("verification/reset-password: Updating password error"))
                     }
                 }
             } else {

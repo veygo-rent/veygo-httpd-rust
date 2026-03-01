@@ -58,9 +58,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "agreement/check-out: Token verification unexpected error",
+                                String::from("agreement/check-out: Token verification unexpected error"),
                             )
-                            .await
                         }
                     }
                 }
@@ -72,16 +71,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         Ok(bool) => {
                             if !bool {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: Token extension failed (returned false)",
-                                )
-                                .await;
+                                    String::from("agreement/check-out: Token extension failed (returned false)"),
+                                );
                             }
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "agreement/check-out: Token extension error",
-                            )
-                            .await;
+                                String::from("agreement/check-out: Token extension error"),
+                            );
                         }
                     }
 
@@ -116,9 +113,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: Database error loading agreement and vehicle snapshot",
+                                    String::from("agreement/check-out: Database error loading agreement and vehicle snapshot"),
                                 )
-                                .await
                             }
                         }
                     }
@@ -128,9 +124,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let current_user = methods::user::get_user_by_id(&access_token.user_id).await;
                     if current_user.is_err() {
                         return methods::standard_replies::internal_server_error_response(
-                            "agreement/check-out: Database error loading renter",
-                        )
-                        .await
+                            String::from("agreement/check-out: Database error loading renter"),
+                        );
                     }
                     let current_user = current_user.unwrap();
 
@@ -169,9 +164,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let is_active_plan = match user_plan_renew_date {
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: Plan renewal date parse error",
-                                )
-                                .await;
+                                    String::from("agreement/check-out: Plan renewal date parse error"),
+                                );
                             },
                             Ok(date) => date >= current_naive_date
                         };
@@ -230,9 +224,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .first::<Option<Decimal>>(&mut pool);
                         if used_free_hours.is_err() {
                             return methods::standard_replies::internal_server_error_response(
-                                "agreement/check-out: Database error summing used reward hours",
+                                String::from("agreement/check-out: Database error summing used reward hours"),
                             )
-                            .await
                         }
                         let used_free_hours = used_free_hours.unwrap().unwrap_or(Decimal::zero());
 
@@ -269,9 +262,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                         if amount_result.is_err() {
                             return methods::standard_replies::internal_server_error_response(
-                                "agreement/check-out: Database error loading promo amount",
+                                String::from("agreement/check-out: Database error loading promo amount"),
                             )
-                            .await
                         }
                         duration_revenue_after_discount -= amount_result.unwrap();
                     }
@@ -316,9 +308,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     if taxes.is_err() {
                         return methods::standard_replies::internal_server_error_response(
-                            "agreement/check-out: Database error loading agreement taxes",
+                            String::from( "agreement/check-out: Database error loading agreement taxes"),
                         )
-                        .await
                     }
                     let taxes = taxes.unwrap();
 
@@ -353,9 +344,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     if user_stripe_id.is_err() {
                         return methods::standard_replies::internal_server_error_response(
-                            "agreement/check-out: Database error loading renter stripe_id",
+                            String::from( "agreement/check-out: Database error loading renter stripe_id"),
                         )
-                        .await
                     }
                     let user_stripe_id = user_stripe_id.unwrap();
 
@@ -379,9 +369,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response(
-                                        "agreement/check-out: Stripe error creating payment intent",
+                                        String::from( "agreement/check-out: Stripe error creating payment intent"),
                                     )
-                                    .await
                                 }
                             }
                         }
@@ -409,9 +398,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .get_result::<model::Payment>(&mut pool);
                                 if payment_result.is_err() {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "agreement/check-out: SQL error inserting reservation payment",
+                                        String::from("agreement/check-out: SQL error inserting reservation payment"),
                                     )
-                                    .await
                                 }
                             }
 
@@ -428,9 +416,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .get_result::<model::RewardTransaction>(&mut pool);
                                 if reward_result.is_err() {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "agreement/check-out: SQL error inserting reward transaction",
+                                        String::from("agreement/check-out: SQL error inserting reward transaction"),
                                     )
-                                    .await
                                 }
                             }
 
@@ -445,9 +432,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                             let Ok(updated_agreement) = updated_agreement else {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: SQL error saving agreement check-out",
+                                    String::from("agreement/check-out: SQL error saving agreement check-out"),
                                 )
-                                .await
                             };
 
                             // Drop auth charges
@@ -461,9 +447,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                             if payments.is_err() {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: Database error loading payments requiring drop_auth",
+                                    String::from("agreement/check-out: Database error loading payments requiring drop_auth"),
                                 )
-                                .await
                             }
                             let payments = payments.unwrap();
 
@@ -472,9 +457,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 let drop_result = integration::stripe_veygo::drop_auth(&pi_id).await;
                                 if drop_result.is_err() {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "agreement/check-out: Stripe error dropping authorization",
+                                        String::from("agreement/check-out: Stripe error dropping authorization"),
                                     )
-                                    .await
                                 }
                             }
 
@@ -487,9 +471,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                             let Ok((vehicle_remote_mgmt, mgmt_id)) = result else {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/check-out: Database error loading vehicle remote mgmt info",
+                                    String::from("agreement/check-out: Database error loading vehicle remote mgmt info"),
                                 )
-                                .await
                             };
 
                             match vehicle_remote_mgmt {

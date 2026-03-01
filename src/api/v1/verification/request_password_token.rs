@@ -38,7 +38,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response("verification/request-password-token: Fetching user info error").await
+                            methods::standard_replies::internal_server_error_response(String::from("verification/request-password-token: Fetching user info error"))
                         }
                     }
                 }
@@ -58,7 +58,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 .execute(&mut pool);
 
             let Ok(_) = result else {
-                return methods::standard_replies::internal_server_error_response("verification/request-password-token: Cannot insert OTP").await
+                return methods::standard_replies::internal_server_error_response(String::from("verification/request-password-token: Cannot insert OTP"))
             };
 
             let email = integration::sendgrid_veygo::make_email_obj(
@@ -81,10 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             )
                 .await;
             if email_result.is_err() {
-                return methods::standard_replies::internal_server_error_response(
-                    "verification/request-token: SendGrid error sending verification email",
-                )
-                    .await;
+                return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: SendGrid error sending verification email"));
             }
 
             let msg = serde_json::json!({});

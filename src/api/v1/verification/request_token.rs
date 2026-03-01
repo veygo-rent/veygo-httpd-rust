@@ -54,10 +54,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "verification/request-token: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Token verification unexpected error"))
                             }
                         }
                     }
@@ -68,17 +65,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "verification/request-token: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "verification/request-token: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Token extension error"));
                             }
                         }
 
@@ -99,10 +90,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let renter = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(renter) = renter else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "verification/request-token: Database error loading renter",
-                            )
-                            .await;
+                            return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Database error loading renter"));
                         };
 
                         use crate::schema::verifications::dsl as v_q;
@@ -112,10 +100,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .execute(&mut pool);
 
                         if result.is_err() {
-                            return methods::standard_replies::internal_server_error_response(
-                                "verification/request-token: SQL error inserting verification",
-                            )
-                            .await;
+                            return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: SQL error inserting verification"));
                         }
 
                         match body.verification_method {
@@ -125,10 +110,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     phone, &*otp)
                                     .await;
                                 if call_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "verification/request-token: Twilio error sending OTP",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Twilio error sending OTP"));
                                 }
                             }
                             model::VerificationType::Email => {
@@ -152,16 +134,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 )
                                     .await;
                                 if email_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "verification/request-token: SendGrid error sending verification email",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: SendGrid error sending verification email"));
                                 }
                             }
                             model::VerificationType::ResetPassword => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "verification/request-token: Should not request reset password code here",
-                                ).await;
+                                return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: Should not request reset password code here"));
                             }
                         }
 

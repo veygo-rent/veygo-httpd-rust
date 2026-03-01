@@ -65,10 +65,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "user/update-phone: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token verification unexpected error"))
                             }
                         }
                     }
@@ -79,17 +76,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "user/update-phone: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/update-phone: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token extension error"));
                             }
                         }
 
@@ -105,10 +96,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "user/update-phone: SQL error updating renter phone",
-                            )
-                            .await;
+                            return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: SQL error updating renter phone"));
                         };
 
                         return methods::standard_replies::response_with_obj(renter, http::StatusCode::OK);

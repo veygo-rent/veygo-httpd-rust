@@ -68,9 +68,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "admin/login: Database error loading renter by student email",
+                                String::from("admin/login: Database error loading renter by student email"),
                             )
-                            .await
                         }
                     }
                 }

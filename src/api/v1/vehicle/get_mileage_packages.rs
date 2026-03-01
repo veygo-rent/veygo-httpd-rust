@@ -19,10 +19,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 .get_results::<model::MileagePackage>(&mut pool);
 
             let Ok(mps) = mps else {
-                return methods::standard_replies::internal_server_error_response(
-                    "vehicle/get-mileage-packages: Database error loading mileage packages",
-                )
-                .await;
+                return methods::standard_replies::internal_server_error_response(String::from("vehicle/get-mileage-packages: Database error loading mileage packages"));
             };
 
             methods::standard_replies::response_with_obj(mps, StatusCode::OK)

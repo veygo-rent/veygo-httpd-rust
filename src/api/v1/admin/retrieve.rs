@@ -45,9 +45,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "admin/retrieve: Token verification unexpected error",
+                                    String::from("admin/retrieve: Token verification unexpected error"),
                                 )
-                                .await
                             }
                         }
                     }
@@ -56,9 +55,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .await;
                         let Ok(user) = user else {
                             return methods::standard_replies::internal_server_error_response(
-                                "admin/retrieve: Database error loading renter by id",
-                            )
-                            .await;
+                                String::from("admin/retrieve: Database error loading renter by id"),
+                            );
                         };
 
                         if !user.is_manager() {
@@ -71,16 +69,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::response_with_obj::<model::PublishRenter>(user.into(), StatusCode::OK)
                                 } else {
                                     methods::standard_replies::internal_server_error_response(
-                                        "admin/retrieve: Token extension failed (returned false)",
+                                        String::from("admin/retrieve: Token extension failed (returned false)"),
                                     )
-                                    .await
                                 }
                             }
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "admin/retrieve: Token extension error",
+                                    String::from("admin/retrieve: Token extension error"),
                                 )
-                                .await
                             }
                         }
                     }

@@ -61,10 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
-                                "user/verify-promo: Token verification unexpected error",
-                            )
-                            .await
+                            methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Token verification unexpected error"))
                         }
                     }
                 }
@@ -75,17 +72,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/verify-promo: Token extension failed (returned false)",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Token extension failed (returned false)"));
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
-                                "user/verify-promo: Token extension error",
-                            )
-                            .await;
+                            return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Token extension error"));
                         }
                     }
                     let mut pool = POOL.get().unwrap();
@@ -110,10 +101,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::apartment_not_allowed_response(body.apartment_id)
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
-                                        "user/verify-promo: Database error loading apartment",
-                                    )
-                                    .await
+                                    methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error loading apartment"))
                                 }
                             }
                         }
@@ -122,10 +110,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     use crate::schema::renters::dsl as r_q;
                     let renter = r_q::renters.find(&access_token.user_id).get_result::<model::Renter>(&mut pool);
                     let Ok(renter) = renter else {
-                        return methods::standard_replies::internal_server_error_response(
-                            "user/verify-promo: Database error loading renter",
-                        )
-                        .await
+                        return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error loading renter"))
                     };
                     if apt.uni_id != 1 && renter.employee_tier != model::EmployeeTier::Admin && renter.apartment_id != body.apartment_id {
                         // RETURN: FORBIDDEN
@@ -150,10 +135,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::promo_code_not_allowed_response(&body.code)
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
-                                        "user/verify-promo: Database error loading promo",
-                                    )
-                                    .await
+                                    methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error loading promo"))
                                 }
                             }
                         }
@@ -168,10 +150,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .count()
                         .get_result::<i64>(&mut pool);
                     let Ok(count_of_this_renter_usage) = count_of_this_renter_usage else {
-                        return methods::standard_replies::internal_server_error_response(
-                            "user/verify-promo: Database error counting renter promo usage",
-                        )
-                        .await
+                        return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error counting renter promo usage"))
                     };
                     if count_of_this_renter_usage >= 1 {
                         return methods::standard_replies::promo_code_not_allowed_response(&body.code);
@@ -185,10 +164,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .count()
                             .get_result::<i64>(&mut pool);
                         let Ok(count_of_agreements) = count_of_agreements else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "user/verify-promo: Database error counting promo usage",
-                            )
-                            .await
+                            return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error counting promo usage"))
                         };
                         if count_of_agreements >= 1 {
                             return methods::standard_replies::promo_code_not_allowed_response(&body.code);

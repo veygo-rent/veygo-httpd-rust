@@ -78,10 +78,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "user/update-apartment: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token verification unexpected error"))
                             }
                         }
                     }
@@ -92,17 +89,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "user/update-apartment: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "user/update-apartment: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token extension error"));
                             }
                         }
 
@@ -123,10 +114,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 use crate::schema::renters::dsl as r_q;
                                 let renter = r_q::renters.find(&access_token.user_id).get_result::<model::Renter>(&mut pool);
                                 let Ok(mut renter) = renter else {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "user/update-apartment: Database error loading renter",
-                                    )
-                                    .await
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Database error loading renter"))
                                 };
 
                                 renter.student_email = body.student_email.clone();
@@ -144,10 +132,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(&pub_renter, StatusCode::OK)
                                     }
                                     Err(_) => {
-                                        methods::standard_replies::internal_server_error_response(
-                                            "user/update-apartment: SQL error updating renter apartment",
-                                        )
-                                        .await
+                                        methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: SQL error updating renter apartment"))
                                     }
                                 }
                             }
@@ -160,10 +145,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(msg, StatusCode::FORBIDDEN)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response(
-                                            "user/update-apartment: Database error loading apartment",
-                                        )
-                                        .await
+                                        methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Database error loading apartment"))
                                     }
                                 }
                             }

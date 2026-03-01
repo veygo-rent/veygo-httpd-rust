@@ -47,9 +47,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "user/get: Token verification unexpected error",
+                                String::from("user/get: Token verification unexpected error")
                             )
-                            .await
                         }
                     }
                 }
@@ -61,16 +60,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Ok(bool) => {
                             if !bool {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "user/get: Token extension failed (returned false)",
-                                )
-                                .await;
+                                    String::from("user/get: Token extension failed (returned false)")
+                                );
                             }
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "user/get: Token extension error",
-                            )
-                            .await;
+                                String::from("user/get: Token extension error")
+                            );
                         }
                     }
 
@@ -79,9 +76,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let Ok(admin) = admin else {
                         return methods::standard_replies::internal_server_error_response(
-                            "user/get: Database error loading admin user",
-                        )
-                        .await;
+                            String::from("user/get: Database error loading admin user")
+                        );
                     };
 
                     if !admin.is_operational_manager() {
@@ -112,9 +108,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response(
-                                        "user/get: Database error loading renter",
+                                        String::from("user/get: Database error loading renter")
                                     )
-                                    .await
                                 }
                             }
                         }

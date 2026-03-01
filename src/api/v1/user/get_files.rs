@@ -72,9 +72,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "user/get-files: Token verification unexpected error",
+                                    String::from("user/get-files: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -86,16 +85,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "user/get-files: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("user/get-files: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "user/get-files: Token extension error",
-                                )
-                                .await;
+                                    String::from("user/get-files: Token extension error")
+                                );
                             }
                         }
 
@@ -103,16 +100,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
                         let Ok(user) = user else {
                             return methods::standard_replies::internal_server_error_response(
-                                "user/get-files: Database error loading renter",
-                            )
-                            .await;
+                                String::from("user/get-files: Database error loading renter")
+                            );
                         };
 
                         let Ok(content_type_parsed_result) = content_type_parsed_result else {
                             return methods::standard_replies::internal_server_error_response(
-                                "user/get-files: File type parse state invalid",
-                            )
-                            .await;
+                                String::from("user/get-files: File type parse state invalid")
+                            );
                         };
 
                         match content_type_parsed_result {

@@ -60,9 +60,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "user/change-plan: Token verification unexpected error",
+                                    String::from("user/change-plan: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -74,16 +73,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "user/change-plan: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("user/change-plan: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "user/change-plan: Token extension error",
-                                )
-                                .await;
+                                    String::from("user/change-plan: Token extension error")
+                                );
                             }
                         }
 
@@ -94,9 +91,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(temp) => { temp }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "user/change-plan: Database error loading renter",
+                                    String::from("user/change-plan: Database error loading renter")
                                 )
-                                .await
                             }
                         };
 
@@ -111,9 +107,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(apt) => { apt }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "user/change-plan: Database error loading apartment",
+                                    String::from("user/change-plan: Database error loading apartment")
                                 )
-                                .await
                             }
                         };
 
@@ -131,16 +126,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 Ok(count) => {
                                     if count != 1 {
                                         return methods::standard_replies::internal_server_error_response(
-                                            "user/change-plan: SQL error updating renter to Free (unexpected row count)",
+                                            String::from("user/change-plan: SQL error updating renter to Free (unexpected row count)")
                                         )
-                                        .await
                                     }
                                 }
                                 Err(_) => {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "user/change-plan: Database error updating renter to Free",
+                                        String::from("user/change-plan: Database error updating renter to Free")
                                     )
-                                    .await
                                 }
                             }
                             return methods::standard_replies::apartment_not_operational();
@@ -163,9 +156,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                                 Err(_) => {
                                     methods::standard_replies::internal_server_error_response(
-                                        "user/change-plan: SQL error saving renter Free plan",
+                                        String::from("user/change-plan: SQL error saving renter Free plan")
                                     )
-                                    .await
                                 }
                             }
                         } else {
@@ -194,9 +186,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
 
                                         methods::standard_replies::internal_server_error_response(
-                                            "user/change-plan: Not implemented (plan change calculation)",
+                                            String::from("user/change-plan: Not implemented (plan change calculation)")
                                         )
-                                        .await
                                     }
                                     Err(err) => {
                                         match err {
@@ -205,9 +196,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             }
                                             _ => {
                                                 methods::standard_replies::internal_server_error_response(
-                                                    "user/change-plan: Database error loading payment method",
+                                                    String::from("user/change-plan: Database error loading payment method")
                                                 )
-                                                .await
                                             }
                                         }
                                     }

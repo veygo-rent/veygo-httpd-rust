@@ -46,9 +46,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "agreement/get: Token verification unexpected error",
+                                    String::from("agreement/get: Token verification unexpected error"),
                                 )
-                                .await
                             }
                         }
                     }
@@ -60,16 +59,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "agreement/get: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("agreement/get: Token extension failed (returned false)"),
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "agreement/get: Token extension error",
-                                )
-                                .await;
+                                    String::from("agreement/get: Token extension error"),
+                                );
                             }
                         }
 
@@ -84,9 +81,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "agreement/get: Database error loading agreements",
+                                    String::from("agreement/get: Database error loading agreements"),
                                 )
-                                .await
                             }
                         }
                     }

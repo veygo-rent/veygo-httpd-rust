@@ -52,9 +52,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "toll/add-company: Token verification unexpected error",
+                                    String::from("toll/add-company: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -66,16 +65,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "toll/add-company: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("toll/add-company: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "toll/add-company: Token extension error",
-                                )
-                                .await;
+                                    String::from("toll/add-company: Token extension error")
+                                );
                             }
                         }
 
@@ -84,9 +81,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                         let Ok(admin) = admin else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/add-company: Database error loading admin user",
-                            )
-                            .await;
+                                String::from("toll/add-company: Database error loading admin user")
+                            );
                         };
 
                         if !admin.is_operational_admin() {
@@ -115,9 +111,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     }
                                     _ => {
                                         methods::standard_replies::internal_server_error_response(
-                                            "toll/add-company: SQL error inserting transponder company",
+                                            String::from("toll/add-company: SQL error inserting transponder company")
                                         )
-                                        .await
                                     }
                                 }
                             }

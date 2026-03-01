@@ -69,10 +69,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
-                                    "vehicle/availability: Token verification unexpected error",
-                                )
-                                .await
+                                methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Token verification unexpected error"))
                             }
                         }
                     }
@@ -83,27 +80,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        "vehicle/availability: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                    return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "vehicle/availability: Token extension error",
-                                )
-                                .await;
+                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Token extension error"));
                             }
                         }
 
                         let user = match methods::user::get_user_by_id(&access_token.user_id).await {
                             Ok(usr) => { usr }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "vehicle/availability: Database error loading renter",
-                                )
-                                .await
+                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error loading renter"))
                             }
                         };
 
@@ -125,10 +113,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::apartment_not_allowed_response(body.apartment_id)
                                     }
                                     _ => {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            "vehicle/availability: Database error loading apartment",
-                                        )
-                                        .await
+                                        return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error loading apartment"))
                                     }
                                 }
                             }
@@ -161,10 +146,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .count()
                             .get_result::<i64>(&mut pool);
                         let Ok(renter_agreements_blocking_count) = renter_agreements_blocking_count else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "vehicle/availability: Database error counting renter blocking agreements",
-                            )
-                            .await
+                            return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error counting renter blocking agreements"))
                         };
                         if renter_agreements_blocking_count > 0 {
                             return methods::standard_replies::double_booking_not_allowed()
@@ -178,10 +160,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .select((vehicles_query::vehicles::all_columns(), locations_query::locations::all_columns()))
                             .get_results::<(model::Vehicle, model::Location)>(&mut pool);
                         let Ok(all_vehicles) = all_vehicles else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "vehicle/availability: Database error loading vehicles and locations",
-                            )
-                            .await
+                            return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error loading vehicles and locations"))
                         };
 
                         let time_delta = body.end_time - body.start_time;
@@ -236,10 +215,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .get_results::<model::Agreement>(&mut pool);
 
                             let Ok(agreements_blocking) = agreements_blocking else {
-                                return methods::standard_replies::internal_server_error_response(
-                                    "vehicle/availability: Database error loading vehicle blocking agreements",
-                                )
-                                .await
+                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error loading vehicle blocking agreements"))
                             };
 
                             for agreement in agreements_blocking {
@@ -289,9 +265,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::RateOffer>(&mut pool);
 
                         let Ok(rate_offer) = rate_offer_add_result else {
-                            return methods::standard_replies::internal_server_error_response(
-                                "vehicle/availability: Database error inserting rate offer",
-                            ).await
+                            return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error inserting rate offer"))
                         };
 
                         let resp = Availability{ offer: rate_offer, vehicles: locations_with_vehicles };

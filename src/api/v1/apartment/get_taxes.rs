@@ -42,9 +42,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "apartment/get-taxes: Token verification unexpected error",
+                                String::from("apartment/get-taxes: Token verification unexpected error")
                             )
-                            .await
                         }
                     }
                 }
@@ -56,16 +55,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Ok(bool) => {
                             if !bool {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "apartment/get-taxes: Token extension failed (returned false)",
-                                )
-                                .await;
+                                    String::from("apartment/get-taxes: Token extension failed (returned false)")
+                                );
                             }
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "apartment/get-taxes: Token extension error",
-                            )
-                            .await;
+                                String::from("apartment/get-taxes: Token extension error")
+                            );
                         }
                     }
 
@@ -74,9 +71,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let Ok(admin) = admin else {
                         return methods::standard_replies::internal_server_error_response(
-                            "apartment/get-taxes: Database error loading admin user",
-                        )
-                        .await;
+                            String::from("apartment/get-taxes: Database error loading admin user")
+                        );
                     };
 
                     if !admin.is_operational_manager() {
@@ -94,9 +90,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "apartment/get-taxes: Database error loading taxes",
-                            )
-                            .await;
+                                String::from("apartment/get-taxes: Database error loading taxes")
+                            );
                         }
                     };
 

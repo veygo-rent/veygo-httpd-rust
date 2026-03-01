@@ -51,9 +51,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "payment-method/delete: Token verification unexpected error",
+                                    String::from("payment-method/delete: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -65,16 +64,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "payment-method/delete: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("payment-method/delete: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "payment-method/delete: Token extension error",
-                                )
-                                .await;
+                                    String::from("payment-method/delete: Token extension error")
+                                );
                             }
                         }
 
@@ -98,9 +95,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "payment-method/delete: SQL error disabling payment method",
+                                    String::from("payment-method/delete: SQL error disabling payment method")
                                 )
-                                .await
                             }
                         }
                     }

@@ -58,9 +58,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "toll/upload-tolls: Token verification unexpected error",
+                                    String::from("toll/upload-tolls: Token verification unexpected error")
                                 )
-                                .await
                             }
                         }
                     }
@@ -72,16 +71,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             Ok(bool) => {
                                 if !bool {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "toll/upload-tolls: Token extension failed (returned false)",
-                                    )
-                                    .await;
+                                        String::from("toll/upload-tolls: Token extension failed (returned false)")
+                                    );
                                 }
                             }
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "toll/upload-tolls: Token extension error",
-                                )
-                                .await;
+                                    String::from("toll/upload-tolls: Token extension error")
+                                );
                             }
                         }
 
@@ -90,9 +87,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let Ok(admin) = admin else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/upload-tolls: Database error loading admin user",
+                                String::from("toll/upload-tolls: Database error loading admin user")
                             )
-                            .await
                         };
 
                         if !admin.is_operational_admin() {
@@ -111,9 +107,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 Ok(tc) => { tc }
                                 Err(_) => {
                                     return methods::standard_replies::internal_server_error_response(
-                                        "toll/upload-tolls: Database error loading transponder company",
+                                        String::from("toll/upload-tolls: Database error loading transponder company")
                                     )
-                                    .await
                                 }
                             }
                         };
@@ -157,9 +152,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .position(|h| h == toll_company.corresponding_key_for_transaction_amount.as_str());
                         let Some(transaction_amount_index) = transaction_amount_index else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/upload-tolls: CSV header missing transaction amount column",
+                                String::from("toll/upload-tolls: CSV header missing transaction amount column")
                             )
-                            .await
                         };
 
                         let transaction_name_index = headers
@@ -167,9 +161,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .position(|h| h == toll_company.corresponding_key_for_transaction_name.as_str());
                         let Some(transaction_name_index) = transaction_name_index else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/upload-tolls: CSV header missing transaction name column",
+                                String::from("toll/upload-tolls: CSV header missing transaction name column")
                             )
-                            .await
                         };
 
                         let transaction_time_index = headers
@@ -177,9 +170,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .position(|h| h == toll_company.corresponding_key_for_transaction_time.as_str());
                         let Some(transaction_time_index) = transaction_time_index else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/upload-tolls: CSV header missing transaction time column",
+                                String::from("toll/upload-tolls: CSV header missing transaction time column")
                             )
-                            .await
                         };
 
                         let vehicle_id_index = headers
@@ -187,9 +179,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .position(|h| h == toll_company.corresponding_key_for_vehicle_id.as_str());
                         let Some(vehicle_id_index) = vehicle_id_index else {
                             return methods::standard_replies::internal_server_error_response(
-                                "toll/upload-tolls: CSV header missing vehicle id column",
+                                String::from("toll/upload-tolls: CSV header missing vehicle id column")
                             )
-                            .await
                         };
 
                         let file_bytes_to_move = file_bytes.clone();

@@ -52,9 +52,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "admin/update-apns: Token verification unexpected error",
+                                    String::from("admin/update-apns: Token verification unexpected error"),
                                 )
-                                .await
                             }
                         }
                     },
@@ -86,23 +85,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         }
                                         Err(_) => {
                                             methods::standard_replies::internal_server_error_response(
-                                                "admin/update-apns: SQL error updating admin_apple_apns",
+                                                String::from("admin/update-apns: SQL error updating admin_apple_apns"),
                                             )
-                                            .await
                                         }
                                     }
                                 } else {
                                     methods::standard_replies::internal_server_error_response(
-                                        "admin/update-apns: Token extension failed (returned false)",
+                                        String::from("admin/update-apns: Token extension failed (returned false)"),
                                     )
-                                    .await
                                 }
                             }
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response(
-                                    "admin/update-apns: Token extension error",
+                                    String::from("admin/update-apns: Token extension error"),
                                 )
-                                .await
                             }
                         }
                     }

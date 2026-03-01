@@ -44,9 +44,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(
-                                "payment-method/get: Token verification unexpected error",
+                                String::from("payment-method/get: Token verification unexpected error"),
                             )
-                            .await
                         }
                     }
                 }
@@ -58,16 +57,14 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         Ok(bool) => {
                             if !bool {
                                 return methods::standard_replies::internal_server_error_response(
-                                    "payment-method/get: Token extension failed (returned false)",
-                                )
-                                .await;
+                                    String::from("payment-method/get: Token extension failed (returned false)"),
+                                );
                             }
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "payment-method/get: Token extension error",
-                            )
-                            .await;
+                                String::from("payment-method/get: Token extension error"),
+                            );
                         }
                     }
 
@@ -78,6 +75,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .into_boxed()
                         .filter(pm_q::is_enabled)
                         .filter(pm_q::renter_id.eq(&access_token.user_id))
+                        .order(pm_q::id.asc())
                         .load::<model::PaymentMethod>(&mut pool);
 
                     let payment_methods: Vec<model::PublishPaymentMethod> = match payment_methods_query_result {
@@ -90,9 +88,8 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         }
                         Err(_) => {
                             return methods::standard_replies::internal_server_error_response(
-                                "payment-method/get: Database error loading payment methods",
-                            )
-                            .await;
+                                String::from("payment-method/get: Database error loading payment methods"),
+                            );
                         }
                     };
 

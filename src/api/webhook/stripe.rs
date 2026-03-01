@@ -61,7 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Ok::<_, warp::Rejection>((with_status(warp::reply::json(&empty_msg), StatusCode::OK).into_response(),))
                     }
                     Err(_err) => {
-                        methods::standard_replies::internal_server_error_response("webhook: Unauthenticated webhook request detected").await
+                        methods::standard_replies::internal_server_error_response(String::from("webhook: Unauthenticated webhook request detected"))
                     }
                 }
             }
