@@ -18,7 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
 
             let policy_type: model::PolicyType = {
-                let raw_policy_str = request.get("policy");
+                let raw_policy_str = request.get("type");
                 let Some(raw_policy_str) = raw_policy_str else {
                     return methods::standard_replies::bad_request("unknown policy type");
                 };
