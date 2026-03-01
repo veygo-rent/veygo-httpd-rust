@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use chrono::prelude::*;
 use diesel::{ExpressionMethods, RunQueryDsl};
 use diesel::result::Error;
-use crate::{POOL, model, schema, methods};
+use crate::{POOL, model, schema, methods, helper_model};
 use warp::http::{StatusCode, Method};
 use warp::reply::with_status;
 use warp::{Filter, Reply};
@@ -64,7 +64,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 Err(e) => {
                     match e {
                         Error::NotFound => {
-                            Ok::<_, warp::Rejection>((with_status(warp::reply::json(&"No policy found"), StatusCode::NOT_FOUND).into_response(),))
+                            let msg = helper_model::ErrorResponse {
+                                title: "Not Found".to_string(),
+                                message: "No policy found".to_string()
+                            };
+                            methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                         }
                         _ => {
                             methods::standard_replies::internal_server_error_response(String::from("policy/get: Failed to retrieve policy"))
