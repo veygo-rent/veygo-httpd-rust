@@ -389,6 +389,7 @@ create table agreements
     mileage_package_overwrite   numeric(5, 4),
     utilization_factor          numeric(5, 4)               default 1.00                not null,
     date_of_creation            timestamp with time zone    default CURRENT_TIMESTAMP   not null,
+    cancellation_rate           numeric(7, 4)               default 0.00                not null,
     constraint agreements_pk primary key (id),
     constraint agreements_confirmation_uk unique (confirmation),
     constraint agreements_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),

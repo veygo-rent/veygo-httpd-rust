@@ -99,6 +99,7 @@ diesel::table! {
         mileage_package_overwrite -> Nullable<Numeric>,
         utilization_factor -> Numeric,
         date_of_creation -> Timestamptz,
+        cancellation_rate -> Numeric,
     }
 }
 

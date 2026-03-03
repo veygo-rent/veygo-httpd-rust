@@ -1285,6 +1285,8 @@ pub struct Agreement {
     pub utilization_factor: Decimal,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_creation: DateTime<Utc>,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub cancellation_rate: Decimal,
 }
 
 #[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
@@ -1334,6 +1336,8 @@ pub struct NewAgreement {
     pub mileage_rate_overwrite: Option<Decimal>,
     #[serde(with = "rust_decimal::serde::float_option")]
     pub mileage_package_overwrite: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub cancellation_rate: Decimal,
 }
 
 #[derive(

@@ -527,6 +527,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     mileage_conversion: vehicle_with_location.2.mileage_conversion,
                                     mileage_rate_overwrite: vehicle_with_location.2.mileage_rate_overwrite,
                                     mileage_package_overwrite: vehicle_with_location.2.mileage_package_overwrite,
+                                    cancellation_rate: Decimal::zero(),
                                 };
 
                                 let new_publish_agreement_result = diesel::insert_into(ag_q::agreements)

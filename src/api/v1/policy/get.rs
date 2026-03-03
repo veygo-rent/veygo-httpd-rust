@@ -5,7 +5,6 @@ use diesel::{ExpressionMethods, RunQueryDsl};
 use diesel::result::Error;
 use crate::{POOL, model, schema, methods, helper_model};
 use warp::http::{StatusCode, Method};
-use warp::reply::with_status;
 use warp::{Filter, Reply};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
