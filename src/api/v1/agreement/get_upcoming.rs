@@ -96,20 +96,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_results::<(model::Agreement, String, String, String)>(&mut pool);
 
                         match agreements {
-                            Ok(mut ags) => {
-                                let mut trips: Vec<helper_model::TripInfo> = Vec::new();
-                                loop {
-                                    if let Some(ag) = ags.pop() {
-                                        trips.push(helper_model::TripInfo {
-                                            agreement: ag.0,
-                                            apartment_timezone: ag.2,
-                                            location_name: ag.1,
-                                            vehicle_name: ag.3,
-                                        });
-                                    } else {
-                                        break;
-                                    }
-                                }
+                            Ok(ags) => {
+                                let trips: Vec<helper_model::TripInfo> = ags
+                                    .into_iter()
+                                    .map(|ag| helper_model::TripInfo {
+                                        agreement: ag.0,
+                                        apartment_timezone: ag.2,
+                                        location_name: ag.1,
+                                        vehicle_name: ag.3,
+                                    })
+                                    .collect();
                                 methods::standard_replies::response_with_obj(trips, StatusCode::OK)
                             }
                             Err(_) => {

@@ -5,8 +5,8 @@ use rand::{RngExt};
 use rand::seq::SliceRandom;
 
 pub fn generate_unique_agreement_confirmation() -> Result<String, VeygoError> {
-    // Define the allowed characters: digits 0-9 and uppercase A-Z.
-    let mut charset: Vec<u8> = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_vec(); // Convert to Vec<u8>
+    // Define the allowed characters: digits 0-9 and uppercase A-Z except for I, O, Q.
+    let mut charset: Vec<u8> = b"ABCDEFGHJKLMNPRSTUVWXYZ0123456789".to_vec(); // Convert to Vec<u8>
 
     let mut rng = rand::rng();
 
