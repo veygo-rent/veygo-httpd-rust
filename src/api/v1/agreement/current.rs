@@ -138,7 +138,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .filter(damage_query::fixed_date.is_not_null())
                                     .get_results::<model::Damage>(&mut pool)
                                     .unwrap_or_default();
-                                let mut current_trip = helper_model::CurrentTrip {
+                                let mut current_trip = helper_model::TripDetailedInfo {
                                     agreement: current.0,
                                     vehicle: current.1.into(),
                                     apartment: current.2,

@@ -1,4 +1,4 @@
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, prelude::*};
 use warp::{Filter, Reply};
 use warp::http::{Method, StatusCode};
 use crate::{helper_model, methods, model, POOL};
@@ -73,17 +73,44 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let now = chrono::Utc::now();
 
                         use crate::schema::agreements::dsl as agreement_query;
+                        use crate::schema::apartments::dsl as apartment_query;
+                        use crate::schema::locations::dsl as location_query;
+                        use crate::schema::vehicles::dsl as vehicle_query;
                         let agreements = agreement_query::agreements
+                            .inner_join(
+                                location_query::locations
+                                    .inner_join(apartment_query::apartments)
+                            )
+                            .inner_join(vehicle_query::vehicles)
                             .filter(agreement_query::renter_id.eq(&access_token.user_id))
                             .filter(agreement_query::status.eq(model::AgreementStatus::Rental))
                             .filter(agreement_query::actual_pickup_time.is_null())
                             .filter(agreement_query::rsvp_drop_off_time.ge(now))
                             .order_by(agreement_query::rsvp_pickup_time.asc())
-                            .get_results::<model::Agreement>(&mut pool);
+                            .select((
+                                agreement_query::agreements::all_columns(),
+                                apartment_query::name,
+                                apartment_query::timezone,
+                                vehicle_query::name
+                            ))
+                            .get_results::<(model::Agreement, String, String, String)>(&mut pool);
 
                         match agreements {
-                            Ok(ags) => {
-                                methods::standard_replies::response_with_obj(ags, StatusCode::OK)
+                            Ok(mut ags) => {
+                                let mut trips: Vec<helper_model::TripInfo> = Vec::new();
+                                loop {
+                                    if let Some(ag) = ags.pop() {
+                                        trips.push(helper_model::TripInfo {
+                                            agreement: ag.0,
+                                            apartment_timezone: ag.2,
+                                            location_name: ag.1,
+                                            vehicle_name: ag.3,
+                                        });
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                methods::standard_replies::response_with_obj(trips, StatusCode::OK)
                             }
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response(

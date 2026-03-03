@@ -9,7 +9,7 @@ pub struct ErrorResponse {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct CurrentTrip {
+pub struct TripDetailedInfo {
     pub agreement: model::Agreement,
     pub vehicle: model::PublishRenterVehicle,
     pub apartment: model::Apartment,
@@ -19,6 +19,14 @@ pub struct CurrentTrip {
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
     pub damages: Vec<model::Damage>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct TripInfo {
+    pub agreement: model::Agreement,
+    pub apartment_timezone: String,
+    pub location_name: String,
+    pub vehicle_name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
