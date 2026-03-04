@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{POOL, methods, model, helper_model, schema};
 use diesel::prelude::*;
 use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
@@ -89,12 +89,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                         };
 
-                        use crate::schema::agreements::dsl as agreement_query;
-                        use crate::schema::apartments::dsl as apartment_query;
-                        use crate::schema::vehicles::dsl as vehicle_query;
-                        use crate::schema::locations::dsl as location_query;
-                        use crate::schema::payment_methods::dsl as payment_method_query;
-                        use crate::schema::damages::dsl as damage_query;
+                        use schema::agreements::dsl as agreement_query;
+                        use schema::apartments::dsl as apartment_query;
+                        use schema::vehicles::dsl as vehicle_query;
+                        use schema::locations::dsl as location_query;
+                        use schema::payment_methods::dsl as payment_method_query;
+                        use schema::damages::dsl as damage_query;
 
                         let now = chrono::Utc::now();
                         let now_plus_buffer = now + chrono::Duration::hours(1);
@@ -138,6 +138,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .filter(damage_query::fixed_date.is_not_null())
                                     .get_results::<model::Damage>(&mut pool)
                                     .unwrap_or_default();
+                                use schema::taxes::dsl as tax_query;
+                                use schema::agreements_taxes::dsl as ag_tax_query;
+                                let taxes = ag_tax_query::agreements_taxes
+                                    .inner_join(tax_query::taxes)
+                                    .filter(ag_tax_query::agreement_id.eq(&current.0.id))
+                                    .select(tax_query::taxes::all_columns())
+                                    .get_results::<model::Tax>(&mut pool)
+                                    .unwrap_or_default();;
                                 let mut current_trip = helper_model::TripDetailedInfo {
                                     agreement: current.0,
                                     vehicle: current.1.into(),
@@ -148,9 +156,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     promo: None,
                                     mileage_package: None,
                                     damages,
+                                    taxes,
                                 };
                                 if let Some(snapshot_id) = current_trip.agreement.vehicle_snapshot_before {
-                                    use crate::schema::vehicle_snapshots::dsl as vehicle_snapshot_query;
+                                    use schema::vehicle_snapshots::dsl as vehicle_snapshot_query;
                                     let snapshot = vehicle_snapshot_query::vehicle_snapshots
                                         .filter(vehicle_snapshot_query::id.eq(&snapshot_id))
                                         .get_result::<model::VehicleSnapshot>(&mut pool);
@@ -159,7 +168,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     }
                                 }
                                 if let Some(promo_code) = current_trip.agreement.promo_id.clone() {
-                                    use crate::schema::promos::dsl as promo_query;
+                                    use schema::promos::dsl as promo_query;
                                     let promo = promo_query::promos
                                         .filter(promo_query::code.eq(&promo_code))
                                         .get_result::<model::Promo>(&mut pool);
@@ -168,7 +177,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     }
                                 }
                                 if let Some(mileage_package_id) = current_trip.agreement.mileage_package_id {
-                                    use crate::schema::mileage_packages::dsl as mp_query;
+                                    use schema::mileage_packages::dsl as mp_query;
                                     let mp = mp_query::mileage_packages
                                         .filter(mp_query::id.eq(&mileage_package_id))
                                         .get_result::<model::MileagePackage>(&mut pool);

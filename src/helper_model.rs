@@ -19,6 +19,7 @@ pub struct TripDetailedInfo {
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
     pub damages: Vec<model::Damage>,
+    pub taxes: Vec<model::Tax>
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
