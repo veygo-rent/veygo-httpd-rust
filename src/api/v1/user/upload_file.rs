@@ -185,6 +185,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let Ok(renter) = update_result else {
                             return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: SQL error saving renter uploaded file"))
                         };
+                        let renter: model::PublishRenter = renter.into();
 
                         return methods::standard_replies::response_with_obj(renter, StatusCode::OK);
                     }

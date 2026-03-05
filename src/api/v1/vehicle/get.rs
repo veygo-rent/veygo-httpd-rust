@@ -5,7 +5,7 @@ use warp::http::{StatusCode, Method};
 use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("get" / i32)
+    warp::path!(i32)
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))
@@ -85,7 +85,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                     match results {
                         Ok(res) => {
-                            methods::standard_replies::response_with_obj(res, StatusCode::OK)
+                            let admin_vehicles: Vec<model::PublishAdminVehicle> = res
+                                .into_iter()
+                                .map(|x| x.into())
+                                .collect();
+                            methods::standard_replies::response_with_obj(admin_vehicles, StatusCode::OK)
                         }
                         Err(_) => {
                             methods::standard_replies::internal_server_error_response(String::from("vehicle/get: Database error loading vehicles"))

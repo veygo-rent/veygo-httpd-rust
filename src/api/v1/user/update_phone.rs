@@ -98,6 +98,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let Ok(renter) = update_result else {
                             return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: SQL error updating renter phone"));
                         };
+                        let renter: model::PublishRenter = renter.into();
 
                         return methods::standard_replies::response_with_obj(renter, http::StatusCode::OK);
                     }

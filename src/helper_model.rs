@@ -8,7 +8,7 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TripDetailedInfo {
     pub agreement: model::Agreement,
     pub vehicle: model::PublishRenterVehicle,
@@ -19,10 +19,11 @@ pub struct TripDetailedInfo {
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
     pub damages: Vec<model::Damage>,
-    pub taxes: Vec<model::Tax>
+    pub taxes: Vec<model::Tax>,
+    pub vehicle_snapshot_after: Option<model::VehicleSnapshot>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TripInfo {
     pub agreement: model::Agreement,
     pub apartment_timezone: String,
@@ -30,17 +31,17 @@ pub struct TripInfo {
     pub vehicle_name: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct FilePath {
     pub file_path: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct FileLink {
     pub file_link: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GenerateSnapshotRequest {
     pub vehicle_vin: String,
     pub left_image_path: String,

@@ -136,55 +136,84 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 let damages = damage_query::damages
                                     .filter(damage_query::vehicle_id.eq(&current.1.id))
                                     .filter(damage_query::fixed_date.is_not_null())
-                                    .get_results::<model::Damage>(&mut pool)
-                                    .unwrap_or_default();
+                                    .get_results::<model::Damage>(&mut pool);
+                                let Ok(damages) = damages else {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/current: Database error loading damages"),
+                                    );
+                                };
+                                
                                 use schema::taxes::dsl as tax_query;
                                 use schema::agreements_taxes::dsl as ag_tax_query;
                                 let taxes = ag_tax_query::agreements_taxes
                                     .inner_join(tax_query::taxes)
                                     .filter(ag_tax_query::agreement_id.eq(&current.0.id))
                                     .select(tax_query::taxes::all_columns())
-                                    .get_results::<model::Tax>(&mut pool)
-                                    .unwrap_or_default();;
-                                let mut current_trip = helper_model::TripDetailedInfo {
+                                    .get_results::<model::Tax>(&mut pool);
+                                let Ok(taxes) = taxes else {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/current: Database error loading taxes"),
+                                    );
+                                };
+                                
+                                let promo: Option<model::PublishPromo> = if let Some(id) = current.0.promo_id.clone() {
+                                    use schema::promos::dsl as promo_query;
+                                    let result = promo_query::promos
+                                        .find(id)
+                                        .get_result::<model::Promo>(&mut pool);
+                                    let Ok(promo) = result else {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/current: Database error loading promo"),
+                                        );
+                                    };
+                                    Some(promo.into())
+                                } else {
+                                    None
+                                };
+                                
+                                let vs_before = if let Some(snapshot_id) = current.0.vehicle_snapshot_before {
+                                    use schema::vehicle_snapshots::dsl as vehicle_snapshot_query;
+                                    let result = vehicle_snapshot_query::vehicle_snapshots
+                                        .filter(vehicle_snapshot_query::id.eq(&snapshot_id))
+                                        .get_result::<model::VehicleSnapshot>(&mut pool);
+                                    let Ok(vs_before) = result else {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/current: Database error loading vehicle snapshot"),
+                                        );
+                                    };
+                                    Some(vs_before)
+                                } else {
+                                    None
+                                };
+                                
+                                let mileage_package = if let Some(id) = current.0.mileage_package_id {
+                                    use schema::mileage_packages::dsl as mp_query;
+                                    let result = mp_query::mileage_packages
+                                        .find(id)
+                                        .get_result::<model::MileagePackage>(&mut pool);
+                                    let Ok(mp) = result else {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/current: Database error loading mileage package"),
+                                        );
+                                    };
+                                    Some(mp)
+                                } else {
+                                    None
+                                };
+                                
+                                let current_trip = helper_model::TripDetailedInfo {
                                     agreement: current.0,
                                     vehicle: current.1.into(),
                                     apartment: current.2,
                                     location: current.3,
-                                    vehicle_snapshot_before: None,
+                                    vehicle_snapshot_before: vs_before,
                                     payment_method: current.4.into(),
-                                    promo: None,
-                                    mileage_package: None,
+                                    promo,
+                                    mileage_package,
                                     damages,
                                     taxes,
+                                    vehicle_snapshot_after: None,
                                 };
-                                if let Some(snapshot_id) = current_trip.agreement.vehicle_snapshot_before {
-                                    use schema::vehicle_snapshots::dsl as vehicle_snapshot_query;
-                                    let snapshot = vehicle_snapshot_query::vehicle_snapshots
-                                        .filter(vehicle_snapshot_query::id.eq(&snapshot_id))
-                                        .get_result::<model::VehicleSnapshot>(&mut pool);
-                                    if snapshot.is_ok() {
-                                        current_trip.vehicle_snapshot_before = Some(snapshot.unwrap());
-                                    }
-                                }
-                                if let Some(promo_code) = current_trip.agreement.promo_id.clone() {
-                                    use schema::promos::dsl as promo_query;
-                                    let promo = promo_query::promos
-                                        .filter(promo_query::code.eq(&promo_code))
-                                        .get_result::<model::Promo>(&mut pool);
-                                    if promo.is_ok() {
-                                        current_trip.promo = Some(promo.unwrap().into());
-                                    }
-                                }
-                                if let Some(mileage_package_id) = current_trip.agreement.mileage_package_id {
-                                    use schema::mileage_packages::dsl as mp_query;
-                                    let mp = mp_query::mileage_packages
-                                        .filter(mp_query::id.eq(&mileage_package_id))
-                                        .get_result::<model::MileagePackage>(&mut pool);
-                                    if mp.is_ok() {
-                                        current_trip.mileage_package = Some(mp.unwrap());
-                                    }
-                                }
                                 methods::standard_replies::response_with_obj(current_trip, StatusCode::OK)
                             }
                         }

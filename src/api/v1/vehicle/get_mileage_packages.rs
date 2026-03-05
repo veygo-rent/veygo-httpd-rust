@@ -4,7 +4,7 @@ use http::{Method, StatusCode};
 use warp::{Filter, Reply};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("get-mileage-packages")
+    warp::path("mileage-packages")
         .and(warp::path::end())
         .and(warp::method())
         .and_then(async move |method: Method| {

@@ -430,15 +430,12 @@ pub struct NewRewardTransaction {
     Debug,
     Clone,
     PartialEq,
-    Serialize,
-    Deserialize,
     AsChangeset,
 )]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Renter {
-    // Absolutely No Frontend Access
     pub id: i32,
     pub name: String,
     pub stripe_id: String,
@@ -450,7 +447,6 @@ pub struct Renter {
     pub date_of_birth: NaiveDate,
     pub profile_picture: Option<String>,
     pub gender: Option<Gender>,
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_registration: DateTime<Utc>,
     pub drivers_license_number: Option<String>,
     pub drivers_license_state_region: Option<String>,
@@ -465,7 +461,6 @@ pub struct Renter {
     pub lease_agreement_expiration: Option<NaiveDate>,
     pub billing_address: Option<UsAddress>,
     pub signature_image: Option<String>,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub signature_datetime: Option<DateTime<Utc>>,
     pub plan_tier: PlanTier,
     pub plan_renewal_day: String,
@@ -516,7 +511,7 @@ impl From<Renter> for PublishRenter {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PublishRenter {
     pub id: i32,
     pub name: String,
@@ -553,7 +548,7 @@ pub struct PublishRenter {
     pub requires_secondary_driver_lic: bool
 }
 
-#[derive(Insertable, Debug, Clone, Deserialize, Serialize)]
+#[derive(Insertable, Debug, Clone, Deserialize)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -578,15 +573,12 @@ pub struct NewRenter {
     Clone,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     AsChangeset,
 )]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    // Absolutely No Frontend Access
     pub id: i32,
     pub cardholder_name: String,
     pub masked_card_number: String,
@@ -597,12 +589,11 @@ pub struct PaymentMethod {
     pub nickname: Option<String>,
     pub is_enabled: bool,
     pub renter_id: i32,
-    #[serde(with = "chrono::serde::ts_seconds_option")]
     pub last_used_date_time: Option<DateTime<Utc>>,
     pub cdw_enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PublishPaymentMethod {
     pub id: i32,
     pub cardholder_name: String,
@@ -634,7 +625,7 @@ impl From<PaymentMethod> for PublishPaymentMethod {
     }
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -801,7 +792,7 @@ pub struct NewTransponderCompany {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, AsChangeset, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Queryable, Identifiable, Associations, AsChangeset, Debug, Clone, PartialEq, Deserialize,
 )]
 #[diesel(belongs_to(Location))]
 #[diesel(table_name = vehicles)]

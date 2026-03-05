@@ -7,7 +7,7 @@ use warp::{Filter, Reply};
 use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("get" / i32)
+    warp::path!(i32)
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))
@@ -98,8 +98,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Renter>(&mut pool)
                     };
 
-                    let user = match user {
-                        Ok(usr) => { usr }
+                    let user: model::PublishRenter = match user {
+                        Ok(usr) => { usr.into() }
                         Err(err) => {
                             return match err {
                                 Error::NotFound => {

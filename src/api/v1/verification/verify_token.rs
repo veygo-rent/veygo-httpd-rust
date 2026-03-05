@@ -127,6 +127,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     let Ok(updated_renter) = updated_renter else {
                                         return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: SQL error updating renter verification state"));
                                     };
+                                    let updated_renter: model::PublishRenter = updated_renter.into();
 
                                     methods::standard_replies::response_with_obj(updated_renter, StatusCode::OK)
                                 } else {
