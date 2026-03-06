@@ -2,7 +2,7 @@ use serde_derive::{Deserialize, Serialize};
 use crate::model;
 use rust_decimal::prelude::*;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct ErrorResponse {
     pub title: String,
     pub message: String,
@@ -54,14 +54,14 @@ pub struct GenerateSnapshotRequest {
     pub back_left_image_path: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct CheckOutRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
     pub hours_using_reward: Decimal,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct CheckInRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,

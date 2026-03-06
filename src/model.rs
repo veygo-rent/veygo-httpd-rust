@@ -395,7 +395,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 }
 
 #[derive(
-    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset,
+    Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, AsChangeset,
 )]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
@@ -411,7 +411,7 @@ pub struct RewardTransaction {
 }
 
 #[derive(
-    Insertable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize,
+    Insertable, Associations, Debug, Clone, PartialEq, Deserialize,
 )]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
@@ -691,7 +691,7 @@ pub struct Apartment {
     pub mileage_conversion: Decimal,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
 #[diesel(table_name = apartments)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewApartment {
@@ -751,7 +751,7 @@ pub struct Location {
     pub is_operational: bool,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
 #[diesel(table_name = locations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewLocation {
@@ -777,7 +777,7 @@ pub struct TransponderCompany {
     pub timezone: Option<String>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[diesel(table_name = transponder_companies)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewTransponderCompany {
@@ -971,7 +971,7 @@ impl From<Vehicle> for PublishAdminVehicle {
     }
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1027,7 +1027,7 @@ pub struct DamageSubmission {
     pub processed: bool,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
 #[diesel(table_name = damage_submissions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDamageSubmission {
@@ -1090,7 +1090,7 @@ pub struct Damage {
     pub vehicle_id: i32,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Claim))]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(table_name = damages)]
@@ -1143,7 +1143,7 @@ pub struct VehicleSnapshot {
     pub renter_id: i32,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = vehicle_snapshots)]
@@ -1164,18 +1164,16 @@ pub struct NewVehicleSnapshot {
     pub renter_id: i32,
 }
 
-#[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq)]
 #[diesel(table_name = promos)]
 #[diesel(primary_key(code))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Promo {
     pub code: String,
     pub name: String,
-    #[serde(with = "rust_decimal::serde::float")]
     pub amount: Decimal,
     pub is_enabled: bool,
     pub is_one_time: bool,
-    #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
     pub user_id: Option<i32>,
     pub apt_id: Option<i32>,
@@ -1280,7 +1278,7 @@ pub struct Agreement {
     pub cancellation_rate: Decimal,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Location))]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Renter))]
@@ -1351,7 +1349,7 @@ pub struct Charge {
     pub vehicle_identifier: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = charges)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1395,7 +1393,7 @@ pub struct Payment {
     pub is_deposit: bool,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(belongs_to(Renter))]
@@ -1431,7 +1429,7 @@ pub struct AccessToken {
     pub exp: DateTime<Utc>,
 }
 
-#[derive(Deserialize, Serialize, Insertable, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = access_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1466,7 +1464,7 @@ impl From<AccessToken> for PublishAccessToken {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PublishAccessToken {
     pub token: String,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -1485,7 +1483,7 @@ pub struct DoNotRentList {
     pub exp: Option<NaiveDate>,
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Insertable, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[diesel(table_name = do_not_rent_lists)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewDoNotRentList {
