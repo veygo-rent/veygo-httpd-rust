@@ -68,7 +68,7 @@ pub struct CheckInRequest {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum VeygoError {
     InternalServerError,
     RecordNotFound,

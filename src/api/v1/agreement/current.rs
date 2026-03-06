@@ -94,7 +94,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         use schema::vehicles::dsl as vehicle_query;
                         use schema::locations::dsl as location_query;
                         use schema::payment_methods::dsl as payment_method_query;
-                        use schema::damages::dsl as damage_query;
 
                         let now = chrono::Utc::now();
                         let now_plus_buffer = now + chrono::Duration::hours(1);
@@ -133,9 +132,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 Ok((reply.into_response(),))
                             },
                             Ok(current) => {
-                                let damages = damage_query::damages
-                                    .filter(damage_query::vehicle_id.eq(&current.1.id))
-                                    .filter(damage_query::fixed_date.is_not_null())
+                                use schema::damages::dsl as damage_query;
+                                use schema::claims::dsl as claim_query;
+                                let damages = claim_query::claims
+                                    .inner_join(damage_query::damages)
+                                    .filter(claim_query::agreement_id.eq(&current.0.id))
+                                    .select(damage_query::damages::all_columns())
                                     .get_results::<model::Damage>(&mut pool);
                                 let Ok(damages) = damages else {
                                     return methods::standard_replies::internal_server_error_response(

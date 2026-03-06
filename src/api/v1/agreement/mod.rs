@@ -5,6 +5,7 @@ mod check_out;
 mod check_in;
 mod get_upcoming;
 mod get_past;
+mod get;
 
 use warp::Filter;
 
@@ -13,6 +14,7 @@ pub fn api_v1_agreement()
     warp::path("agreement")
         .and(
             new::main()
+                .or(get::main())
                 .or(get_upcoming::main())
                 .or(get_past::main())
                 .or(current::main())

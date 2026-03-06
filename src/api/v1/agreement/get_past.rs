@@ -71,10 +71,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
 
                         let now = chrono::Utc::now();
+                        let six_months_from_now = now - chrono::Duration::days(180);
 
                         use crate::schema::agreements::dsl as agreement_query;
                         let agreements = agreement_query::agreements
                             .filter(agreement_query::renter_id.eq(&access_token.user_id))
+                            .filter(agreement_query::rsvp_pickup_time.ge(&six_months_from_now))
                             .filter(
                                 agreement_query::actual_drop_off_time.is_not_null()
                                     .or(
