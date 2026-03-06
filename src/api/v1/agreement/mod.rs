@@ -15,11 +15,11 @@ pub fn api_v1_agreement()
         .and(
             new::main()
                 .or(current::main())
-                .or(get::main())
                 .or(get_upcoming::main())
                 .or(get_past::main())
                 .or(check_out::main())
                 .or(check_in::main())
+                .or(get::main())
         )
         .and(warp::path::end())
 }
