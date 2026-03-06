@@ -18,7 +18,6 @@ pub struct TripDetailedInfo {
     pub payment_method: model::PublishPaymentMethod,
     pub promo: Option<model::PublishPromo>,
     pub mileage_package: Option<model::MileagePackage>,
-    pub damages: Vec<model::Damage>,
     pub taxes: Vec<model::Tax>,
     pub vehicle_snapshot_after: Option<model::VehicleSnapshot>,
 }

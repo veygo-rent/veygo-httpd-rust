@@ -132,19 +132,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 Ok((reply.into_response(),))
                             },
                             Ok(current) => {
-                                use schema::damages::dsl as damage_query;
-                                use schema::claims::dsl as claim_query;
-                                let damages = claim_query::claims
-                                    .inner_join(damage_query::damages)
-                                    .filter(claim_query::agreement_id.eq(&current.0.id))
-                                    .select(damage_query::damages::all_columns())
-                                    .get_results::<model::Damage>(&mut pool);
-                                let Ok(damages) = damages else {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/current: Database error loading damages"),
-                                    );
-                                };
-                                
                                 use schema::taxes::dsl as tax_query;
                                 use schema::agreements_taxes::dsl as ag_tax_query;
                                 let taxes = ag_tax_query::agreements_taxes
@@ -212,7 +199,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     payment_method: current.4.into(),
                                     promo,
                                     mileage_package,
-                                    damages,
                                     taxes,
                                     vehicle_snapshot_after: None,
                                 };

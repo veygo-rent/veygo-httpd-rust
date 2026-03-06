@@ -213,19 +213,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         );
                     };
 
-                    use schema::damages::dsl as damage_query;
-                    use schema::claims::dsl as claim_query;
-                    let damages = claim_query::claims
-                        .inner_join(damage_query::damages)
-                        .filter(claim_query::agreement_id.eq(&agreement.id))
-                        .select(damage_query::damages::all_columns())
-                        .get_results::<model::Damage>(&mut pool);
-                    let Ok(damages) = damages else {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/current: Database error loading damages"),
-                        );
-                    };
-
                     let detailed_trip = helper_model::TripDetailedInfo {
                         agreement,
                         vehicle: ag_detailed_tup.0.into(),
@@ -235,7 +222,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         payment_method: ag_detailed_tup.3.into(),
                         promo: ag_detailed_tup.4.map(Into::into),
                         mileage_package: ag_detailed_tup.5,
-                        damages,
                         taxes,
                         vehicle_snapshot_after: vs_after,
                     };
