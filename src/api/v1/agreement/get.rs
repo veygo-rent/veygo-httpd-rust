@@ -71,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     use schema::agreements::dsl as ag_q;
                     let agreement = ag_q::agreements
-                        .filter(ag_q::confirmation.eq(&conf_id))
+                        .filter(ag_q::confirmation.eq(conf_id.to_uppercase()))
                         .get_result::<model::Agreement>(&mut pool);
 
                     let agreement = match agreement {
