@@ -360,21 +360,63 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::apartment_not_allowed_response(vehicle_with_location.2.id);
                         }
 
-                        if vehicle_with_location.2.liability_protection_rate.is_none() {
-                            body.liability = false;
-                        }
+                        let ag_lia = match body.liability {
+                            true => {
+                                if let Some(rate) = vehicle_with_location.2.liability_protection_rate {
+                                    Some(rate)
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Liability insurance is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            }
+                            false => {
+                                None
+                            }
+                        };
+
+                        let ag_rsa = match body.rsa {
+                            true => {
+                                if let Some(rate) = vehicle_with_location.2.rsa_protection_rate {
+                                    Some(rate)
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Roadside Assistance is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            }
+                            false => {
+                                None
+                            }
+                        };
+
                         if vehicle_with_location.2.pcdw_protection_rate.is_none() {
                             body.pcdw = false;
                         }
                         if vehicle_with_location.2.pcdw_ext_protection_rate.is_none() {
                             body.pcdw_ext = false;
                         }
-                        if vehicle_with_location.2.rsa_protection_rate.is_none() {
-                            body.rsa = false;
-                        }
-                        if vehicle_with_location.2.pai_protection_rate.is_none() {
-                            body.pai = false;
-                        }
+
+                        let ag_pai = match body.pai {
+                            true => {
+                                if let Some(rate) = vehicle_with_location.2.pai_protection_rate {
+                                    Some(rate)
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Personal Accident Insurance is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            }
+                            false => {
+                                None
+                            }
+                        };
 
                         use crate::schema::payment_methods::dsl as payment_method_query;
                         let pm_result = payment_method_query::payment_methods
@@ -446,8 +488,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                         };
 
-                        let deposit_amount_2dp = (vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor * local_tax_rate_percent
-                            + local_tax_rate_fixed + local_tax_rate_daily).round_dp(2);
+                        let deposit_before_tax = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor;
+
+                        let deposit_amount_2dp = (deposit_before_tax * local_tax_rate_percent + local_tax_rate_fixed + local_tax_rate_daily).round_dp(2);
                         let deposit_amount_in_int = deposit_amount_2dp.mantissa() as i64;
                         let description = "DEP #".to_owned() + &*conf_id.clone();
 
@@ -510,11 +553,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     user_billing_address: billing_address,
                                     rsvp_pickup_time: body.start_time,
                                     rsvp_drop_off_time: body.end_time,
-                                    liability_protection_rate: if body.liability { vehicle_with_location.2.liability_protection_rate } else { None },
+                                    liability_protection_rate: ag_lia,
                                     pcdw_protection_rate: if body.pcdw && vehicle_with_location.2.pcdw_protection_rate.is_some() { Some(vehicle_with_location.2.pcdw_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
                                     pcdw_ext_protection_rate: if body.pcdw_ext && vehicle_with_location.2.pcdw_ext_protection_rate.is_some() { Some(vehicle_with_location.2.pcdw_ext_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
-                                    rsa_protection_rate: if body.rsa { vehicle_with_location.2.rsa_protection_rate } else { None },
-                                    pai_protection_rate: if body.pai { vehicle_with_location.2.pai_protection_rate } else { None },
+                                    rsa_protection_rate: ag_rsa,
+                                    pai_protection_rate: ag_pai,
                                     msrp_factor: vehicle_with_location.0.msrp_factor,
                                     duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
                                     vehicle_id: vehicle_with_location.0.id,
@@ -527,7 +570,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     mileage_conversion: vehicle_with_location.2.mileage_conversion,
                                     mileage_rate_overwrite: vehicle_with_location.2.mileage_rate_overwrite,
                                     mileage_package_overwrite: vehicle_with_location.2.mileage_package_overwrite,
-                                    cancellation_rate: Decimal::zero(),
+                                    cancellation_rate: deposit_before_tax,
                                 };
 
                                 let new_publish_agreement_result = diesel::insert_into(ag_q::agreements)
