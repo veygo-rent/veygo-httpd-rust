@@ -36,7 +36,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(
             async move |method: Method,
-                        mut body: NewAgreementRequestBodyData,
+                        body: NewAgreementRequestBodyData,
                         auth: String,
                         user_agent: String| {
                 if method != Method::POST {
@@ -394,12 +394,43 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        if vehicle_with_location.2.pcdw_protection_rate.is_none() {
-                            body.pcdw = false;
-                        }
-                        if vehicle_with_location.2.pcdw_ext_protection_rate.is_none() {
-                            body.pcdw_ext = false;
-                        }
+                        let (ag_pcdw, ag_pcdw_ext) = match (body.pcdw, body.pcdw_ext) {
+                            (false, false) => { (None, None) },
+                            (true, true) => {
+                                if let Some(pcdw) = vehicle_with_location.2.pcdw_protection_rate &&
+                                    let Some(pcdw_ext) = vehicle_with_location.2.pcdw_ext_protection_rate {
+                                    (Some(pcdw), Some(pcdw_ext))
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Collision Damage Waiver is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            },
+                            (true, false) => {
+                                if let Some(pcdw) = vehicle_with_location.2.pcdw_protection_rate {
+                                    (Some(pcdw), None)
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Partial Collision Damage Waiver is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            },
+                            (false, true) => {
+                                if let Some(pcdw_ext) = vehicle_with_location.2.pcdw_ext_protection_rate {
+                                    (None, Some(pcdw_ext))
+                                } else {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Options Not Allowed"),
+                                        message: String::from("Limited Collision Damage Waiver is not offered at this location. "),
+                                    };
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                }
+                            },
+                        };
 
                         let ag_pai = match body.pai {
                             true => {
@@ -554,8 +585,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     rsvp_pickup_time: body.start_time,
                                     rsvp_drop_off_time: body.end_time,
                                     liability_protection_rate: ag_lia,
-                                    pcdw_protection_rate: if body.pcdw && vehicle_with_location.2.pcdw_protection_rate.is_some() { Some(vehicle_with_location.2.pcdw_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
-                                    pcdw_ext_protection_rate: if body.pcdw_ext && vehicle_with_location.2.pcdw_ext_protection_rate.is_some() { Some(vehicle_with_location.2.pcdw_ext_protection_rate.unwrap() * vehicle_with_location.0.msrp_factor) } else { None },
+                                    pcdw_protection_rate: ag_pcdw,
+                                    pcdw_ext_protection_rate: ag_pcdw_ext,
                                     rsa_protection_rate: ag_rsa,
                                     pai_protection_rate: ag_pai,
                                     msrp_factor: vehicle_with_location.0.msrp_factor,
