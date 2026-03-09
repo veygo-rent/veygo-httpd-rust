@@ -453,10 +453,11 @@ create index verifications_code_idx
 create table taxes
 (
     id              serial,
-    name            varchar(32)         not null,
-    multiplier      numeric(5, 4)       not null,
-    is_sales_tax    boolean             not null,
-    tax_type        tax_type_enum       not null,
+    name            varchar(32)                 not null,
+    multiplier      numeric(5, 4)               not null,
+    is_sales_tax    boolean                     not null,
+    tax_type        tax_type_enum               not null,
+    is_deposit_tax  boolean     default true    not null,
     constraint taxes_pk primary key (id),
     constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0)
 );

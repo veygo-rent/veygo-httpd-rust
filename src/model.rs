@@ -1532,6 +1532,7 @@ pub struct NewTax {
     pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
+    pub is_deposit_tax: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
@@ -1544,6 +1545,7 @@ pub struct Tax {
     pub multiplier: Decimal,
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
+    pub is_deposit_tax: bool,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]

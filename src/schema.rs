@@ -465,6 +465,7 @@ diesel::table! {
         multiplier -> Numeric,
         is_sales_tax -> Bool,
         tax_type -> TaxTypeEnum,
+        is_deposit_tax -> Bool,
     }
 }
 

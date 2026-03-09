@@ -499,15 +499,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut local_tax_rate_fixed = Decimal::zero();
 
                         for tax_obj in &taxes {
-                            match tax_obj.tax_type {
-                                model::TaxType::Percent => {
-                                    local_tax_rate_percent += tax_obj.multiplier;
-                                },
-                                model::TaxType::Daily => {
-                                    local_tax_rate_daily += tax_obj.multiplier;
-                                }
-                                model::TaxType::Fixed => {
-                                    local_tax_rate_fixed += tax_obj.multiplier;
+                            if tax_obj.is_deposit_tax {
+                                match tax_obj.tax_type {
+                                    model::TaxType::Percent => {
+                                        local_tax_rate_percent += tax_obj.multiplier;
+                                    },
+                                    model::TaxType::Daily => {
+                                        local_tax_rate_daily += tax_obj.multiplier;
+                                    }
+                                    model::TaxType::Fixed => {
+                                        local_tax_rate_fixed += tax_obj.multiplier;
+                                    }
                                 }
                             }
                         }
