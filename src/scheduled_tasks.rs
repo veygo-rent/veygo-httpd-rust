@@ -226,14 +226,19 @@ pub async fn nightly_task() {
         let now = Utc::now();
         // Delete expired tokens
         use crate::schema::access_tokens::dsl as at_q;
-        diesel::delete(
+        let _ = diesel::delete(
             at_q::access_tokens.filter(at_q::exp.lt(now))
-        ).execute(&mut pool).unwrap();
+        ).execute(&mut pool);
         // Delete expired verifications
         use crate::schema::verifications::dsl as v_q;
-        diesel::delete(
+        let _ = diesel::delete(
             v_q::verifications.filter(v_q::expires_at.lt(now))
-        ).execute(&mut pool).unwrap();
+        ).execute(&mut pool);
+        // Delete expired rate offers
+        use crate::schema::rate_offers::dsl as ro_q;
+        let _ = diesel::delete(
+            ro_q::rate_offers.filter(ro_q::exp.lt(now))
+        ).execute(&mut pool);
         println!("===== Daily Tasks Completed =====");
     }
 }

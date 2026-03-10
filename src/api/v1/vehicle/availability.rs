@@ -186,6 +186,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             vehicle: model::PublishRenterVehicle,
                             blocked_durations: Vec<BlockedRange>,
                         }
+                        impl VehicleWithBlockedDurations {
+                            fn is_vehicle_available(&self, start_time: DateTime<Utc>, end_time: DateTime<Utc>) -> bool {
+                                for blocked in &self.blocked_durations {
+                                    if start_time < blocked.end_time && end_time > blocked.start_time {
+                                        return false;
+                                    }
+                                }
+                                true
+                            }
+                        }
                         #[derive(
                             Serialize, Deserialize,
                         )]
@@ -245,7 +255,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             });
                             (&mut entry.vehicles).push(VehicleWithBlockedDurations { vehicle: vehicle.into(), blocked_durations });
                         }
-                        let locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
+                        let mut locations_with_vehicles: Vec<LocationWithVehicles> = vehicles_by_location.into_values().collect();
+
+                        for location_with_vehicles in &mut locations_with_vehicles {
+                            location_with_vehicles.vehicles.sort_by(|a, b| {
+                                let a_available = a.is_vehicle_available(body.start_time, body.end_time);
+                                let b_available = b.is_vehicle_available(body.start_time, body.end_time);
+
+                                b_available
+                                    .cmp(&a_available)
+                                    .then_with(|| a.vehicle.id.cmp(&b.vehicle.id))
+                            });
+                        }
                         // RETURN: OK
                         #[derive(
                             Serialize, Deserialize,
