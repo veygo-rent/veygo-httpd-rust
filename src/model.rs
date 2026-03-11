@@ -62,6 +62,7 @@ pub enum PolicyType {
     Rental,
     Privacy,
     Membership,
+    Usage
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
@@ -167,6 +168,7 @@ impl ToSql<sql_types::PolicyEnum, Pg> for PolicyType {
             PolicyType::Rental => out.write_all(b"rental")?,
             PolicyType::Privacy => out.write_all(b"privacy")?,
             PolicyType::Membership => out.write_all(b"membership")?,
+            PolicyType::Usage => out.write_all(b"usage")?,
         }
         Ok(serialize::IsNull::No)
     }
@@ -178,6 +180,7 @@ impl FromSql<sql_types::PolicyEnum, Pg> for PolicyType {
             b"rental" => Ok(PolicyType::Rental),
             b"privacy" => Ok(PolicyType::Privacy),
             b"membership" => Ok(PolicyType::Membership),
+            b"usage" => Ok(PolicyType::Usage),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

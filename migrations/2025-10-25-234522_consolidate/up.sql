@@ -6,7 +6,7 @@ create type remote_mgmt_enum as enum ('revers', 'geotab', 'tesla', 'none');
 create type agreement_status_enum as enum ('Rental', 'Void', 'Canceled');
 create type payment_type_enum as enum ('canceled', 'requires_capture', 'requires_payment_method', 'succeeded', 'veygo.bad_debt', 'veygo.insurance');
 create type audit_action_enum as enum('create', 'read', 'update', 'delete');
-create type policy_enum as enum('rental', 'privacy', 'membership');
+create type policy_enum as enum('rental', 'privacy', 'membership', 'usage');
 create type tax_type_enum as enum('percent', 'daily', 'fixed');
 
 create type us_address as
