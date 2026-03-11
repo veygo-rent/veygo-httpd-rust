@@ -21,14 +21,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let Some(raw_policy_str) = raw_policy_str else {
                     return methods::standard_replies::bad_request("unknown policy type");
                 };
-                let raw_policy_str = raw_policy_str.clone();
-                if raw_policy_str.eq(&String::from("Rental")) || raw_policy_str.eq(&String::from("rental")) {
+                let raw_policy_str = raw_policy_str.clone().to_lowercase();
+                if raw_policy_str.eq(&String::from("rental")) {
                     model::PolicyType::Rental
-                } else if raw_policy_str.eq(&String::from("Privacy")) || raw_policy_str.eq(&String::from("privacy")) {
+                } else if raw_policy_str.eq(&String::from("privacy")) {
                     model::PolicyType::Privacy
-                } else if raw_policy_str.eq(&String::from("Membership")) || raw_policy_str.eq(&String::from("membership")) {
+                } else if raw_policy_str.eq(&String::from("membership")) {
                     model::PolicyType::Membership
-                } else if raw_policy_str.eq(&String::from("Usage")) || raw_policy_str.eq(&String::from("usage")) {
+                } else if raw_policy_str.eq(&String::from("usage")) {
                     model::PolicyType::Usage
                 } else {
                     return methods::standard_replies::bad_request("unknown policy type");
