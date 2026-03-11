@@ -28,6 +28,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     model::PolicyType::Privacy
                 } else if raw_policy_str.eq(&String::from("Membership")) || raw_policy_str.eq(&String::from("membership")) {
                     model::PolicyType::Membership
+                } else if raw_policy_str.eq(&String::from("Usage")) || raw_policy_str.eq(&String::from("usage")) {
+                    model::PolicyType::Usage
                 } else {
                     return methods::standard_replies::bad_request("unknown policy type");
                 }
