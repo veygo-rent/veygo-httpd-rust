@@ -7,6 +7,7 @@ use warp::http::{StatusCode, Method};
 use warp::reply::with_status;
 use warp::{Filter, Reply};
 use crate::helper_model::VeygoError;
+use crate::integration::stripe_veygo;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct UpdateApartmentBody {
@@ -104,7 +105,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return match apartment_result {
                             Ok(apartment) => {
                                 if !email_belongs_to_domain(&body.student_email, &apartment.accepted_school_email_domain) {
-                                    let error_msg = helper_model::ErrorResponse{
+                                    let error_msg = helper_model::ErrorResponse {
                                         title: String::from("Email Error"),
                                         message: String::from("Your email is not accepted by Veygo. "),
                                     };
@@ -116,6 +117,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let Ok(mut renter) = renter else {
                                     return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Database error loading renter"))
                                 };
+
+                                let stripe_result = stripe_veygo::update_stripe_customer_email(&renter.stripe_id, &body.student_email).await;
+                                if stripe_result.is_err() {
+                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Stripe error updating email"))
+                                }
 
                                 renter.student_email = body.student_email.clone();
                                 renter.apartment_id = body.apartment_id.clone();

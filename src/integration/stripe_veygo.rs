@@ -15,7 +15,7 @@ use stripe_core::setup_intent::{
     CreateSetupIntent, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects
 };
 use stripe_core::refund::{CreateRefund};
-use stripe_core::customer::{CreateCustomer};
+use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
 
 use stripe_core::{PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer, SetupIntentStatus};
 
@@ -97,6 +97,47 @@ pub async fn create_stripe_customer(
         .name(name_data)
         .email(email_data)
         .phone(phone_data)
+        .send(client)
+        .await;
+
+    match result {
+        Ok(cus) => { Ok(cus) }
+        Err(_) => { Err(helper_model::VeygoError::InternalServerError) }
+    }
+}
+
+pub async fn update_stripe_customer_email(
+    customer_id: &str,
+    email_data: &String,
+) -> Result<Customer, helper_model::VeygoError> {
+    let client = stripe_client().await;
+    let result = UpdateCustomer::new(customer_id)
+        .email(email_data)
+        .send(client)
+        .await;
+
+    match result {
+        Ok(cus) => { Ok(cus) }
+        Err(_) => { Err(helper_model::VeygoError::InternalServerError) }
+    }
+}
+
+#[allow(dead_code)]
+pub async fn update_stripe_customer_address(
+    customer_id: &str,
+    address: model::UsAddress
+) -> Result<Customer, helper_model::VeygoError> {
+    let client = stripe_client().await;
+    let address_parsed = OptionalFieldsCustomerAddress {
+        city: Some(address.city),
+        country: Some(String::from("United States")),
+        line1: Some(address.street_address),
+        line2: address.extended_address,
+        postal_code: Some(address.zipcode),
+        state: Some(address.state),
+    };
+    let result = UpdateCustomer::new(customer_id)
+        .address(address_parsed)
         .send(client)
         .await;
 
