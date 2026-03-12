@@ -1,5 +1,6 @@
+use diesel::prelude::*;
 use http::StatusCode;
-use crate::{methods, model};
+use crate::{methods, model, POOL};
 use warp::{Filter, Reply, http::Method};
 use crate::helper_model::VeygoError;
 
@@ -66,6 +67,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match result {
                             Ok(is_renewed) => {
                                 if is_renewed {
+                                    use crate::schema::access_tokens::dsl as at_q;
+                                    let mut pool = POOL.get().unwrap();
+                                    let _ = diesel::delete(
+                                        at_q::access_tokens
+                                            .filter(at_q::user_id.eq(&user_id))
+                                            .filter(at_q::type_.eq(model::TokenType::Admin))
+                                            .filter(at_q::id.ne(&token.1))
+                                    ).execute(&mut pool);
                                     methods::standard_replies::response_with_obj::<model::PublishRenter>(user.into(), StatusCode::OK)
                                 } else {
                                     methods::standard_replies::internal_server_error_response(
