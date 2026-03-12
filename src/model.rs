@@ -57,6 +57,13 @@ pub enum TaxType {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
+#[diesel(sql_type = sql_types::TokenTypeEnum)]
+pub enum TokenType {
+    User,
+    Admin,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, AsExpression, FromSqlRow)]
 #[diesel(sql_type = sql_types::PolicyEnum)]
 pub enum PolicyType {
     Rental,
@@ -181,6 +188,26 @@ impl FromSql<sql_types::PolicyEnum, Pg> for PolicyType {
             b"privacy" => Ok(PolicyType::Privacy),
             b"membership" => Ok(PolicyType::Membership),
             b"usage" => Ok(PolicyType::Usage),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<sql_types::TokenTypeEnum, Pg> for TokenType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            TokenType::User => out.write_all(b"user")?,
+            TokenType::Admin => out.write_all(b"admin")?,
+        }
+        Ok(serialize::IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::TokenTypeEnum, Pg> for TokenType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"user" => Ok(TokenType::User),
+            b"admin" => Ok(TokenType::Admin),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
@@ -1430,6 +1457,7 @@ pub struct AccessToken {
     pub token: Vec<u8>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
+    pub type_: TokenType,
 }
 
 #[derive(Deserialize, Insertable, Debug, Clone, PartialEq, Eq)]
@@ -1441,6 +1469,7 @@ pub struct NewAccessToken {
     pub token: Vec<u8>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
+    pub type_: TokenType,
 }
 
 impl AccessToken {

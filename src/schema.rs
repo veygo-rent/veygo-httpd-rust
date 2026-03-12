@@ -38,6 +38,10 @@ pub mod sql_types {
     pub struct TaxTypeEnum;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "token_type_enum"))]
+    pub struct TokenTypeEnum;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "us_address"))]
     pub struct UsAddress;
 
@@ -47,11 +51,16 @@ pub mod sql_types {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TokenTypeEnum;
+
     access_tokens (id) {
         id -> Int4,
         user_id -> Int4,
         token -> Bytea,
         exp -> Timestamptz,
+        #[sql_name = "type"]
+        type_ -> TokenTypeEnum,
     }
 }
 

@@ -14,7 +14,7 @@ async fn generate_unique_token() -> Vec<u8> {
     token_vec
 }
 
-pub async fn gen_token_object(user_id: &i32, user_agent: &String) -> model::NewAccessToken {
+pub async fn gen_token_object(user_id: &i32, user_agent: &String, token_type: model::TokenType) -> model::NewAccessToken {
     let exp: DateTime<Utc> = if user_agent.contains("veygo") {
         Utc::now().add(chrono::Duration::days(28))
     } else {
@@ -24,6 +24,7 @@ pub async fn gen_token_object(user_id: &i32, user_agent: &String) -> model::NewA
         user_id: *user_id,
         token: generate_unique_token().await,
         exp,
+        type_: token_type,
     }
 }
 
@@ -119,7 +120,7 @@ pub fn rm_token(token: Vec<u8>, user_id: i32) {
     let mut pool = POOL.get().unwrap();
     let _ = diesel::delete(
         at_q::access_tokens
-            .filter(at_q::token.eq(&token))
             .filter(at_q::user_id.eq(&user_id))
+            .filter(at_q::token.eq(&token))
     ).execute(&mut pool);
 }

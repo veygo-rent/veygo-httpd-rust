@@ -4,7 +4,7 @@ use warp::http::{StatusCode, Method};
 use warp::reply::with_status;
 
 pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
-    warp::path("remove-token")
+    warp::path("token")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))

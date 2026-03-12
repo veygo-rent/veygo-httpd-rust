@@ -31,11 +31,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     if verify(&login_data.password, &renter.password).unwrap_or(false) {
                         // user and password are verified
                         let user_id_data = renter.id;
-                        let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
+                        let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent, model::TokenType::User).await;
                         let mut pool = POOL.get().unwrap();
-                        use crate::schema::access_tokens::dsl::*;
-                        let _ = diesel::delete(access_tokens.filter(user_id.eq(&user_id_data))).execute(&mut pool);
-                        let insert_token_result = diesel::insert_into(access_tokens)
+                        use crate::schema::access_tokens::dsl as at_q;
+                        let _ = diesel::delete(
+                            at_q::access_tokens
+                                .filter(at_q::user_id.eq(&user_id_data))
+                                .filter(at_q::type_.eq(model::TokenType::User))
+                        ).execute(&mut pool);
+                        let insert_token_result = diesel::insert_into(at_q::access_tokens)
                             .values(&new_access_token)
                             .get_result::<model::AccessToken>(&mut pool) // Get the inserted Renter 
                             .unwrap();

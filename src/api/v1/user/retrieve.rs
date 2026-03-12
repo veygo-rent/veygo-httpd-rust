@@ -77,8 +77,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut pool = POOL.get().unwrap();
                         let _ = diesel::delete(
                             at_q::access_tokens
-                                .filter(at_q::user_id.eq(&user_id))
-                                .filter(at_q::id.ne(&valid_token.1))
+                                .find(&valid_token.1)
                         ).execute(&mut pool);
                         methods::standard_replies::response_with_obj(user, http::StatusCode::OK)
                     }

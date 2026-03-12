@@ -184,7 +184,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     };
 
                                     let user_id_data = renter.id;
-                                    let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent).await;
+                                    let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent, model::TokenType::User).await;
                                     use crate::schema::access_tokens::dsl::*;
                                     let insert_token_result = diesel::insert_into(access_tokens)
                                         .values(&new_access_token)

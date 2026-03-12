@@ -8,6 +8,7 @@ create type payment_type_enum as enum ('canceled', 'requires_capture', 'requires
 create type audit_action_enum as enum('create', 'read', 'update', 'delete');
 create type policy_enum as enum('rental', 'privacy', 'membership', 'usage');
 create type tax_type_enum as enum('percent', 'daily', 'fixed');
+create type token_type_enum as enum('user', 'admin');
 
 create type us_address as
     (
@@ -197,9 +198,10 @@ create index renters_name_idx
 create table access_tokens
 (
     id      serial,
-    user_id integer                  not null,
-    token   bytea                    not null,
-    exp     timestamp with time zone not null,
+    user_id integer                                                         not null,
+    token   bytea                                                           not null,
+    exp     timestamp with time zone                                        not null,
+    type    token_type_enum             default 'user'::token_type_enum     not null,
     constraint access_tokens_pk primary key (id),
     constraint access_tokens_user_id_fk foreign key (user_id) references renters(id)
 );
