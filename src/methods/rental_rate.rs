@@ -43,8 +43,9 @@ pub fn calculate_duration_after_reward ( raw_duration: TimeDelta, reward_hours: 
 }
 
 pub fn billable_days_count ( raw_duration: TimeDelta ) -> i32 {
-    let bill_hours = calculate_billable_duration_hours(raw_duration);
-    (bill_hours / Decimal::new(24, 0)).ceil().to_i32().unwrap()
+    // Billable days are based on the actual trip duration, not the discounted billable hours.
+    let actual_hours: Decimal = Decimal::new(raw_duration.num_minutes(), 0) / Decimal::new(60, 0);
+    (actual_hours / Decimal::new(24, 0)).ceil().to_i32().unwrap()
 }
 
 pub fn calculate_late_hours (supposed: DateTime<Utc>, actual: DateTime<Utc> ) -> Decimal {
