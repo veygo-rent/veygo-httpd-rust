@@ -66,6 +66,14 @@ pub struct CheckInRequest {
     pub vehicle_snapshot_id: i32,
 }
 
+#[derive(Serialize, Debug, Clone)]
+pub struct RewardHoursSummaryResponse {
+    #[serde(with = "rust_decimal::serde::str")]
+    pub total: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub used: Decimal,
+}
+
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum VeygoError {

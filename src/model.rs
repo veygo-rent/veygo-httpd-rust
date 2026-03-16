@@ -500,7 +500,8 @@ pub struct Renter {
     pub subscription_payment_method_id: Option<i32>,
     pub apple_apns: Option<String>,
     pub admin_apple_apns: Option<String>,
-    pub requires_secondary_driver_lic: bool
+    pub requires_secondary_driver_lic: bool,
+    pub plan_total_availability: Decimal,
 }
 
 impl From<Renter> for PublishRenter {
@@ -537,6 +538,7 @@ impl From<Renter> for PublishRenter {
             employee_tier: renter.employee_tier,
             subscription_payment_method_id: renter.subscription_payment_method_id,
             requires_secondary_driver_lic: renter.requires_secondary_driver_lic,
+            plan_total_availability: renter.plan_total_availability,
         }
     }
 }
@@ -575,10 +577,12 @@ pub struct PublishRenter {
     pub is_plan_annual: bool,
     pub employee_tier: EmployeeTier,
     pub subscription_payment_method_id: Option<i32>,
-    pub requires_secondary_driver_lic: bool
+    pub requires_secondary_driver_lic: bool,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub plan_total_availability: Decimal,
 }
 
-#[derive(Insertable, Debug, Clone, Deserialize)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -593,6 +597,7 @@ pub struct NewRenter {
     pub plan_renewal_day: String,
     pub plan_expire_month_year: String,
     pub employee_tier: EmployeeTier,
+    pub plan_total_availability: Decimal,
 }
 
 #[derive(

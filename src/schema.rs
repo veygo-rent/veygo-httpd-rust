@@ -417,6 +417,7 @@ diesel::table! {
         apple_apns -> Nullable<Text>,
         admin_apple_apns -> Nullable<Text>,
         requires_secondary_driver_lic -> Bool,
+        plan_total_availability -> Numeric,
     }
 }
 

@@ -171,6 +171,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         plan_renewal_day: plan_renewal_day_string,
                                         plan_expire_month_year: plan_expire_month_year_string,
                                         employee_tier: emp_tier,
+                                        plan_total_availability: apartment.free_tier_hours,
                                     };
 
                                     let renter = diesel::insert_into(renters)

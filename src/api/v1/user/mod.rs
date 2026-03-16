@@ -10,6 +10,7 @@ mod update_apns;
 mod update_phone;
 mod upload_file;
 mod verify_promo;
+mod get_reward_hours;
 
 use warp::Filter;
 
@@ -29,6 +30,7 @@ pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp:
                 .or(update_apns::main())
                 .or(get::main())
                 .or(verify_promo::main())
+                .or(get_reward_hours::main())
         )
         .and(warp::path::end())
 }
