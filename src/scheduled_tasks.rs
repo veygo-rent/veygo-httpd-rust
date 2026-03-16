@@ -74,49 +74,65 @@ pub async fn nightly_task() {
             let description;
             let mut rent = match renter.plan_tier {
                 model::PlanTier::Platinum => {
-                    if let Some(rent) = apartment.platinum_tier_rate {
+                    if let Some(rent) = apartment.platinum_tier_rate &&
+                        let Some(duration) = apartment.platinum_tier_hours {
                         description = String::from("PLAT TIER SUBS");
+                        renter.plan_total_availability = duration;
                         rent
-                    } else if let Some(rent) = apartment.gold_tier_rate {
+                    } else if let Some(rent) = apartment.gold_tier_rate &&
+                        let Some(duration) = apartment.gold_tier_hours {
                         description = String::from("GOLD TIER SUBS");
+                        renter.plan_total_availability = duration;
                         renter.plan_tier = model::PlanTier::Gold;
                         rent
-                    } else if let Some(rent) = apartment.silver_tier_hours {
+                    } else if let Some(rent) = apartment.silver_tier_rate &&
+                        let Some(duration) = apartment.silver_tier_hours {
                         description = String::from("SILVER TIER SUBS");
+                        renter.plan_total_availability = duration;
                         renter.plan_tier = model::PlanTier::Silver;
                         rent
                     } else {
                         renter.plan_tier = model::PlanTier::Free;
                         description = String::from("FREE TIER SUBS");
+                        renter.plan_total_availability = apartment.free_tier_hours;
                         Decimal::zero()
                     }
                 }
                 model::PlanTier::Gold => {
-                    if let Some(rent) = apartment.gold_tier_rate {
+                    if let Some(rent) = apartment.gold_tier_rate &&
+                        let Some(duration) = apartment.gold_tier_hours {
                         description = String::from("GOLD TIER SUBS");
+                        renter.plan_total_availability = duration;
                         rent
-                    } else if let Some(rent) = apartment.silver_tier_hours {
+                    } else if let Some(rent) = apartment.silver_tier_rate &&
+                        let Some(duration) = apartment.silver_tier_hours {
                         description = String::from("SILVER TIER SUBS");
+                        renter.plan_total_availability = duration;
                         renter.plan_tier = model::PlanTier::Silver;
                         rent
                     } else {
                         renter.plan_tier = model::PlanTier::Free;
                         description = String::from("FREE TIER SUBS");
+                        renter.plan_total_availability = apartment.free_tier_hours;
                         Decimal::zero()
                     }
                 }
                 model::PlanTier::Silver => {
-                    if let Some(rent) = apartment.silver_tier_hours {
+                    if let Some(rent) = apartment.silver_tier_rate &&
+                        let Some(duration) = apartment.silver_tier_hours {
                         description = String::from("SILVER TIER SUBS");
+                        renter.plan_total_availability = duration;
                         rent
                     } else {
                         renter.plan_tier = model::PlanTier::Free;
                         description = String::from("FREE TIER SUBS");
+                        renter.plan_total_availability = apartment.free_tier_hours;
                         Decimal::zero()
                     }
                 }
                 model::PlanTier::Free => {
                     description = String::from("FREE TIER SUBS");
+                    renter.plan_total_availability = apartment.free_tier_hours;
                     Decimal::zero()
                 }
             };
@@ -194,6 +210,7 @@ pub async fn nightly_task() {
                                 VeygoError::CardDeclined => {
                                     // Downgrade plan
                                     renter.plan_tier = model::PlanTier::Free;
+                                    renter.plan_total_availability = apartment.free_tier_hours;
 
                                     // Downgrade email
                                     integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
@@ -207,9 +224,10 @@ pub async fn nightly_task() {
                 } else {
                     // Downgrade plan
                     renter.plan_tier = model::PlanTier::Free;
+                    renter.plan_total_availability = apartment.free_tier_hours;
 
                     // Downgrade email
-                    integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                    integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to missing payment method. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
                 }
             }
 
