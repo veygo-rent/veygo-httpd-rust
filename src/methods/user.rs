@@ -1,6 +1,5 @@
 use std::option::Option;
-use crate::POOL;
-use crate::model;
+use crate::{POOL, model, schema};
 use crate::helper_model::VeygoError;
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use diesel::prelude::*;
@@ -12,7 +11,11 @@ impl model::Renter {
     }
     
     pub fn get_university_apartment (&self) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
-        get_university_apartment_by_renter(self)
+        let result = get_university_apartment_by_renter(self);
+        match result {
+            Ok(res) => { Ok(res) }
+            Err(_) => { Err(VeygoError::InternalServerError) }
+        }
     }
     
     pub fn get_dnr_records (&self) -> Result<Vec<model::DoNotRentList>, VeygoError> {
@@ -35,6 +38,35 @@ impl model::Renter {
         user_is_operational_manager(self)
     }
 
+    pub fn is_authorized_for (&self, apartment: &model::Apartment) -> Result<bool, VeygoError> {
+        if self.is_operational_admin() {
+            return Ok(true);
+        }
+
+        let result = self.get_university_apartment();
+
+        let (user_university, user_apartment) = match result {
+            Ok( res ) => { res }
+            Err(_) => { return Err(VeygoError::InternalServerError) }
+        };
+
+        if apartment.uni_id == 1 {
+            // Target is a university
+            if apartment.is_public {
+                return Ok(true);
+            }
+
+            return Ok(user_university.id == apartment.id);
+        }
+
+        // Target is an actual apartment
+        if let Some(ref own_apartment) = user_apartment {
+            return Ok(own_apartment.id == apartment.id);
+        }
+
+        Ok(false)
+    }
+
     pub fn is_email_verified (&self) -> bool {
         if let Some(email_expiration) = self.student_email_expiration {
             let today = Utc::now().date_naive();
@@ -50,7 +82,7 @@ impl model::Renter {
         let today = Utc::now().date_naive();
 
         // Run the database check on a blocking thread
-        use crate::schema::do_not_rent_lists::dsl::*;
+        use schema::do_not_rent_lists::dsl::*;
 
         let result = do_not_rent_lists
             .filter(
@@ -102,7 +134,7 @@ fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentLis
     let today = Utc::now().date_naive();
 
     // Run the database check on a blocking thread
-    use crate::schema::do_not_rent_lists::dsl::*;
+    use schema::do_not_rent_lists::dsl::*;
 
     let result = do_not_rent_lists
         .filter(
@@ -128,7 +160,7 @@ fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentLis
 
 fn get_university_apartment_by_renter(renter: &model::Renter) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
     let mut pool = POOL.get().unwrap();
-    use crate::schema::apartments::dsl::*;
+    use schema::apartments::dsl::*;
     let immediate_record = apartments.find(&renter.apartment_id).get_result::<model::Apartment>(&mut pool);
     if immediate_record.is_err() {
         let e = immediate_record.err().unwrap();

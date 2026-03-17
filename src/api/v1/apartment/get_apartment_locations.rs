@@ -5,7 +5,7 @@ use warp::{Filter, Reply};
 use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("get-apartment-locations" / i32)
+    warp::path!("locations" / i32)
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))

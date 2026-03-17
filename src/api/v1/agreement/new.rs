@@ -8,6 +8,7 @@ use stripe_core::{PaymentIntentCaptureMethod};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use rust_decimal::prelude::*;
+use crate::helper_model::VeygoError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct NewAgreementRequestBodyData {
@@ -149,7 +150,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         use crate::schema::apartments::dsl as apartment_query;
                         let renter_apt = apartment_query::apartments
                             .find(&user_in_request.apartment_id)
-                            .get_result::<model::Apartment>(&mut pool);
+                            .select(apartment_query::uni_id)
+                            .get_result::<i32>(&mut pool);
 
                         let Ok(renter_apt) = renter_apt else {
                             return methods::standard_replies::internal_server_error_response(
@@ -157,14 +159,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                         };
 
-                        if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.is_none() {
+                        if renter_apt != 1 && user_in_request.lease_agreement_expiration.is_none() {
                             let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                                 title: String::from("Booking Not Allowed"),
                                 message: String::from("Your lease agreement is not verified. Please submit your lease agreement. "),
                             };
                             return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
                         }
-                        if renter_apt.uni_id != 1 && user_in_request.lease_agreement_expiration.unwrap() <= return_date {
+                        if renter_apt != 1 && user_in_request.lease_agreement_expiration.unwrap() <= return_date {
                             let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                                 title: String::from("Booking Not Allowed"),
                                 message: String::from("Your lease agreement expires before trip ends. Please re-submit your lease agreement. "),
@@ -245,7 +247,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                             .get_result::<(model::Vehicle, model::Location, model::Apartment)>(&mut pool);
 
-                        let vehicle_with_location = match vehicle_result {
+                        let (req_vehicle, req_location, req_apt) = match vehicle_result {
                             Ok(result) => {
                                 result
                             }
@@ -333,14 +335,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                     // check if the promo code is for a specific apartment
                                     if let Some(specified_apartment_id) = promo.apt_id &&
-                                        !(vehicle_with_location.2.id == specified_apartment_id && vehicle_with_location.2.uni_id != 1)
+                                        !(req_apt.id == specified_apartment_id && req_apt.uni_id != 1)
                                     {
                                         return methods::standard_replies::promo_code_not_allowed_response(&code);
                                     }
                                     // check if the promo code is for a specific university
                                     if let Some(specified_uni_id) = promo.uni_id &&
-                                        !(vehicle_with_location.2.id == specified_uni_id && vehicle_with_location.2.uni_id == 1 ||
-                                            vehicle_with_location.2.uni_id == specified_uni_id)
+                                        !(req_apt.id == specified_uni_id && req_apt.uni_id == 1 ||
+                                            req_apt.uni_id == specified_uni_id)
                                     {
                                         return methods::standard_replies::promo_code_not_allowed_response(&code);
                                     }
@@ -350,19 +352,23 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        if vehicle_with_location.2.id <= 1 {
-                            // RETURN: FORBIDDEN
-                            return methods::standard_replies::apartment_not_allowed_response(vehicle_with_location.2.id);
-                        }
+                        let is_auth = user_in_request.is_authorized_for(&req_apt);
+                        let is_auth = match is_auth {
+                            Ok(is_auth) => { is_auth }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/new: Database error loading authorization")
+                                )
+                            }
+                        };
 
-                        if vehicle_with_location.2.uni_id != 1 && !user_in_request.is_operational_admin() && user_in_request.apartment_id != vehicle_with_location.2.id {
-                            // RETURN: FORBIDDEN
-                            return methods::standard_replies::apartment_not_allowed_response(vehicle_with_location.2.id);
+                        if !is_auth {
+                            return methods::standard_replies::apartment_not_allowed_response(req_apt.id);
                         }
 
                         let ag_lia = match body.liability {
                             true => {
-                                if let Some(rate) = vehicle_with_location.2.liability_protection_rate {
+                                if let Some(rate) = req_apt.liability_protection_rate {
                                     Some(rate)
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -379,7 +385,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let ag_rsa = match body.rsa {
                             true => {
-                                if let Some(rate) = vehicle_with_location.2.rsa_protection_rate {
+                                if let Some(rate) = req_apt.rsa_protection_rate {
                                     Some(rate)
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -397,8 +403,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let (ag_pcdw, ag_pcdw_ext) = match (body.pcdw, body.pcdw_ext) {
                             (false, false) => { (None, None) },
                             (true, true) => {
-                                if let Some(pcdw) = vehicle_with_location.2.pcdw_protection_rate &&
-                                    let Some(pcdw_ext) = vehicle_with_location.2.pcdw_ext_protection_rate {
+                                if let Some(pcdw) = req_apt.pcdw_protection_rate &&
+                                    let Some(pcdw_ext) = req_apt.pcdw_ext_protection_rate {
                                     (Some(pcdw), Some(pcdw_ext))
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -409,7 +415,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             },
                             (true, false) => {
-                                if let Some(pcdw) = vehicle_with_location.2.pcdw_protection_rate {
+                                if let Some(pcdw) = req_apt.pcdw_protection_rate {
                                     (Some(pcdw), None)
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -420,7 +426,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             },
                             (false, true) => {
-                                if let Some(pcdw_ext) = vehicle_with_location.2.pcdw_ext_protection_rate {
+                                if let Some(pcdw_ext) = req_apt.pcdw_ext_protection_rate {
                                     (None, Some(pcdw_ext))
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -434,7 +440,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let ag_pai = match body.pai {
                             true => {
-                                if let Some(rate) = vehicle_with_location.2.pai_protection_rate {
+                                if let Some(rate) = req_apt.pai_protection_rate {
                                     Some(rate)
                                 } else {
                                     let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
@@ -484,7 +490,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let taxes = apartments_taxes_query::apartments_taxes
                             .inner_join(t_q::taxes)
-                            .filter(apartments_taxes_query::apartment_id.eq(&vehicle_with_location.2.id))
+                            .filter(apartments_taxes_query::apartment_id.eq(&req_apt.id))
                             .select(t_q::taxes::all_columns())
                             .get_results::<model::Tax>(&mut pool);
 
@@ -521,7 +527,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                         };
 
-                        let deposit_before_tax = vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor;
+                        let deposit_before_tax = req_apt.duration_rate * req_vehicle.msrp_factor;
 
                         let deposit_amount_2dp = (deposit_before_tax * local_tax_rate_percent + local_tax_rate_fixed + local_tax_rate_daily).round_dp(2);
                         let deposit_amount_in_int = deposit_amount_2dp.mantissa() as i64;
@@ -591,18 +597,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     pcdw_ext_protection_rate: ag_pcdw_ext,
                                     rsa_protection_rate: ag_rsa,
                                     pai_protection_rate: ag_pai,
-                                    msrp_factor: vehicle_with_location.0.msrp_factor,
-                                    duration_rate: vehicle_with_location.2.duration_rate * vehicle_with_location.0.msrp_factor,
-                                    vehicle_id: vehicle_with_location.0.id,
+                                    msrp_factor: req_vehicle.msrp_factor,
+                                    duration_rate: req_apt.duration_rate * req_vehicle.msrp_factor,
+                                    vehicle_id: req_vehicle.id,
                                     renter_id: user_in_request.id,
                                     payment_method_id: body.payment_id,
                                     promo_id: verified_promo,
                                     manual_discount: None,
-                                    location_id: vehicle_with_location.1.id,
+                                    location_id: req_location.id,
                                     mileage_package_id: body.mileage_package_id,
-                                    mileage_conversion: vehicle_with_location.2.mileage_conversion,
-                                    mileage_rate_overwrite: vehicle_with_location.2.mileage_rate_overwrite,
-                                    mileage_package_overwrite: vehicle_with_location.2.mileage_package_overwrite,
+                                    mileage_conversion: req_apt.mileage_conversion,
+                                    mileage_rate_overwrite: req_apt.mileage_rate_overwrite,
+                                    mileage_package_overwrite: req_apt.mileage_package_overwrite,
                                     cancellation_rate: deposit_before_tax,
                                 };
 

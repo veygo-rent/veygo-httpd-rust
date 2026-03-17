@@ -1,16 +1,21 @@
-use crate::{POOL, methods, model};
-use diesel::{RunQueryDsl};
-use warp::http::StatusCode;
-use warp::{Filter, Reply};
+use std::collections::HashMap;
+use crate::{POOL, methods, model, schema, helper_model};
+use diesel::prelude::*;
+use diesel::result::Error;
+use warp::{Filter, Reply, http::{StatusCode, Method}};
 use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("get-taxes")
+    warp::path("taxes")
+        .and(warp::query::<HashMap<String, String>>())
         .and(warp::path::end())
-        .and(warp::get())
+        .and(warp::method())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |auth: String, user_agent: String| {
+        .and_then(async move |query: HashMap<String, String>, method: Method, auth: String, user_agent: String| {
+            if method != Method::GET {
+                return methods::standard_replies::method_not_allowed_response();
+            }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
                 return methods::tokens::token_invalid_return();
@@ -66,36 +71,124 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                     }
 
-                    let admin = methods::user::get_user_by_id(&access_token.user_id)
+                    let user = methods::user::get_user_by_id(&access_token.user_id)
                         .await;
 
-                    let Ok(admin) = admin else {
+                    let Ok(user) = user else {
                         return methods::standard_replies::internal_server_error_response(
                             String::from("apartment/get-taxes: Database error loading admin user")
                         );
                     };
 
-                    if !admin.is_operational_manager() {
-                        return methods::standard_replies::admin_not_verified()
-                    }
+                    let request_apt_id_str = query.get("apartment");
 
-                    use crate::schema::taxes::dsl as tax_q;
                     let mut pool = POOL.get().unwrap();
-                    let publish_taxes = tax_q::taxes
-                        .get_results::<model::Tax>(&mut pool);
+                    return if let Some(request_apt_id_str) = request_apt_id_str {
+                        let Ok(request_apt_id) = request_apt_id_str.parse::<i32>() else  {
+                            return methods::standard_replies::bad_request("Invalid apartment ID");
+                        };
 
-                    let publish_taxes = match publish_taxes {
-                        Ok(taxes) => {
-                            taxes
-                        }
-                        Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
-                                String::from("apartment/get-taxes: Database error loading taxes")
-                            );
-                        }
-                    };
+                        use schema::apartments::dsl as apt_q;
+                        let apt =  apt_q::apartments
+                            .find(request_apt_id)
+                            .get_result::<model::Apartment>(&mut pool);
 
-                    methods::standard_replies::response_with_obj(publish_taxes, StatusCode::OK)
+                        let apt = match apt {
+                            Ok(apt) => { apt }
+                            Err(e) => {
+                                return match e {
+                                    Error::NotFound => {
+                                        let error_msg = helper_model::ErrorResponse {
+                                            title: String::from("Permission Error"),
+                                            message: String::from("Taxes not found or inaccessible"),
+                                        };
+                                        methods::standard_replies::response_with_obj(error_msg, StatusCode::FORBIDDEN)
+                                    }
+                                    _ => {
+                                        methods::standard_replies::internal_server_error_response(
+                                            String::from("apartment/get-taxes: Database error loading apartment")
+                                        )
+                                    }
+                                }
+                            }
+                        };
+
+                        match user.is_authorized_for(&apt) {
+                            Ok( is_authorized ) => {
+                                if !is_authorized {
+                                    let error_msg = helper_model::ErrorResponse {
+                                        title: String::from("Permission Error"),
+                                        message: String::from("Taxes not found or inaccessible"),
+                                    };
+                                    return methods::standard_replies::response_with_obj(error_msg, StatusCode::FORBIDDEN)
+                                }
+                            }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("apartment/get-taxes: Database error loading apartment")
+                                )
+                            }
+                        }
+
+                        // is authorized
+
+                        use schema::apartments_taxes::dsl as at_q;
+                        use schema::taxes::dsl as t_q;
+
+                        let all_taxes_belong_to_apt = at_q::apartments_taxes
+                            .inner_join(t_q::taxes)
+                            .filter(at_q::apartment_id.eq(&apt.id))
+                            .order_by(t_q::id.asc())
+                            .select(t_q::taxes::all_columns())
+                            .get_results::<model::Tax>(&mut pool);
+
+                        let all_taxes_belong_to_apt = match all_taxes_belong_to_apt {
+                            Ok(res) => { res }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("apartment/get-taxes: Database error loading taxes")
+                                )
+                            }
+                        };
+
+                        methods::standard_replies::response_with_obj(all_taxes_belong_to_apt, StatusCode::OK)
+                    } else {
+                        if !user.is_operational_admin() {
+                            let error_msg = helper_model::ErrorResponse {
+                                title: String::from("Permission Error"),
+                                message: String::from("Taxes not found or inaccessible"),
+                            };
+                            return methods::standard_replies::response_with_obj(error_msg, StatusCode::FORBIDDEN)
+                        }
+
+                        let request_page_id_str = query.get("page");
+                        if let Some(request_page_id_str) = request_page_id_str &&
+                            let Ok(request_page_id) = request_page_id_str.parse::<i64>() &&
+                            request_page_id > 0 {
+                            let per_page = 10;
+                            let offset_num = (request_page_id - 1) * per_page;
+
+                            use schema::taxes::dsl as t_q;
+                            let taxes = t_q::taxes
+                                .order_by(t_q::id.asc())
+                                .offset(offset_num)
+                                .limit(per_page)
+                                .get_results::<model::Tax>(&mut pool);
+
+                            let taxes = match taxes {
+                                Ok(res) => { res }
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("apartment/get-taxes: Database error loading taxes")
+                                    )
+                                }
+                            };
+
+                            methods::standard_replies::response_with_obj(taxes, StatusCode::OK)
+                        } else {
+                            methods::standard_replies::bad_request("Invalid request parameter")
+                        }
+                    }
                 }
             };
         })
