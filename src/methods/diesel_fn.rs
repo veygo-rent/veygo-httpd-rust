@@ -15,11 +15,6 @@ define_sql_function! {
 }
 
 define_sql_function! {
-    #[sql_name = "date_trunc"]
-    fn date_trunc_ts(precision: Text, ts: Timestamp) -> Timestamp;
-}
-
-define_sql_function! {
     #[sql_name = "extract"]
     fn extract_date(text: Text, date: Date) -> Numeric;
 }

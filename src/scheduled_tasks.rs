@@ -28,33 +28,24 @@ pub async fn nightly_task() {
 
         let mut pool = POOL.get().unwrap();
 
-        let one_month = 1.month();
         let one_day = 1.day();
 
         let renewal_day_as_number = sql::<Numeric>("plan_renewal_day::numeric");
 
-        let user_needs_to_renew = rt_q::renters
+        let user_needs_to_renew_cmd = rt_q::renters
             .filter(rt_q::plan_expire_month_year.eq(diesel_fn::to_char_tstz(diesel_fn::now(), "MMYYYY")))
             .filter(
                 renewal_day_as_number.clone().eq(diesel_fn::extract_date("DAY", current_date))
                     .or(
-                        diesel_fn::extract_date("DAY", current_date)
-                            .eq(
-                                diesel_fn::extract_ts(
-                                    "DAY",
-                                    diesel_fn::date_trunc_ts("MONTH", current_date + one_month) - one_day
-                                )
-                            )
+                        renewal_day_as_number.gt(diesel_fn::extract_date("DAY", current_date))
                             .and(
-                                renewal_day_as_number.gt(
-                                    diesel_fn::extract_ts(
-                                        "DAY",
-                                        diesel_fn::date_trunc_ts("MONTH", current_date + one_month) - one_day
-                                    )
-                                )
+                                diesel_fn::extract_ts("MONTH", current_date + one_day)
+                                    .ne(diesel_fn::extract_date("MONTH", current_date))
                             )
                     )
-            )
+            );
+
+        let user_needs_to_renew = user_needs_to_renew_cmd
             .load::<model::Renter>(&mut pool);
 
         let Ok(user_needs_to_renew) = user_needs_to_renew else {
