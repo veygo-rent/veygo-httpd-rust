@@ -1,7 +1,9 @@
-use crate::{POOL, integration, model, helper_model::VeygoError};
+use crate::{POOL, integration, model, helper_model::VeygoError, methods::diesel_fn};
 use chrono::{Datelike, NaiveTime, Utc};
 use diesel::prelude::*;
 use std::time::Duration;
+use diesel::dsl::{IntervalDsl, today as current_date};
+use diesel::sql_types::Numeric;
 use rust_decimal::prelude::*;
 use stripe_core::{PaymentIntentCaptureMethod};
 
@@ -26,14 +28,34 @@ pub async fn nightly_task() {
 
         let mut pool = POOL.get().unwrap();
 
-        let user_needs_to_renew = rt_q::renters.filter(sql::<diesel::sql_types::Bool>("(
-    (plan_renewal_day::int = EXTRACT(DAY FROM CURRENT_DATE)
-    OR (
-        EXTRACT(DAY FROM CURRENT_DATE) = EXTRACT(DAY FROM (date_trunc('MONTH', CURRENT_DATE + INTERVAL '1 MONTH') - INTERVAL '1 day'))
-        AND plan_renewal_day::int > EXTRACT(DAY FROM (date_trunc('MONTH', CURRENT_DATE + INTERVAL '1 MONTH') - INTERVAL '1 day'))
-    ))
-    AND TO_CHAR(CURRENT_DATE, 'MMYYYY') = plan_expire_month_year
-)")).load::<model::Renter>(&mut pool);
+        let one_month = 1.month();
+        let one_day = 1.day();
+
+        let renewal_day_as_number = sql::<Numeric>("plan_renewal_day::numeric");
+
+        let user_needs_to_renew = rt_q::renters
+            .filter(rt_q::plan_expire_month_year.eq(diesel_fn::to_char_tstz(diesel_fn::now(), "MMYYYY")))
+            .filter(
+                renewal_day_as_number.clone().eq(diesel_fn::extract_date("DAY", current_date))
+                    .or(
+                        diesel_fn::extract_date("DAY", current_date)
+                            .eq(
+                                diesel_fn::extract_ts(
+                                    "DAY",
+                                    diesel_fn::date_trunc_ts("MONTH", current_date + one_month) - one_day
+                                )
+                            )
+                            .and(
+                                renewal_day_as_number.gt(
+                                    diesel_fn::extract_ts(
+                                        "DAY",
+                                        diesel_fn::date_trunc_ts("MONTH", current_date + one_month) - one_day
+                                    )
+                                )
+                            )
+                    )
+            )
+            .load::<model::Renter>(&mut pool);
 
         let Ok(user_needs_to_renew) = user_needs_to_renew else {
             continue
