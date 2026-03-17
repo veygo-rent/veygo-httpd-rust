@@ -137,7 +137,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let credit_hours = credit_hours.unwrap().unwrap_or(Decimal::zero());
                     
                     let msg = helper_model::RewardHoursSummaryResponse{ 
-                        total: if is_active_plan { current_user.plan_total_availability + credit_hours } else { Decimal::zero() }, used: used_free_hours
+                        total: if is_active_plan { current_user.plan_total_availability + credit_hours.abs() } else { Decimal::zero() }, used: used_free_hours
                     };
                     
                     methods::standard_replies::response_with_obj(&msg, StatusCode::OK)
