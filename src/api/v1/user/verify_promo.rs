@@ -112,13 +112,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let Ok(renter) = renter else {
                         return methods::standard_replies::internal_server_error_response(String::from("user/verify-promo: Database error loading renter"))
                     };
-                    if apt.uni_id != 1 && renter.employee_tier != model::EmployeeTier::Admin && renter.apartment_id != body.apartment_id {
+
+                    let is_auth = renter.is_authorized_for(&apt);
+                    let is_auth = match is_auth {
+                        Ok(is_auth) => { is_auth }
+                        Err(_) => {
+                            return methods::standard_replies::internal_server_error_response(
+                                String::from("agreement/new: Database error loading authorization")
+                            )
+                        }
+                    };
+
+                    if !is_auth {
                         // RETURN: FORBIDDEN
                         return methods::standard_replies::apartment_not_allowed_response(body.apartment_id);
-                    }
-                    if !apt.is_operating {
-                        // RETURN: FORBIDDEN
-                        return methods::standard_replies::apartment_not_operational();
                     }
 
                     use crate::schema::promos::dsl as promos_query;

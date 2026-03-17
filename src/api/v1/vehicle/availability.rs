@@ -118,13 +118,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                         };
-                        if apt.uni_id != 1 && user.employee_tier != model::EmployeeTier::Admin && user.apartment_id != body.apartment_id {
+
+                        let is_auth = user.is_authorized_for(&apt);
+                        let is_auth = match is_auth {
+                            Ok(is_auth) => { is_auth }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/new: Database error loading authorization")
+                                )
+                            }
+                        };
+
+                        if !is_auth {
                             // RETURN: FORBIDDEN
                             return methods::standard_replies::apartment_not_allowed_response(body.apartment_id);
-                        }
-                        if !apt.is_operating {
-                            // RETURN: FORBIDDEN
-                            return methods::standard_replies::apartment_not_operational();
                         }
 
                         use crate::schema::agreements::dsl as agreements_query;
