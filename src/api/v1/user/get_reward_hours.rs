@@ -112,6 +112,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .filter(reward_q::renter_id.eq(&access_token.user_id))
                         .filter(reward_q::transaction_time.ge(week_start))
                         .filter(reward_q::transaction_time.lt(week_end_exclusive))
+                        .filter(reward_q::duration.gt(Decimal::zero()))
                         .select(diesel::dsl::sum(reward_q::duration))
                         .first::<Option<Decimal>>(&mut pool);
                     if used_free_hours.is_err() {
@@ -120,9 +121,23 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         )
                     }
                     let used_free_hours = used_free_hours.unwrap().unwrap_or(Decimal::zero());
+
+                    let credit_hours = reward_q::reward_transactions
+                        .filter(reward_q::renter_id.eq(&access_token.user_id))
+                        .filter(reward_q::transaction_time.ge(week_start))
+                        .filter(reward_q::transaction_time.lt(week_end_exclusive))
+                        .filter(reward_q::duration.le(Decimal::zero()))
+                        .select(diesel::dsl::sum(reward_q::duration))
+                        .first::<Option<Decimal>>(&mut pool);
+                    if credit_hours.is_err() {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("user/get-reward-hours: Database error summing credited credit hours"),
+                        )
+                    }
+                    let credit_hours = credit_hours.unwrap().unwrap_or(Decimal::zero());
                     
                     let msg = helper_model::RewardHoursSummaryResponse{ 
-                        total: if is_active_plan { current_user.plan_total_availability } else { Decimal::zero() }, used: used_free_hours
+                        total: if is_active_plan { current_user.plan_total_availability + credit_hours } else { Decimal::zero() }, used: used_free_hours
                     };
                     
                     methods::standard_replies::response_with_obj(&msg, StatusCode::OK)
