@@ -593,31 +593,30 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         // Calculate total cost
 
                         // 0. calculate rate offer
-                        let rate_offer: Decimal = match body.rate_offer_id {
-                            None => {
-                                // didn't provide rate offer
-                                methods::rental_rate::generate_rate_offer_on_the_fly()
-                            }
-                            Some(offer_id) => {
-                                use schema::rate_offers::dsl as ro_q;
-                                let non_expired_rate_offer_dec = ro_q::rate_offers
-                                    .filter(ro_q::exp.gt(current_time))
-                                    .filter(ro_q::renter_id.eq(user_in_request.id))
-                                    .find(offer_id)
-                                    .select(ro_q::multiplier)
-                                    .get_result::<Decimal>(&mut pool);
-                                match non_expired_rate_offer_dec {
-                                    Ok(offer) => { offer }
-                                    Err(err) => {
-                                        match err {
-                                            Error::NotFound => {
-                                                // rate offer not valid or not found
-                                                methods::rental_rate::generate_rate_offer_on_the_fly()
-                                            }
-                                            _ => {
-                                                // diesel db error
-                                                return methods::standard_replies::internal_server_error_response(String::from("agreement/new: Database error loading rate offer"))
-                                            }
+                        let rate_offer: Decimal = {
+                            use schema::rate_offers::dsl as ro_q;
+                            let non_expired_rate_offer_dec = ro_q::rate_offers
+                                .filter(ro_q::exp.gt(current_time))
+                                .filter(ro_q::renter_id.eq(user_in_request.id))
+                                .find(body.rate_offer_id)
+                                .select(ro_q::multiplier)
+                                .get_result::<Decimal>(&mut pool);
+
+                            match non_expired_rate_offer_dec {
+                                Ok(offer) => { offer }
+                                Err(err) => {
+                                    return match err {
+                                        Error::NotFound => {
+                                            // rate offer not valid or not found
+                                            let err_msg = helper_model::ErrorResponse {
+                                                title: "Rate Not Available".to_string(),
+                                                message: "Please get a new quote".to_string(),
+                                            };
+                                            methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                        }
+                                        _ => {
+                                            // diesel db error
+                                            methods::standard_replies::internal_server_error_response(String::from("agreement/new: Database error loading rate offer"))
                                         }
                                     }
                                 }

@@ -79,7 +79,7 @@ pub struct NewAgreementRequest {
     pub pcdw_ext: bool,
     pub rsa: bool,
     pub pai: bool,
-    pub rate_offer_id: Option<i32>,
+    pub rate_offer_id: i32,
     pub mileage_package_id: Option<i32>,
     pub promo_code: Option<String>,
     #[serde(with = "rust_decimal::serde::str_option")]
