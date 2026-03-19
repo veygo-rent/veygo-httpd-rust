@@ -1,5 +1,9 @@
-use chrono::{DateTime, Duration, TimeDelta, Utc};
+use chrono::{Duration, TimeDelta};
 use rust_decimal::prelude::*;
+
+pub fn generate_rate_offer_on_the_fly () -> Decimal {
+    Decimal::one()
+}
 
 pub fn calculate_billable_duration_hours ( raw_duration: TimeDelta ) -> Decimal {
     // Tiered billing:
@@ -46,15 +50,4 @@ pub fn billable_days_count ( raw_duration: TimeDelta ) -> i32 {
     // Billable days are based on the actual trip duration, not the discounted billable hours.
     let actual_hours: Decimal = Decimal::new(raw_duration.num_minutes(), 0) / Decimal::new(60, 0);
     (actual_hours / Decimal::new(24, 0)).ceil().to_i32().unwrap()
-}
-
-pub fn calculate_late_hours (supposed: DateTime<Utc>, actual: DateTime<Utc> ) -> Decimal {
-    if supposed >= actual {
-        Decimal::new(0, 0)
-    } else {
-        // Calculate the difference in hours
-        let diff = supposed - actual;
-        let late_hours = Decimal::new(diff.num_minutes(), 0) / Decimal::new(60, 0);
-        late_hours
-    }
 }

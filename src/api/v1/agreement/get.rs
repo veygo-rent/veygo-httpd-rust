@@ -79,10 +79,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         Err(e) => {
                             return match e {
                                 Error::NotFound => {
-                                    let err_msg = helper_model::ErrorResponse {
-                                        title: "Access Denied".to_string(), message: "You do not have access for this agreement".to_string()
-                                    };
-                                    methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                    methods::standard_replies::agreement_not_allowed_response()
                                 }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response(
@@ -97,10 +94,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let now = chrono::Utc::now();
                         let six_months_from_now = now - chrono::Duration::days(180);
                         if agreement.rsvp_pickup_time < six_months_from_now {
-                            let err_msg = helper_model::ErrorResponse {
-                                title: "Access Denied".to_string(), message: "You do not have access for this agreement".to_string()
-                            };
-                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                            return methods::standard_replies::agreement_not_allowed_response()
                         }
                     } else {
                         let admin = methods::user::get_user_by_id(&user_id).await;
@@ -121,10 +115,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         };
                         let admin = admin.unwrap();
                         if !(admin.is_operational_admin() || admin.is_operational_manager() && admin.apartment_id == apt_id) {
-                            let err_msg = helper_model::ErrorResponse {
-                                title: "Access Denied".to_string(), message: "You do not have access for this agreement".to_string()
-                            };
-                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                            return methods::standard_replies::agreement_not_allowed_response()
                         }
                     }
 

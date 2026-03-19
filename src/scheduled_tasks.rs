@@ -87,61 +87,19 @@ pub async fn nightly_task() {
             let description;
             let mut rent = match renter.plan_tier {
                 model::PlanTier::Platinum => {
-                    if let Some(rent) = apartment.platinum_tier_rate &&
-                        let Some(duration) = apartment.platinum_tier_hours {
-                        description = String::from("PLAT TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        rent
-                    } else if let Some(rent) = apartment.gold_tier_rate &&
-                        let Some(duration) = apartment.gold_tier_hours {
-                        description = String::from("GOLD TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        renter.plan_tier = model::PlanTier::Gold;
-                        rent
-                    } else if let Some(rent) = apartment.silver_tier_rate &&
-                        let Some(duration) = apartment.silver_tier_hours {
-                        description = String::from("SILVER TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        renter.plan_tier = model::PlanTier::Silver;
-                        rent
-                    } else {
-                        renter.plan_tier = model::PlanTier::Free;
-                        description = String::from("FREE TIER SUBS");
-                        renter.plan_total_availability = apartment.free_tier_hours;
-                        Decimal::zero()
-                    }
+                    description = String::from("PLAT TIER SUBS");
+                    renter.plan_total_availability = apartment.platinum_tier_hours;
+                    apartment.platinum_tier_rate
                 }
                 model::PlanTier::Gold => {
-                    if let Some(rent) = apartment.gold_tier_rate &&
-                        let Some(duration) = apartment.gold_tier_hours {
-                        description = String::from("GOLD TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        rent
-                    } else if let Some(rent) = apartment.silver_tier_rate &&
-                        let Some(duration) = apartment.silver_tier_hours {
-                        description = String::from("SILVER TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        renter.plan_tier = model::PlanTier::Silver;
-                        rent
-                    } else {
-                        renter.plan_tier = model::PlanTier::Free;
-                        description = String::from("FREE TIER SUBS");
-                        renter.plan_total_availability = apartment.free_tier_hours;
-                        Decimal::zero()
-                    }
+                    description = String::from("GOLD TIER SUBS");
+                    renter.plan_total_availability = apartment.gold_tier_hours;
+                    apartment.gold_tier_rate
                 }
                 model::PlanTier::Silver => {
-                    if let Some(rent) = apartment.silver_tier_rate &&
-                        let Some(duration) = apartment.silver_tier_hours {
-                        description = String::from("SILVER TIER SUBS");
-                        renter.plan_total_availability = duration;
-                        rent
-                    } else {
-                        renter.plan_tier = model::PlanTier::Free;
-                        description = String::from("FREE TIER SUBS");
-                        renter.plan_total_availability = apartment.free_tier_hours;
-                        Decimal::zero()
-                    }
+                    description = String::from("SILVER TIER SUBS");
+                    renter.plan_total_availability = apartment.silver_tier_hours;
+                    apartment.silver_tier_rate
                 }
                 model::PlanTier::Free => {
                     description = String::from("FREE TIER SUBS");

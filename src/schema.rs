@@ -108,7 +108,8 @@ diesel::table! {
         mileage_package_overwrite -> Nullable<Numeric>,
         utilization_factor -> Numeric,
         date_of_creation -> Timestamptz,
-        cancellation_rate -> Numeric,
+        minimum_earning_rate -> Numeric,
+        deposit_pmt_id -> Nullable<Int4>,
     }
 }
 
@@ -144,12 +145,12 @@ diesel::table! {
         #[max_length = 16]
         accepted_school_email_domain -> Varchar,
         free_tier_hours -> Numeric,
-        silver_tier_hours -> Nullable<Numeric>,
-        silver_tier_rate -> Nullable<Numeric>,
-        gold_tier_hours -> Nullable<Numeric>,
-        gold_tier_rate -> Nullable<Numeric>,
-        platinum_tier_hours -> Nullable<Numeric>,
-        platinum_tier_rate -> Nullable<Numeric>,
+        silver_tier_hours -> Numeric,
+        silver_tier_rate -> Numeric,
+        gold_tier_hours -> Numeric,
+        gold_tier_rate -> Numeric,
+        platinum_tier_hours -> Numeric,
+        platinum_tier_rate -> Numeric,
         duration_rate -> Numeric,
         liability_protection_rate -> Nullable<Numeric>,
         pcdw_protection_rate -> Nullable<Numeric>,
@@ -323,7 +324,6 @@ diesel::table! {
         payment_method_id -> Nullable<Int4>,
         amount_authorized -> Numeric,
         capture_before -> Nullable<Timestamptz>,
-        is_deposit -> Bool,
     }
 }
 
@@ -618,7 +618,6 @@ diesel::joinable!(damages -> claims (claim_id));
 diesel::joinable!(damages -> vehicles (vehicle_id));
 diesel::joinable!(locations -> apartments (apartment_id));
 diesel::joinable!(payment_methods -> renters (renter_id));
-diesel::joinable!(payments -> agreements (agreement_id));
 diesel::joinable!(payments -> payment_methods (payment_method_id));
 diesel::joinable!(payments -> renters (renter_id));
 diesel::joinable!(promos -> renters (user_id));

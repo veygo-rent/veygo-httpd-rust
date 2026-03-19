@@ -1,11 +1,12 @@
 use crate::schema::renters::dsl::renters;
-use crate::{POOL, methods, model, schema, helper_model};
+use crate::{POOL, methods, model, schema};
 use diesel::prelude::*;
 use diesel::result::Error;
 use warp::http::{StatusCode, Method};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Reply};
 use crate::helper_model::VeygoError;
+use rust_decimal::Decimal;
 
 #[derive(Deserialize, Serialize)]
 struct ChangePlanRequest {
@@ -168,17 +169,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .get_result::<model::PaymentMethod>(&mut pool);
                                 match payment_method {
                                     Ok(_pm) => {
-                                        let plan_rate = match request_body.plan {
-                                            model::PlanTier::Free => None,
+                                        let _plan_rate = match request_body.plan {
+                                            model::PlanTier::Free => Decimal::ZERO,
                                             model::PlanTier::Gold => apartment.gold_tier_rate,
                                             model::PlanTier::Silver => apartment.silver_tier_rate,
                                             model::PlanTier::Platinum => apartment.platinum_tier_rate,
-                                        };
-                                        let Some(_plan_rate) = plan_rate else {
-                                            let msg = helper_model::ErrorResponse{
-                                                title: "Plan Not Available".to_string(), message: "The plan is currently not available, please try a different plan. ".to_string()
-                                            };
-                                            return methods::standard_replies::response_with_obj(msg, StatusCode::FORBIDDEN)
                                         };
 
 

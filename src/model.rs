@@ -691,18 +691,18 @@ pub struct Apartment {
     pub accepted_school_email_domain: String,
     #[serde(with = "rust_decimal::serde::str")]
     pub free_tier_hours: Decimal,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub silver_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub silver_tier_rate: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub gold_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub gold_tier_rate: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub platinum_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub platinum_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub silver_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub silver_tier_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub gold_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub gold_tier_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub platinum_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub platinum_tier_rate: Decimal,
     #[serde(with = "rust_decimal::serde::str")]
     pub duration_rate: Decimal,
     #[serde(with = "rust_decimal::serde::str_option")]
@@ -738,18 +738,18 @@ pub struct NewApartment {
     pub accepted_school_email_domain: String,
     #[serde(with = "rust_decimal::serde::str")]
     pub free_tier_hours: Decimal,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub silver_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub silver_tier_rate: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub gold_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub gold_tier_rate: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub platinum_tier_hours: Option<Decimal>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub platinum_tier_rate: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub silver_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub silver_tier_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub gold_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub gold_tier_rate: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub platinum_tier_hours: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub platinum_tier_rate: Decimal,
     #[serde(with = "rust_decimal::serde::str")]
     pub duration_rate: Decimal,
     #[serde(with = "rust_decimal::serde::str_option")]
@@ -1310,7 +1310,8 @@ pub struct Agreement {
     #[serde(with = "chrono::serde::ts_seconds")]
     pub date_of_creation: DateTime<Utc>,
     #[serde(with = "rust_decimal::serde::str")]
-    pub cancellation_rate: Decimal,
+    pub minimum_earning_rate: Decimal,
+    pub deposit_pmt_id: Option<i32>,
 }
 
 #[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
@@ -1361,7 +1362,7 @@ pub struct NewAgreement {
     #[serde(with = "rust_decimal::serde::str_option")]
     pub mileage_package_overwrite: Option<Decimal>,
     #[serde(with = "rust_decimal::serde::str")]
-    pub cancellation_rate: Decimal,
+    pub minimum_earning_rate: Decimal,
 }
 
 #[derive(
@@ -1425,7 +1426,6 @@ pub struct Payment {
     pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
-    pub is_deposit: bool,
 }
 
 #[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
@@ -1447,7 +1447,6 @@ pub struct NewPayment {
     pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
-    pub is_deposit: bool,
 }
 
 #[derive(

@@ -11,6 +11,8 @@ drop table if exists rate_offers;
 
 drop table if exists reward_transactions;
 
+alter table agreements
+    drop constraint if exists agreements_deposit_pmt_id;
 drop table if exists payments;
 
 drop table if exists subscription_payments;

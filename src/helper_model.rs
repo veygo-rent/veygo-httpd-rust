@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde_derive::{Deserialize, Serialize};
 use crate::model;
 use rust_decimal::prelude::*;
@@ -57,13 +58,32 @@ pub struct GenerateSnapshotRequest {
 pub struct CheckOutRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
-    pub hours_using_reward: Decimal,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CheckInRequest {
     pub agreement_id: i32,
     pub vehicle_snapshot_id: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct NewAgreementRequest {
+    pub vehicle_id: i32,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub start_time: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub end_time: DateTime<Utc>,
+    pub payment_id: i32,
+    pub liability: bool,
+    pub pcdw: bool,
+    pub pcdw_ext: bool,
+    pub rsa: bool,
+    pub pai: bool,
+    pub rate_offer_id: Option<i32>,
+    pub mileage_package_id: Option<i32>,
+    pub promo_code: Option<String>,
+    #[serde(with = "rust_decimal::serde::str_option")]
+    pub hours_using_reward: Option<Decimal>,
 }
 
 #[derive(Serialize, Debug, Clone)]

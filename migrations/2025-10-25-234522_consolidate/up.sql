@@ -107,12 +107,12 @@ create table apartments
     address                         us_address_domain       not null,
     accepted_school_email_domain    varchar(16)             not null,
     free_tier_hours                 numeric(4, 2)           not null,
-    silver_tier_hours               numeric(4, 2),
-    silver_tier_rate                numeric(7, 4),
-    gold_tier_hours                 numeric(4, 2),
-    gold_tier_rate                  numeric(7, 4),
-    platinum_tier_hours             numeric(4, 2),
-    platinum_tier_rate              numeric(7, 4),
+    silver_tier_hours               numeric(4, 2)           not null,
+    silver_tier_rate                numeric(7, 4)           not null,
+    gold_tier_hours                 numeric(4, 2)           not null,
+    gold_tier_rate                  numeric(7, 4)           not null,
+    platinum_tier_hours             numeric(4, 2)           not null,
+    platinum_tier_rate              numeric(7, 4)           not null,
     duration_rate                   numeric(6, 4)           not null,
     liability_protection_rate       numeric(6, 4),
     pcdw_protection_rate            numeric(6, 4),
@@ -392,7 +392,8 @@ create table agreements
     mileage_package_overwrite   numeric(5, 4),
     utilization_factor          numeric(5, 4)               default 1.00                not null,
     date_of_creation            timestamp with time zone    default CURRENT_TIMESTAMP   not null,
-    cancellation_rate           numeric(7, 4)               default 0.00                not null,
+    minimum_earning_rate        numeric(7, 4)               default 0.00                not null,
+    deposit_pmt_id              integer,
     constraint agreements_pk primary key (id),
     constraint agreements_confirmation_uk unique (confirmation),
     constraint agreements_vehicle_id_fk foreign key (vehicle_id) references vehicles(id),
@@ -404,8 +405,8 @@ create table agreements
     constraint agreements_vehicle_snapshot_before_fk foreign key (vehicle_snapshot_before) references vehicle_snapshots(id),
     constraint agreements_vehicle_snapshot_after_fk foreign key (vehicle_snapshot_after) references vehicle_snapshots(id),
     constraint agreements_pickup_snapshot_ck check (
-        (actual_pickup_time is null and vehicle_snapshot_before is null) or
-        (actual_pickup_time is not null and vehicle_snapshot_before is not null)
+        (actual_pickup_time is null and vehicle_snapshot_before is null and deposit_pmt_id is null) or
+        (actual_pickup_time is not null and vehicle_snapshot_before is not null and deposit_pmt_id is not null)
         ),
     constraint agreements_drop_off_snapshot_ck check (
         (actual_drop_off_time is null and vehicle_snapshot_after is null) or
@@ -564,7 +565,6 @@ create table payments
     payment_method_id integer,
     amount_authorized numeric(8, 2)                                         not null,
     capture_before    timestamp with time zone,
-    is_deposit        boolean                                               not null,
     constraint payments_pk primary key (id),
     constraint payments_renter_id_fk foreign key (renter_id) references renters(id),
     constraint payments_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
@@ -572,6 +572,9 @@ create table payments
     constraint payments_amount_range check (amount_authorized > 0.0),
     constraint payments_reference_number_uk unique (reference_number)
 );
+
+alter table agreements
+    add constraint agreements_deposit_pmt_id foreign key (deposit_pmt_id) references payments(id);
 
 create table reward_transactions
 (
@@ -690,10 +693,10 @@ values ('Veygo HQ',
         ('101 Foundry Dr', 'Ste 1200', 'West Lafayette', 'IN', '47906'),
         'veygo.rent',
         0.0,
-        NULL, NULL,
-        NULL, NULL,
-        NULL, NULL,
-        0.0,
+        5.0, 71.99,
+        10.0, 192.88,
+        20.0, 305.49,
+        6.5,
         NULL,
         NULL,
         NULL,

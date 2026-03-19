@@ -1,5 +1,5 @@
-use std::cmp::min;
-use crate::{POOL, methods, model, helper_model, integration};
+use std::cmp::{max};
+use crate::{POOL, methods, model, helper_model, integration, schema};
 use diesel::prelude::*;
 use diesel::expression_methods::NullableExpressionMethods;
 use warp::{Filter, Rejection, Reply, http::{Method, StatusCode}};
@@ -7,7 +7,7 @@ use chrono::{DateTime, Duration, Utc};
 use diesel::result::Error;
 use rust_decimal::prelude::*;
 use serde::Deserialize;
-use stripe_core::PaymentIntentCaptureMethod;
+use stripe_core::{ PaymentIntentCaptureMethod };
 use crate::helper_model::VeygoError;
 
 #[derive(Debug, Deserialize)]
@@ -102,8 +102,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                     }
 
-                    use crate::schema::agreements::dsl as agreement_q;
-                    use crate::schema::vehicle_snapshots::dsl as v_s_q;
+                    use schema::agreements::dsl as agreement_q;
+                    use schema::vehicle_snapshots::dsl as v_s_q;
+                    use schema::vehicles::dsl as v_q;
+                    use schema::renters::dsl as renter_q;
+                    use schema::payment_methods::dsl as pm_q;
 
                     let mut pool = POOL.get().unwrap();
 
@@ -115,21 +118,29 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 v_s_q::vehicle_id.eq(agreement_q::vehicle_id)
                                     .and(v_s_q::renter_id.eq(agreement_q::renter_id))
                             )
+                                .inner_join(v_q::vehicles)
+                                .inner_join(renter_q::renters)
+                                .inner_join(pm_q::payment_methods)
                         )
                         .filter(agreement_q::renter_id.eq(&user_id))
+                        .filter(agreement_q::status.eq(model::AgreementStatus::Rental))
                         .filter(v_s_q::id.eq(&body.vehicle_snapshot_id))
                         .filter(agreement_q::id.eq(&body.agreement_id))
                         .filter(agreement_q::actual_pickup_time.is_not_null())
                         .filter(agreement_q::actual_drop_off_time.is_null())
                         .filter(v_s_q::time.ge(agreement_q::actual_pickup_time.assume_not_null()))
                         .filter(v_s_q::time.ge(five_minutes_ago))
-                        .select((agreement_q::agreements::all_columns(), v_s_q::vehicle_snapshots::all_columns()))
-                        .get_result::<(model::Agreement, model::VehicleSnapshot)>(&mut pool);
+                        .select((agreement_q::agreements::all_columns(), v_q::vehicles::all_columns(), v_s_q::vehicle_snapshots::all_columns(), renter_q::stripe_id, pm_q::token))
+                        .get_result::<(model::Agreement, model::Vehicle, model::VehicleSnapshot, String, String)>(&mut pool);
 
                     if let Err(err) = ag_v_s_result {
                         return match err {
                             Error::NotFound => {
-                                methods::standard_replies::agreement_not_allowed_response()
+                                let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                    title: String::from("Check In Not Allowed"),
+                                    message: String::from("Agreement or vehicle snapshot is not valid"),
+                                };
+                                methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN)
                             }
                             _ => {
                                 methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at loading vehicle snapshot"))
@@ -137,26 +148,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                     }
 
-                    let (mut agreement_to_be_checked_in, check_in_snapshot) = ag_v_s_result.unwrap();
+                    let (mut agreement_to_be_checked_in, vehicle,check_in_snapshot, stripe_id, payment_method_id) = ag_v_s_result.unwrap();
 
                     // lock the vehicle
 
-                    use crate::schema::vehicles::dsl as v_q;
-                    let result = v_q::vehicles
-                        .find(&agreement_to_be_checked_in.vehicle_id)
-                        .select((v_q::remote_mgmt, v_q::remote_mgmt_id, v_q::vin))
-                        .get_result::<(model::RemoteMgmtType, String, String)>(&mut pool);
-
-                    let Ok((vehicle_remote_mgmt, mgmt_id, vin_num)) = result else {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading vehicle remote mgmt info")
-                        );
-                    };
-
-                    match vehicle_remote_mgmt {
+                    match vehicle.remote_mgmt {
                         model::RemoteMgmtType::Tesla => {
                             // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
-                            let status_path = format!("/api/1/vehicles/{}", mgmt_id);
+                            let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
                             for i in 0..16 { // up to ~10s total
                                 if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
@@ -172,7 +171,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                             }
                                             // Only on the first iteration, if offline, send wake_up once
                                             if i == 0 {
-                                                let wake_path = format!("/api/1/vehicles/{}/wake_up", mgmt_id);
+                                                let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
                                                 let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
                                             }
                                         }
@@ -181,7 +180,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                             }
                             // 2) Proceed to lock/unlock once online (or after timeout anyway)
-                            let cmd_path = format!("/api/1/vehicles/{}/command/door_lock", mgmt_id);
+                            let cmd_path = format!("/api/1/vehicles/{}/command/door_lock", vehicle.remote_mgmt_id);
                             let result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
 
                             let Ok(resp) = result else {
@@ -206,7 +205,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     // map unmapped charges to this agreement
                     // 1. current charges in the database
 
-                    use crate::schema::charges::dsl as c_q;
+                    use schema::charges::dsl as c_q;
 
                     let pickup: DateTime<Utc> = agreement_to_be_checked_in.actual_pickup_time.unwrap();
                     let drop_off: DateTime<Utc> = agreement_to_be_checked_in.actual_drop_off_time.unwrap();
@@ -219,31 +218,22 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .set(c_q::agreement_id.eq(Some(&agreement_to_be_checked_in.id)))
                         .execute(&mut pool);
 
-                    match result {
-                        Ok(count) => {
-                            if count == 0 {
-                                return methods::standard_replies::internal_server_error_response(
-                                    String::from("agreement/check-in: SQL error at mapping unmapped charges (no rows updated)")
-                                )
-                            }
-                        }
-                        Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
-                                String::from("agreement/check-in: Database connection error at mapping unmapped charges")
-                            )
-                        }
+                    if result.is_err() {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("agreement/check-in: Database connection error at mapping unmapped charges")
+                        )
                     }
 
                     // 2. fetch tesla charging history
 
-                    if vehicle_remote_mgmt == model::RemoteMgmtType::Tesla {
+                    if vehicle.remote_mgmt == model::RemoteMgmtType::Tesla {
                         use chrono::SecondsFormat;
                         let date_from = pickup.to_rfc3339_opts(SecondsFormat::Secs, true);
                         let date_to   = drop_off.to_rfc3339_opts(SecondsFormat::Secs, true);
 
                         let charge_history_path = format!(
                             "/api/1/dx/charging/sessions?vin={}&date_from={}&date_to={}",
-                            vin_num,
+                            vehicle.remote_mgmt_id,
                             date_from,
                             date_to
                         );
@@ -311,568 +301,342 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 vehicle_identifier: None,
                             };
 
-                            use crate::schema::charges::dsl as c_q;
+                                use schema::charges::dsl as c_q;
 
                             let res = diesel::insert_into(c_q::charges)
                                 .values(&new_charge)
-                                .execute(&mut pool);
+                                .get_result::<model::Charge>(&mut pool);
 
-                            if res.is_err() {
-                                return methods::standard_replies::internal_server_error_response(
-                                    String::from("agreement/check-in: SQL error at inserting Tesla charging charge")
-                                )
+                            if let Err(err) = res {
+                                match err {
+                                    Error::DatabaseError(_, _) => {
+                                        continue;
+                                    }
+                                    _ => {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/check-in: DB error inserting charges")
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
                     // Calculate total cost
-                    // 0. total reward hours
 
-                    use crate::schema::reward_transactions::dsl as r_q;
+                    // 0. rate offer
+                    let rate_offer = agreement_to_be_checked_in.utilization_factor;
 
-                    let total_reward_hours_result = r_q::reward_transactions
-                        .filter(r_q::agreement_id.eq(&agreement_to_be_checked_in.id))
-                        .select(diesel::dsl::sum(r_q::duration))
+                    // 1. total rental revenue
+                    let trip_duration = agreement_to_be_checked_in.rsvp_drop_off_time
+                        - agreement_to_be_checked_in.rsvp_pickup_time;
+                    let trip_duration_including_late_return =
+                        max(agreement_to_be_checked_in.actual_drop_off_time.unwrap(), agreement_to_be_checked_in.rsvp_drop_off_time)
+                        - agreement_to_be_checked_in.rsvp_pickup_time;
+
+                    let total_hours_reserved = Decimal::new(trip_duration.num_minutes(), 0) / Decimal::new(60, 0);
+                    let total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+
+                    let total_hours_driven = Decimal::new(trip_duration_including_late_return.num_minutes(), 0) / Decimal::new(60, 0);
+                    let total_hours_driven_round_up = total_hours_driven.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+
+                    let late_hours = total_hours_driven_round_up - total_hours_reserved_round_up;
+
+                    use schema::reward_transactions::dsl as re_q;
+                    let reward_used_sum = re_q::reward_transactions
+                        .filter(re_q::renter_id.eq(agreement_to_be_checked_in.renter_id))
+                        .filter(re_q::agreement_id.eq(agreement_to_be_checked_in.id))
+                        .select(diesel::dsl::sum(re_q::duration))
                         .get_result::<Option<Decimal>>(&mut pool);
 
-                    let Ok(total_reward_hours_result) = total_reward_hours_result else {
+                    let Ok(reward_used_sum) = reward_used_sum else {
                         return methods::standard_replies::internal_server_error_response(
                             String::from("agreement/check-in: Database connection error at summing reward hours")
                         )
                     };
 
-                    let total_reward_hours = if total_reward_hours_result.is_none() {
-                        Decimal::new(0, 2)
-                    } else {
-                        total_reward_hours_result.unwrap()
+                    let raw_hours_after_applying_credit = match reward_used_sum {
+                        None => { trip_duration }
+                        Some(credit) => {
+                            methods::rental_rate::calculate_duration_after_reward(trip_duration, credit)
+                        }
                     };
 
-                    // 1. total rental revenue before late return
-                    // TODO: calculate insurance premium
+                    let billable_days_count_including_late_return: i32 = methods::rental_rate::billable_days_count(trip_duration_including_late_return);
+                    let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(raw_hours_after_applying_credit);
 
-                    let time_to_be_counted_as_if_return_on_time = min(drop_off, agreement_to_be_checked_in.rsvp_drop_off_time);
+                    let duration_revenue = billable_duration_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * rate_offer;
+                    let duration_revenue_after_promo = match agreement_to_be_checked_in.clone().promo_id {
+                        None => { duration_revenue }
+                        Some(promo) => {
+                            use schema::promos::dsl as p_q;
+                            let discount = p_q::promos
+                                .find(&promo)
+                                .select(p_q::amount)
+                                .get_result::<Decimal>(&mut pool);
 
-                    let total_duration = time_to_be_counted_as_if_return_on_time - pickup;
-                    let billable_duration = methods::rental_rate::calculate_duration_after_reward(total_duration, total_reward_hours);
+                            let Ok(discount) = discount else {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Database connection error looking up promo amount")
+                                )
+                            };
 
-                    let billable_hours = methods::rental_rate::calculate_billable_duration_hours(billable_duration);
+                            max(Decimal::zero(), duration_revenue - discount)
+                        }
+                    };
 
-                    let rental_revenue_before_discounts = billable_hours
-                        * agreement_to_be_checked_in.duration_rate
-                        * agreement_to_be_checked_in.msrp_factor
-                        * agreement_to_be_checked_in.utilization_factor;
+                    // does not including late return
+                    let duration_revenue_after_promo = match agreement_to_be_checked_in.clone().manual_discount {
+                        None => { duration_revenue_after_promo }
+                        Some(discount) => {
+                            max(Decimal::zero(), duration_revenue - discount)
+                        }
+                    };
 
-                    let mut total_discount = Decimal::zero();
+                    // late return fee is calculated separately
+                    let late_return_fee = Decimal::new(2, 0) * late_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * rate_offer;
 
-                    if let Some(m_discount) = agreement_to_be_checked_in.manual_discount {
-                        total_discount += m_discount;
-                    }
+                    let total_rental_revenue = duration_revenue_after_promo + late_return_fee;
 
-                    if let Some(discount_id) = agreement_to_be_checked_in.clone().promo_id {
-                        use crate::schema::promos::dsl as pr_q;
-                        let promo_result = pr_q::promos
-                            .find(&discount_id)
-                            .get_result::<model::Promo>(&mut pool);
+                    // 2. total insurance revenue
 
-                    if promo_result.is_err() {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading promo")
+                    // calculated to include late return
+                    let total_insurance_revenue = {
+                        total_hours_driven_round_up * (
+                            agreement_to_be_checked_in.liability_protection_rate.unwrap_or(Decimal::zero())
+                                + agreement_to_be_checked_in.pcdw_protection_rate.unwrap_or(Decimal::zero())
+                                + agreement_to_be_checked_in.pcdw_ext_protection_rate.unwrap_or(Decimal::zero())
+                                + agreement_to_be_checked_in.pai_protection_rate.unwrap_or(Decimal::zero())
+                                + agreement_to_be_checked_in.rsa_protection_rate.unwrap_or(Decimal::zero())
                         )
-                    }
-                        let promo = promo_result.unwrap();
+                    };
 
-                        total_discount += promo.amount;
-                    }
+                    // 3. mileage package revenue
 
-                    let rental_revenue = (rental_revenue_before_discounts - total_discount).max(Decimal::zero());
+                    let total_mileage_package_revenue = match agreement_to_be_checked_in.mileage_package_id {
+                        None => {
+                            // didn't select mp
+                            Decimal::zero()
+                        }
+                        Some(mp_id) => {
+                            use schema::mileage_packages::dsl as mp_q;
+                            let mp_result = mp_q::mileage_packages
+                                .filter(mp_q::is_active)
+                                .find(mp_id)
+                                .select((mp_q::miles, mp_q::discounted_rate))
+                                .get_result::<(i32, i32)>(&mut pool);
+                            match mp_result {
+                                Ok((mileage, discount_rate)) => {
+                                    let base_rate_for_mp = if let Some(overwrite) = agreement_to_be_checked_in.mileage_package_overwrite {
+                                        overwrite
+                                    } else {
+                                        agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * agreement_to_be_checked_in.mileage_conversion
+                                    };
 
-                    // 2. total late return fee
+                                    base_rate_for_mp * Decimal::new(mileage as i64, 0) * Decimal::new(discount_rate as i64, 2)
+                                }
+                                Err(err) => {
+                                    return match err {
+                                        Error::NotFound => {
+                                            let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                                title: String::from("Booking Not Allowed"),
+                                                message: String::from("Invalid mileage package option selected"),
+                                            };
+                                            methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                        }
+                                        _ => {
+                                            methods::standard_replies::internal_server_error_response(
+                                                String::from( "agreement/check-in: Database error loading mileage package"),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
 
-                    let late_hours = methods::rental_rate::calculate_late_hours(agreement_to_be_checked_in.rsvp_drop_off_time, drop_off);
-                    let late_return_revenue = late_hours
-                        * agreement_to_be_checked_in.duration_rate
-                        * agreement_to_be_checked_in.msrp_factor
-                        * agreement_to_be_checked_in.utilization_factor
-                        * Decimal::new(2, 0);
+                    // 4. charges
 
-                    // 3. total charges
-
-                    let total_external_charges_result = c_q::charges
-                        .filter(c_q::agreement_id.eq(&agreement_to_be_checked_in.id))
+                    let total_charges_cost = c_q::charges
+                        .filter(c_q::agreement_id.eq(agreement_to_be_checked_in.id))
                         .select(diesel::dsl::sum(c_q::amount))
                         .get_result::<Option<Decimal>>(&mut pool);
 
-                    let Ok(total_external_charges_result) = total_external_charges_result else {
+                    let Ok(total_charges_cost) = total_charges_cost else {
                         return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at summing external charges")
+                            String::from("agreement/check-in: Database connection error at summing external charges cost")
                         )
                     };
 
-                    let total_external_charges = if let Some(sum) = total_external_charges_result {
-                        sum
-                    } else {
-                        Decimal::zero()
+                    let total_charges_cost = match total_charges_cost {
+                        None => { Decimal::ZERO }
+                        Some(cost) => { cost }
                     };
 
-                    // 4. mileage package and over mileage charges
+                    // 5. low fuel & over mileage
 
-                    let mut included_miles = 10;
+                    let low_fuel_revenue = Decimal::ZERO;
+                    let over_mileage_revenue = Decimal::ZERO;
 
-                    let mut mileage_package_cost = Decimal::zero();
-                    let mut over_mileage_charges = Decimal::zero();
+                    // 6. taxes
 
-                    if let Some(mp_id) = agreement_to_be_checked_in.mileage_package_id {
-                        use crate::schema::mileage_packages::dsl as mp_q;
-                        let mp_result = mp_q::mileage_packages.find(&mp_id).get_result::<model::MileagePackage>(&mut pool);
+                    use schema::agreements_taxes::dsl as agreements_taxes_query;
+                    use schema::taxes::dsl as t_q;
 
-                        let Ok(mp_result) = mp_result else {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading mileage package")
-                        )
-                    };
-
-                        let mp_rate = if let Some(overwrite_rate) = agreement_to_be_checked_in.mileage_package_overwrite {
-                            overwrite_rate
-                        } else {
-                            agreement_to_be_checked_in.mileage_conversion
-                                * agreement_to_be_checked_in.duration_rate
-                                * agreement_to_be_checked_in.msrp_factor
-                        };
-
-                        mileage_package_cost = mp_rate
-                            * Decimal::new(mp_result.miles as i64, 0)
-                            * Decimal::new(mp_result.discounted_rate as i64, 2);
-
-                        included_miles += mp_result.miles;
-                    }
-
-                    let odometer_after_result = v_s_q::vehicle_snapshots
-                        .find(&agreement_to_be_checked_in.vehicle_snapshot_after.unwrap())
-                        .select(v_s_q::odometer)
-                        .get_result::<i32>(&mut pool);
-
-                    let Ok(odometer_after) = odometer_after_result else {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading odometer after")
-                        )
-                    };
-
-                    let odometer_before_result = v_s_q::vehicle_snapshots
-                        .find(&agreement_to_be_checked_in.vehicle_snapshot_before.unwrap())
-                        .select(v_s_q::odometer)
-                        .get_result::<i32>(&mut pool);
-
-                    let Ok(odometer_before) = odometer_before_result else {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading odometer before")
-                        )
-                    };
-
-                    let total_driven = odometer_after - odometer_before;
-                    if total_driven < 0 {
-                        return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Invalid odometer delta (negative total driven)")
-                        )
-                    }
-                    if total_driven > included_miles {
-                        let additional_miles = Decimal::new((total_driven - included_miles) as i64, 0);
-                        let per_mile_cost = if let Some(overwrite_rate) = agreement_to_be_checked_in.mileage_rate_overwrite {
-                            overwrite_rate
-                        } else {
-                            agreement_to_be_checked_in.mileage_conversion * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor
-                        };
-
-                        over_mileage_charges = additional_miles * per_mile_cost;
-                    }
-
-                    let total_mileage_charges = mileage_package_cost + over_mileage_charges;
-
-                    // TODO: 5. low fuel charges
-
-                    let total_low_fuel_charge = Decimal::zero();
-
-                    // 6. total taxes
-
-                    let mut percent_tax = Decimal::zero();
-                    let mut daily_tax = Decimal::zero();
-                    let mut fixed_tax = Decimal::zero();
-
-                    let subjected_to_non_sales_tax = rental_revenue + late_return_revenue
-                        + total_mileage_charges + total_low_fuel_charge;
-                    let subjected_to_sales_tax = subjected_to_non_sales_tax
-                        + total_external_charges;
-                    let billable_days = methods::rental_rate::billable_days_count(total_duration);
-
-                    use crate::schema::taxes::dsl as t_q;
-                    use crate::schema::agreements_taxes::dsl as at_q;
-
-                    let all_taxes_with_current_agreement_result = at_q::agreements_taxes
+                    let taxes = agreements_taxes_query::agreements_taxes
                         .inner_join(t_q::taxes)
-                        .filter(at_q::agreement_id.eq(&agreement_to_be_checked_in.id))
+                        .filter(agreements_taxes_query::agreement_id.eq(&agreement_to_be_checked_in.id))
                         .select(t_q::taxes::all_columns())
                         .get_results::<model::Tax>(&mut pool);
 
-                    let Ok(all_taxes_with_current_agreement) = all_taxes_with_current_agreement_result else {
+                    let Ok(taxes) = taxes else {
                         return methods::standard_replies::internal_server_error_response(
-                            String::from("agreement/check-in: Database connection error at loading agreement taxes")
+                            String::from("agreement/check-in: Database error loading apartment taxes")
                         )
                     };
 
-                    for tax in all_taxes_with_current_agreement {
-                        match tax.tax_type {
+                    let mut local_tax_rate_daily = Decimal::zero();
+                    let mut local_tax_rate_fixed = Decimal::zero();
+
+                    let mut local_tax_rate_percent_sales = Decimal::zero();
+                    let mut local_tax_rate_percent_non_sales = Decimal::zero();
+
+                    for tax_obj in &taxes {
+                        match tax_obj.tax_type {
                             model::TaxType::Percent => {
-                                if tax.is_sales_tax {
-                                    percent_tax += tax.multiplier * subjected_to_sales_tax;
+                                if tax_obj.is_sales_tax {
+                                    local_tax_rate_percent_sales += tax_obj.multiplier;
                                 } else {
-                                    percent_tax += tax.multiplier * subjected_to_non_sales_tax;
+                                    local_tax_rate_percent_non_sales += tax_obj.multiplier;
                                 }
-                            }
+                            },
                             model::TaxType::Daily => {
-                                daily_tax += Decimal::new(billable_days as i64, 0) * tax.multiplier;
+                                local_tax_rate_daily += tax_obj.multiplier;
                             }
                             model::TaxType::Fixed => {
-                                fixed_tax += tax.multiplier;
+                                local_tax_rate_fixed += tax_obj.multiplier;
                             }
                         }
                     }
 
-                    let total_tax = percent_tax + daily_tax + fixed_tax;
+                    // 7. summarize
 
-                    // 7. total cost = 1 + 2 + 3 + 4 + 5 + 6
+                    let total_subject_to_non_sales_tax = total_rental_revenue
+                        + total_insurance_revenue + total_mileage_package_revenue
+                        + low_fuel_revenue + over_mileage_revenue;
+                    let total_subject_to_sales_tax = total_subject_to_non_sales_tax + total_charges_cost;
 
-                    let total_cost = (rental_revenue + late_return_revenue
-                        + total_external_charges + total_mileage_charges + total_low_fuel_charge
-                        + total_tax).round_dp(2);
+                    let total_revenue = total_subject_to_sales_tax;
 
-                    // TODO: Capture the correct amount and process additional charges
-                    // 1. calculate captured amount
-                    use crate::schema::payments::dsl as p_q;
-                    let total_captured_amount_result = p_q::payments
-                        .filter(p_q::agreement_id.eq(&agreement_to_be_checked_in.id))
-                        .filter(p_q::payment_type.eq_any(vec![
-                            model::PaymentType::VeygoInsurance,
-                            model::PaymentType::VeygoBadDebt,
-                            model::PaymentType::RequiresCapture,
-                            model::PaymentType::Succeeded
-                        ]))
-                        .select(diesel::dsl::sum(p_q::amount))
+                    let total_percentage_tax = total_subject_to_non_sales_tax * local_tax_rate_percent_non_sales
+                        + total_subject_to_sales_tax * local_tax_rate_percent_sales;
+                    let total_daily_tax = Decimal::new(billable_days_count_including_late_return as i64, 0) * local_tax_rate_daily;
+                    let total_fixed_tax = local_tax_rate_fixed;
+
+                    let total_stripe_amount = total_revenue + total_percentage_tax
+                        + total_daily_tax + total_fixed_tax;
+                    let total_stripe_amount_2dp = total_stripe_amount.round_dp(2);
+
+                    // settle payments
+
+                    use schema::payments::dsl as pmt_q;
+                    let paid_amount = pmt_q::payments
+                        .filter(pmt_q::agreement_id.eq(agreement_to_be_checked_in.id))
+                        .select(diesel::dsl::sum(pmt_q::amount))
                         .get_result::<Option<Decimal>>(&mut pool);
 
-                    let total_captured_amount = match total_captured_amount_result {
-                        Ok(temp) => {
-                            temp
-                                .unwrap_or(Decimal::zero())
-                                .round_dp(2)
-                        }
-                        Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
-                                String::from("agreement/check-in: Database connection error at summing captured payments")
-                            )
-                        }
+                    let Ok(paid_amount) = paid_amount else {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("agreement/check-in: Database connection error at summing paid amount")
+                        )
                     };
 
-                    if total_captured_amount < total_cost {
+                    let paid_amount = paid_amount.unwrap_or(Decimal::zero());
 
-                        let mut total_needed_to_be_captured_2dp = total_cost - total_captured_amount;
-                        let all_pm_id_needed_to_be_completed = p_q::payments
-                            .filter(p_q::agreement_id.eq(&agreement_to_be_checked_in.id))
-                            .filter(p_q::payment_type.eq(model::PaymentType::RequiresCapture))
-                            .filter(p_q::reference_number.is_not_null())
-                            .select((p_q::id, p_q::reference_number, p_q::amount, p_q::amount_authorized))
-                            .get_results::<(i32, Option<String>, Decimal, Decimal)>(&mut pool);
 
-                            let Ok(all_pm_id_needed_to_be_completed) = all_pm_id_needed_to_be_completed else {
-                                return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at loading uncaptured payments"));
-                            };
 
-                        for pm in all_pm_id_needed_to_be_completed {
-                            let pi_id = pm.1.unwrap();
-                            let p_id = pm.0;
-                            if !total_needed_to_be_captured_2dp.is_zero() {
-                                let can_capture_2dp = pm.3 - pm.2;
-                                if can_capture_2dp >= total_needed_to_be_captured_2dp {
-                                    // capture total_needed_to_be_captured
-                                    let int_to_capture = total_needed_to_be_captured_2dp.mantissa() as i64;
-                                    let pmi_cap = integration::stripe_veygo::capture_payment(&pi_id, Some((int_to_capture, true))).await;
-                                    if pmi_cap.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Stripe error at capturing payment")
-                                        )
-                                    }
-                                    let pmi_cap = pmi_cap.unwrap();
-                                    let pmi_status: model::PaymentType = pmi_cap.status.into();
-                                    if pmi_status != model::PaymentType::Succeeded {
-                                        let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
-                                        if result.is_err() {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                String::from("agreement/check-in: Stripe error at finalizing capture")
-                                            )
-                                        }
-                                    }
-                                    let result = diesel::update(p_q::payments.find(&p_id))
-                                        .set(
-                                            (
-                                                p_q::amount.eq(&Decimal::new(pmi_cap.amount_received, 2)),
-                                                p_q::amount_authorized.eq(&Decimal::new(pmi_cap.amount, 2)),
-                                                p_q::payment_type.eq(model::PaymentType::Succeeded)
-                                            )
-                                        )
-                                        .execute(&mut pool);
+                    let auth_hold_pmt = pmt_q::payments
+                        .find(agreement_to_be_checked_in.deposit_pmt_id.unwrap())
+                        .get_result::<model::Payment>(&mut pool);
+                    let Ok(mut auth_hold_pmt) = auth_hold_pmt else {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("agreement/check-in: Database connection error at loading auth hold payment")
+                        )
+                    };
 
-                                    match result {
-                                        Ok(count) => {
-                                            if count == 0 {
-                                                return methods::standard_replies::internal_server_error_response(
-                                                    String::from("agreement/check-in: SQL error at updating payment after capture (no rows updated)")
-                                                )
-                                            }
-                                        }
-                                        Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                String::from("agreement/check-in: Database connection error at updating payment after capture")
-                                            )
-                                        }
-                                    }
+                    let outstanding_balance = total_stripe_amount_2dp - paid_amount;
 
-                                    total_needed_to_be_captured_2dp = Decimal::zero();
-                                } else {
-                                    // capture can_capture_2dp
-                                    let int_to_capture = can_capture_2dp.mantissa() as i64;
-                                    let pmi_cap = integration::stripe_veygo::capture_payment(&pi_id, Some((int_to_capture, true))).await;
-                                    if pmi_cap.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Stripe error at capturing payment")
-                                        )
-                                    }
-                                    let pmi_cap = pmi_cap.unwrap();
-                                    let pmi_status: model::PaymentType = pmi_cap.status.into();
-                                    if pmi_status != model::PaymentType::Succeeded {
-                                        let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
-                                        if result.is_err() {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                String::from("agreement/check-in: Stripe error at finalizing capture")
-                                            )
-                                        }
-                                    }
-                                    let result = diesel::update(p_q::payments.find(&p_id))
-                                        .set(
-                                            (
-                                                p_q::amount.eq(&Decimal::new(pmi_cap.amount_received, 2)),
-                                                p_q::amount_authorized.eq(&Decimal::new(pmi_cap.amount, 2)),
-                                                p_q::payment_type.eq(model::PaymentType::Succeeded)
-                                            )
-                                        )
-                                        .execute(&mut pool);
-
-                                    match result {
-                                        Ok(count) => {
-                                            if count == 0 {
-                                                return methods::standard_replies::internal_server_error_response(
-                                                    String::from("agreement/check-in: SQL error at updating payment after capture (no rows updated)")
-                                                )
-                                            }
-                                        }
-                                        Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                String::from("agreement/check-in: Database connection error at updating payment after capture")
-                                            )
-                                        }
-                                    }
-
-                                    total_needed_to_be_captured_2dp -= can_capture_2dp;
-                                }
-                            } else {
-                                // captured enough, drop auth
-                                let pi = if pm.2 != Decimal::zero() {
-                                    let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
-                                    if result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Stripe error at finalizing capture")
-                                        )
-                                    }
-                                    result.unwrap()
-                                } else {
-                                    let result = integration::stripe_veygo::drop_auth(&pi_id).await;
-                                    if result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Stripe error at dropping authorization")
-                                        )
-                                    }
-                                    result.unwrap()
-                                };
-                                let result = diesel::update(p_q::payments.find(&p_id))
-                                    .set(p_q::payment_type.eq::<model::PaymentType>(pi.status.into()))
-                                    .execute(&mut pool);
-
-                                match result {
-                                    Ok(count) => {
-                                        if count == 0 {
-                                            return methods::standard_replies::internal_server_error_response(
-                                                String::from("agreement/check-in: SQL error at updating payment after capture (no rows updated)")
-                                            )
-                                        }
-                                    }
-                                    Err(_) => {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Database connection error at updating payment after capture")
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // if total_needed_to_be_captured_2dp > 0, create a new Payment and capture the remaining amount
-                        if total_needed_to_be_captured_2dp.gt(&Decimal::zero()) {
-                            let pm_id = agreement_to_be_checked_in.payment_method_id;
-                            use crate::schema::payment_methods::dsl as pm_q;
-                            let p_id = pm_q::payment_methods
-                                .find(&pm_id)
-                                .select(pm_q::token)
-                                .get_result::<String>(&mut pool);
-
-                            let Ok(p_id) = p_id else {
-                                return methods::standard_replies::internal_server_error_response(
-                                    String::from("agreement/check-in: Database connection error at loading payment method token")
-                                );
-                            };
-                            // process total_needed_to_be_captured_2dp
-                            let int_to_capture = total_needed_to_be_captured_2dp.mantissa() as i64;
-
-                            use crate::schema::renters::dsl as r_q;
-                            let stripe_id = r_q::renters
-                                .find(&agreement_to_be_checked_in.renter_id)
-                                .select(r_q::stripe_id)
-                                .get_result::<String>(&mut pool);
-
-                            let Ok(stripe_id) = stripe_id else {
-                                return methods::standard_replies::internal_server_error_response(
-                                    String::from("agreement/check-in: Database connection error at loading renter stripe_id")
-                                );
-                            };
-
-                            let description = "RSVP #".to_owned() + &*agreement_to_be_checked_in.confirmation.clone();
-                            let new_charge_result = integration::stripe_veygo::create_payment_intent(
-                                &stripe_id, &p_id, int_to_capture, PaymentIntentCaptureMethod::Automatic, &description
-                            ).await;
-                            if let Err(e) = new_charge_result {
-                                return match e {
-                                    VeygoError::CardDeclined => {
-                                        methods::standard_replies::card_declined()
-                                    }
-                                    _ => {
-                                        methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: Stripe error at creating payment intent")
-                                        )
-                                    }
-                                }
-                            }
-                            let new_charge = new_charge_result.unwrap();
-                            let p_status: model::PaymentType = new_charge.status.into();
-                            match p_status {
-                                model::PaymentType::Canceled => {
-                                    return methods::standard_replies::card_declined()
-                                }
-                                model::PaymentType::RequiresPaymentMethod => {
-                                    return methods::standard_replies::card_declined()
-                                }
-                                model::PaymentType::Succeeded => {
-                                    let new_payment = model::NewPayment {
-                                        payment_type: model::PaymentType::Succeeded,
-                                        amount: Decimal::new(new_charge.amount_received, 2),
-                                        note: None,
-                                        reference_number: Some(new_charge.id.to_string()),
-                                        agreement_id: agreement_to_be_checked_in.id,
-                                        renter_id: agreement_to_be_checked_in.renter_id,
-                                        payment_method_id: Some(agreement_to_be_checked_in.payment_method_id),
-                                        amount_authorized: Decimal::new(new_charge.amount, 2),
-                                        capture_before: None,
-                                        is_deposit: false,
-                                    };
-
-                                    let insert_result = diesel::insert_into(p_q::payments)
-                                        .values(&new_payment)
-                                        .execute(&mut pool);
-
-                                    if insert_result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: SQL error at inserting new payment")
-                                        )
-                                    }
-                                }
-                                _ => {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: Stripe error at creating payment intent")
-                                    )
-                                }
-                            }
-                        }
-
-                    } else if total_captured_amount == total_cost {
-                        let all_pm_id_needed_to_be_completed = p_q::payments
-                            .filter(p_q::agreement_id.eq(&agreement_to_be_checked_in.id))
-                            .filter(p_q::payment_type.eq(model::PaymentType::RequiresCapture))
-                            .filter(p_q::reference_number.is_not_null())
-                            .select((p_q::id, p_q::reference_number, p_q::amount))
-                            .get_results::<(i32, Option<String>, Decimal)>(&mut pool);
-                        if all_pm_id_needed_to_be_completed.is_err() {
-                            return methods::standard_replies::internal_server_error_response(
-                                String::from("agreement/check-in: Database connection error at loading payments requiring completion")
-                            )
-                        }
-
-                        let all_pm_id_needed_to_be_completed = all_pm_id_needed_to_be_completed.unwrap();
-                        for pm in all_pm_id_needed_to_be_completed {
-                            let pi_id = pm.1.unwrap();
-                            let pm_id = pm.0;
-                            let pi = if !pm.2.is_zero() {
-                                let result = integration::stripe_veygo::capture_payment(&pi_id, Some((0, true))).await;
-                                if result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: Stripe error at finalizing capture")
-                                    )
-                                }
-                                result.unwrap()
-                            } else {
-                                let result = integration::stripe_veygo::drop_auth(&pi_id).await;
-                                if result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: Stripe error at dropping authorization")
-                                    )
-                                }
-                                result.unwrap()
-                            };
-                            let result = diesel::update(p_q::payments.find(&pm_id))
-                                .set(p_q::payment_type.eq::<model::PaymentType>(pi.status.into()))
-                                .execute(&mut pool);
-
-                            match result {
-                                Ok(count) => {
-                                    if count == 0 {
-                                        return methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/check-in: SQL error at updating payment after capture (no rows updated)")
-                                        )
-                                    }
-                                }
-                                Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: Database connection error at updating payment after capture")
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // TODO: refund over capture
+                    if outstanding_balance < Decimal::zero() {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("agreement/check-in: outstanding balance negative")
+                        )
                     }
 
-                    // save checked in status
-                    let save_result = agreement_to_be_checked_in.save_changes::<model::Agreement>(&mut pool);
-                    match save_result {
-                        Ok(ag) => {
-                            methods::standard_replies::response_with_obj::<model::Agreement>(ag, StatusCode::OK)
+                    if outstanding_balance <= auth_hold_pmt.amount_authorized {
+                        let mut outstanding_balance_2dp = outstanding_balance.round_dp(2);
+                        outstanding_balance_2dp.rescale(2);
+                        auth_hold_pmt.amount = outstanding_balance_2dp;
+                        auth_hold_pmt.capture_before = None;
+                        auth_hold_pmt.payment_type = model::PaymentType::Succeeded;
+                        let _ = auth_hold_pmt.save_changes::<model::Payment>(&mut pool);
+                        let _ = integration::stripe_veygo::capture_payment(&auth_hold_pmt.reference_number.unwrap(), Some((outstanding_balance_2dp.mantissa() as i64, true))).await;
+                    } else {
+                        auth_hold_pmt.amount = auth_hold_pmt.amount_authorized;
+                        auth_hold_pmt.capture_before = None;
+                        auth_hold_pmt.payment_type = model::PaymentType::Succeeded;
+                        let _ = auth_hold_pmt.save_changes::<model::Payment>(&mut pool);
+                        let _ = integration::stripe_veygo::capture_payment(&auth_hold_pmt.reference_number.unwrap(), None).await;
+
+                        let still_need_to_process = outstanding_balance - auth_hold_pmt.amount;
+                        let mut still_need_to_process_2dp = still_need_to_process.round_dp(2);
+                        still_need_to_process_2dp.rescale(2);
+
+                        let description = "RSVP #".to_owned() + &*agreement_to_be_checked_in.confirmation.clone();
+                        let pmi = integration::stripe_veygo::create_payment_intent(&stripe_id, &payment_method_id, still_need_to_process_2dp.mantissa() as i64, PaymentIntentCaptureMethod::Automatic, &description).await;
+
+                        match pmi {
+                            Ok(pmi) => {
+                                let new_payment = model::NewPayment {
+                                    payment_type: model::PaymentType::Succeeded,
+                                    amount: still_need_to_process_2dp,
+                                    note: None,
+                                    reference_number: Some(pmi.id.to_string()),
+                                    agreement_id: agreement_to_be_checked_in.id,
+                                    renter_id: agreement_to_be_checked_in.renter_id,
+                                    payment_method_id: Some(agreement_to_be_checked_in.payment_method_id),
+                                    amount_authorized: still_need_to_process_2dp,
+                                    capture_before: None,
+                                };
+
+                                let payment_result = diesel::insert_into(pmt_q::payments)
+                                    .values(&new_payment).get_result::<model::Payment>(&mut pool);
+
+                                if payment_result.is_err() {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/check-in: DB saving final payment error, payment collected")
+                                    )
+                                }
+                            }
+                            Err(err) => {
+                                return if err == VeygoError::CardDeclined {
+                                    methods::standard_replies::card_declined()
+                                } else {
+                                    methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/check-in: Stripe cannot process outstanding payment")
+                                    )
+                                }
+                            }
                         }
-                        Err(_err) => {
+                    }
+
+                    let new_ag = agreement_to_be_checked_in.save_changes::<model::Agreement>(&mut pool);
+                    match new_ag {
+                        Ok(ag) => {
+                            methods::standard_replies::response_with_obj(&ag, StatusCode::OK)
+                        }
+                        Err(_) => {
                             methods::standard_replies::internal_server_error_response(
-                                String::from("agreement/check-in: SQL error at saving agreement check-in")
+                                String::from("agreement/check-in: could not save agreement updates")
                             )
                         }
                     }

@@ -283,6 +283,7 @@ pub async fn create_payment_intent(
     }
 }
 
+#[allow(dead_code)]
 pub async fn drop_auth(intent_id: &str) -> Result<PaymentIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
     let result = CancelPaymentIntent::new(intent_id).send(client).await;
