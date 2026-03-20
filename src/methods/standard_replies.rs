@@ -14,7 +14,7 @@ pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection>
 }
 pub fn internal_server_error_response(msg: String) -> Result<(warp::reply::Response,), Rejection> {
     let moved_msg = msg.clone();
-    let _ = tokio::task::spawn_blocking(move || {
+    let _ = tokio::task::spawn_blocking(async move || {
         let dev = integration::sendgrid_veygo::make_email_obj("dev@veygo.rent", "Veygo Dev Team");
         let _ = integration::sendgrid_veygo::send_email(
             Option::from("Veygo Server"),
@@ -23,7 +23,7 @@ pub fn internal_server_error_response(msg: String) -> Result<(warp::reply::Respo
             &*moved_msg,
             None,
             None,
-        );
+        ).await;
     });
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Internal Server Error"),

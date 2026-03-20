@@ -512,7 +512,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 vehicle_identifier: None,
                             };
 
-                                use schema::charges::dsl as c_q;
+                            use schema::charges::dsl as c_q;
 
                             let res = diesel::insert_into(c_q::charges)
                                 .values(&new_charge)
@@ -546,12 +546,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         - agreement_to_be_checked_in.rsvp_pickup_time;
 
                     let total_hours_reserved = Decimal::new(trip_duration.num_minutes(), 0) / Decimal::new(60, 0);
-                    let total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
 
                     let total_hours_driven = Decimal::new(trip_duration_including_late_return.num_minutes(), 0) / Decimal::new(60, 0);
                     let total_hours_driven_round_up = total_hours_driven.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
 
-                    let late_hours = total_hours_driven_round_up - total_hours_reserved_round_up;
+                    let late_hours = (total_hours_driven - total_hours_reserved)
+                        .round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
 
                     use schema::reward_transactions::dsl as re_q;
                     let reward_used_sum = re_q::reward_transactions

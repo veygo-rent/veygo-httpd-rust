@@ -280,7 +280,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 }
                                 _ => {
                                     return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-out: Vehicle not supported for remote return"),
+                                        String::from("agreement/check-out: Vehicle not supported for remote pickup"),
                                     )
                                 }
                             };

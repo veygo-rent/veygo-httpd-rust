@@ -778,7 +778,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             rsa_protection_rate: ag_rsa,
                             pai_protection_rate: ag_pai,
                             msrp_factor: req_vehicle.msrp_factor,
-                            duration_rate: req_apt.duration_rate * req_vehicle.msrp_factor,
+                            duration_rate: req_apt.duration_rate,
                             vehicle_id: req_vehicle.id,
                             renter_id: user_in_request.id,
                             payment_method_id: body.payment_id,
