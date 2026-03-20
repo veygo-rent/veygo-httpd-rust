@@ -5,34 +5,11 @@ use diesel::expression_methods::NullableExpressionMethods;
 use warp::{Filter, Rejection, Reply, http::{Method, StatusCode}};
 use chrono::{DateTime, Duration, Utc};
 use diesel::result::Error;
+use futures::{stream::FuturesUnordered, StreamExt};
 use rust_decimal::prelude::*;
-use serde::Deserialize;
+use sha2::{Sha256, Digest};
 use stripe_core::{ PaymentIntentCaptureMethod };
 use crate::helper_model::VeygoError;
-
-#[derive(Debug, Deserialize)]
-struct TeslaChargingSessionsResponse {
-    data: Vec<TeslaChargingSessionMin>,
-    status_code: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaChargingSessionMin {
-    start_date_time: DateTime<Utc>,
-    location: TeslaChargingLocationMin,
-    total_cost: TeslaTotalCostMin,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaChargingLocationMin {
-    name: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaTotalCostMin {
-    excl_vat: f64,
-    incl_vat: f64,
-}
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("check-in")
@@ -41,15 +18,109 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |method: Method, body: helper_model::CheckInRequest, auth: String, user_agent: String| {
+        .and_then(async move |method: Method, body: helper_model::CheckInOutRequest, auth: String, user_agent: String| {
 
+            let mut pool = POOL.get().unwrap();
+            
             // Checking method is POST
             if method != Method::POST {
                 return methods::standard_replies::method_not_allowed_response();
             }
 
-            if body.agreement_id <= 0 || body.vehicle_snapshot_id <= 0 {
-                return methods::standard_replies::bad_request("Bad request: wrong parameters. ")
+            let agreement_id = match body {
+                helper_model::CheckInOutRequest::WithSnapshotId { agreement_id, .. } => { agreement_id }
+                helper_model::CheckInOutRequest::WithImagePath { agreement_id, .. } => { agreement_id }
+            };
+
+            match body {
+                helper_model::CheckInOutRequest::WithSnapshotId { agreement_id, vehicle_snapshot_id } => {
+                    if agreement_id <= 0 || vehicle_snapshot_id <= 0 {
+                        return methods::standard_replies::bad_request("wrong parameters. ")
+                    }
+                }
+                helper_model::CheckInOutRequest::WithImagePath {
+                    agreement_id,
+                    ref left_image_path,
+                    ref right_image_path,
+                    ref front_image_path,
+                    ref back_image_path,
+                    ref front_right_image_path,
+                    ref front_left_image_path,
+                    ref back_right_image_path,
+                    ref back_left_image_path,
+                } => {
+                    if agreement_id <= 0 {
+                        return methods::standard_replies::bad_request("wrong parameters. ")
+                    }
+
+                    use schema::agreements::dsl as ag_q;
+                    use schema::vehicles::dsl as veh_q;
+
+                    let vin_num = ag_q::agreements
+                        .find(&agreement_id)
+                        .inner_join(veh_q::vehicles)
+                        .select(veh_q::vin)
+                        .get_result::<String>(&mut pool);
+
+                    let vin_num = match vin_num {
+                        Ok(vin) => { vin }
+                        Err(err) => {
+                            return match err {
+                                Error::NotFound => {
+                                    methods::standard_replies::bad_request("Loading vehicles failed")
+                                }
+                                _ => {
+                                    methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/check-in: DB Error loading VIN number"),
+                                    )
+                                }
+                            }
+                        }
+                    };
+
+                    let mut hasher = Sha256::new();
+                    let data = vin_num.clone().into_bytes();
+                    hasher.update(data);
+                    let result = hasher.finalize();
+                    let object_pwd: String = format!("vehicle_pictures/{:X}/", result);
+
+                    let left_image_path: String = format!("{}{}", &object_pwd, &left_image_path);
+                    let right_image_path: String = format!("{}{}", &object_pwd, &right_image_path);
+                    let front_image_path: String = format!("{}{}", &object_pwd, &front_image_path);
+                    let back_image_path: String = format!("{}{}", &object_pwd, &back_image_path);
+                    let front_right_image_path: String = format!("{}{}", &object_pwd, &front_right_image_path);
+                    let front_left_image_path: String = format!("{}{}", &object_pwd, &front_left_image_path);
+                    let back_right_image_path: String = format!("{}{}", &object_pwd, &back_right_image_path);
+                    let back_left_image_path: String = format!("{}{}", &object_pwd, &back_left_image_path);
+
+                    // Validate that all referenced images exist in GCS (run checks concurrently)
+                    let checks: [(String, String); 8] = [
+                        ("Left Image".to_string(), left_image_path.clone()),
+                        ("Right Image".to_string(), right_image_path.clone()),
+                        ("Front Image".to_string(), front_image_path.clone()),
+                        ("Back Image".to_string(), back_image_path.clone()),
+                        ("Front-Right Image".to_string(), front_right_image_path.clone()),
+                        ("Front-Left Image".to_string(), front_left_image_path.clone()),
+                        ("Back-Right Image".to_string(), back_right_image_path.clone()),
+                        ("Back-Left Image".to_string(), back_left_image_path.clone()),
+                    ];
+
+                    let mut futures = FuturesUnordered::new();
+                    for (label, path) in checks {
+                        futures.push(async move {
+                            let ok = integration::gcloud_storage_veygo::check_exists(path.clone()).await;
+                            (label, path, ok)
+                        });
+                    }
+
+                    while let Some((label, _path, ok)) = futures.next().await {
+                        if !ok {
+                            return methods::standard_replies::bad_request(
+                                &format!("{} does not exist", label),
+                            );
+                        }
+                    }
+                }
             }
 
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -102,13 +173,153 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                     }
 
+                    let vehicle_snapshot_id = match body {
+                        helper_model::CheckInOutRequest::WithSnapshotId { vehicle_snapshot_id, .. } => { vehicle_snapshot_id }
+                        helper_model::CheckInOutRequest::WithImagePath {
+                            agreement_id,
+                            ref left_image_path,
+                            ref right_image_path,
+                            ref front_image_path,
+                            ref back_image_path,
+                            ref front_right_image_path,
+                            ref front_left_image_path,
+                            ref back_right_image_path,
+                            ref back_left_image_path,
+                        } => {
+                            let usr_in_question =
+                                methods::user::get_user_by_id(&access_token.user_id)
+                                    .await;
+                            let Ok(usr_in_question) = usr_in_question else {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Loading user error"),
+                                );
+                            };
+                            if !usr_in_question.is_email_verified() {
+                                return methods::standard_replies::user_email_not_verified();
+                            }
+
+                            use schema::agreements::dsl as ag_q;
+                            use schema::vehicles::dsl as veh_q;
+
+                            let vehicle = ag_q::agreements
+                                .find(&agreement_id)
+                                .inner_join(veh_q::vehicles)
+                                .select(veh_q::vehicles::all_columns())
+                                .get_result::<model::Vehicle>(&mut pool);
+
+                            let Ok(mut vehicle) = vehicle else {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Loading vehicle error DB"),
+                                );
+                            };
+
+
+                            let (fuel, odo) = match vehicle.remote_mgmt {
+                                model::RemoteMgmtType::Tesla => {
+                                    // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                                    let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
+
+                                    for i in 0..16 { // up to ~10s total
+                                        if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                            if let Ok(body_text) = response.text().await {
+                                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                                    let state = json
+                                                        .get("response")
+                                                        .and_then(|r| r.get("state"))
+                                                        .and_then(|s| s.as_str())
+                                                        .unwrap_or("");
+                                                    if state == "online" {
+                                                        break;
+                                                    }
+                                                    // Only on the first iteration, if offline, send wake_up once
+                                                    if i == 0 {
+                                                        let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                                                        let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                    }
+
+                                    // Fetch live Tesla vehicle data (odometer + battery level)
+                                    let vehicle_tag = &vehicle.remote_mgmt_id;
+                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+
+                                    let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
+                                        Ok(r) => r,
+                                        Err(_) => {
+                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
+                                        }
+                                    };
+
+                                    if !tesla_resp.status().is_success() {
+                                        return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
+                                    }
+
+                                    let tesla_body: helper_model::TeslaVehicleDataEnvelope = match tesla_resp.json().await {
+                                        Ok(b) => b,
+                                        Err(_) => {
+                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API response JSON decode error"));
+                                        }
+                                    };
+
+                                    let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
+                                    let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
+
+                                    vehicle.odometer = odometer_i32;
+                                    vehicle.tank_level_percentage = battery_level_i32;
+
+                                    let _ = vehicle.save_changes::<model::Vehicle>(&mut pool);
+
+                                    (battery_level_i32, odometer_i32)
+                                }
+                                _ => {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/check-in: Vehicle not supported for remote return"),
+                                    )
+                                }
+                            };
+
+
+                            let snapshot_to_be_inserted = model::NewVehicleSnapshot {
+                                left_image: left_image_path.clone(),
+                                right_image: right_image_path.clone(),
+                                front_image: front_image_path.clone(),
+                                back_image: back_image_path.clone(),
+                                odometer: odo,
+                                level: fuel,
+                                vehicle_id: vehicle.id,
+                                rear_right: back_right_image_path.clone(),
+                                rear_left: back_left_image_path.clone(),
+                                front_right: front_right_image_path.clone(),
+                                front_left: front_left_image_path.clone(),
+                                dashboard: None,
+                                renter_id: access_token.user_id,
+                            };
+
+                            use crate::schema::vehicle_snapshots::dsl as v_s_q;
+
+                            let v_snap = diesel::insert_into(v_s_q::vehicle_snapshots)
+                                .values(&snapshot_to_be_inserted)
+                                .get_result::<model::VehicleSnapshot>(&mut pool);
+
+                            match v_snap {
+                                Ok(vs) => {
+                                    vs.id
+                                }
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: SQL error inserting vehicle snapshot"))
+                                }
+                            }
+                        }
+                    };
+
                     use schema::agreements::dsl as agreement_q;
                     use schema::vehicle_snapshots::dsl as v_s_q;
                     use schema::vehicles::dsl as v_q;
                     use schema::renters::dsl as renter_q;
                     use schema::payment_methods::dsl as pm_q;
-
-                    let mut pool = POOL.get().unwrap();
 
                     let five_minutes_ago = Utc::now() - Duration::minutes(5);
 
@@ -124,8 +335,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         )
                         .filter(agreement_q::renter_id.eq(&user_id))
                         .filter(agreement_q::status.eq(model::AgreementStatus::Rental))
-                        .filter(v_s_q::id.eq(&body.vehicle_snapshot_id))
-                        .filter(agreement_q::id.eq(&body.agreement_id))
+                        .filter(v_s_q::id.eq(&vehicle_snapshot_id))
+                        .filter(agreement_q::id.eq(&agreement_id))
                         .filter(agreement_q::actual_pickup_time.is_not_null())
                         .filter(agreement_q::actual_drop_off_time.is_null())
                         .filter(v_s_q::time.ge(agreement_q::actual_pickup_time.assume_not_null()))
@@ -261,7 +472,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             }
                         };
 
-                        let parsed: TeslaChargingSessionsResponse = match serde_json::from_str(&body_text) {
+                        let parsed: helper_model::TeslaChargingSessionsResponse = match serde_json::from_str(&body_text) {
                             Ok(p) => p,
                             Err(_) => {
                                 return methods::standard_replies::internal_server_error_response(
@@ -552,8 +763,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     };
 
                     let paid_amount = paid_amount.unwrap_or(Decimal::zero());
-
-
 
                     let auth_hold_pmt = pmt_q::payments
                         .find(agreement_to_be_checked_in.deposit_pmt_id.unwrap())

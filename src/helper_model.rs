@@ -3,6 +3,52 @@ use serde_derive::{Deserialize, Serialize};
 use crate::model;
 use rust_decimal::prelude::*;
 
+#[derive(Debug, Deserialize)]
+pub struct TeslaChargingSessionsResponse {
+    pub data: Vec<TeslaChargingSessionMin>,
+    pub status_code: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaChargingSessionMin {
+    pub start_date_time: DateTime<Utc>,
+    pub location: TeslaChargingLocationMin,
+    pub total_cost: TeslaTotalCostMin,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaChargingLocationMin {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaTotalCostMin {
+    pub excl_vat: f64,
+    pub incl_vat: f64,
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaVehicleDataEnvelope {
+    pub response: TeslaVehicleData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaVehicleData {
+    pub charge_state: TeslaChargeState,
+    pub vehicle_state: TeslaVehicleState,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaChargeState {
+    pub battery_level: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaVehicleState {
+    pub odometer: f64,
+}
+
 #[derive(Serialize, Debug, Clone)]
 pub struct ErrorResponse {
     pub title: String,
@@ -55,15 +101,25 @@ pub struct GenerateSnapshotRequest {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct CheckOutRequest {
-    pub agreement_id: i32,
-    pub vehicle_snapshot_id: i32,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct CheckInRequest {
-    pub agreement_id: i32,
-    pub vehicle_snapshot_id: i32,
+#[serde(tag = "type")]
+pub enum CheckInOutRequest {
+    #[serde(rename = "with_snapshot_id")]
+    WithSnapshotId {
+        agreement_id: i32,
+        vehicle_snapshot_id: i32,
+    },
+    #[serde(rename = "with_image_path")]
+    WithImagePath {
+        agreement_id: i32,
+        left_image_path: String,
+        right_image_path: String,
+        front_image_path: String,
+        back_image_path: String,
+        front_right_image_path: String,
+        front_left_image_path: String,
+        back_right_image_path: String,
+        back_left_image_path: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

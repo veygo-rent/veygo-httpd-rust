@@ -4,29 +4,7 @@ use warp::{Filter, http::Method, http::StatusCode, Rejection};
 use sha2::{Sha256, Digest};
 use futures::{stream::FuturesUnordered, StreamExt};
 
-use serde::Deserialize;
 use crate::helper_model::VeygoError;
-
-#[derive(Debug, Deserialize)]
-struct TeslaVehicleDataEnvelope {
-    response: TeslaVehicleData,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaVehicleData {
-    charge_state: TeslaChargeState,
-    vehicle_state: TeslaVehicleState,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaChargeState {
-    battery_level: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct TeslaVehicleState {
-    odometer: f64,
-}
 
 pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> + Clone {
     warp::path("generate-snapshot")
@@ -47,7 +25,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
             let vehicle_result = v_q::vehicles
                 .filter(v_q::vin.eq(&body.vehicle_vin)).get_result::<model::Vehicle>(&mut pool);
             if vehicle_result.is_err() {
-                return methods::standard_replies::bad_request("Vehicle does not exist")
+                return methods::standard_replies::bad_request("Loading vehicles failed");
             }
             let mut vehicle: model::Vehicle = vehicle_result.unwrap();
 
@@ -195,7 +173,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                 return methods::standard_replies::internal_server_error_response(String::from("vehicle/generate-snapshot: Tesla API returned non-success for vehicle_data"));
                             }
 
-                            let tesla_body: TeslaVehicleDataEnvelope = match tesla_resp.json().await {
+                            let tesla_body: helper_model::TeslaVehicleDataEnvelope = match tesla_resp.json().await {
                                 Ok(b) => b,
                                 Err(_) => {
                                     return methods::standard_replies::internal_server_error_response(String::from("vehicle/generate-snapshot: Tesla API response JSON decode error"));

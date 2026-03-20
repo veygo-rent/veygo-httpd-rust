@@ -1,10 +1,6 @@
 use chrono::{Duration, TimeDelta};
 use rust_decimal::prelude::*;
 
-pub fn generate_rate_offer_on_the_fly () -> Decimal {
-    Decimal::one()
-}
-
 pub fn calculate_billable_duration_hours ( raw_duration: TimeDelta ) -> Decimal {
     // Tiered billing:
     // - First 8 hours are billed 1:1
