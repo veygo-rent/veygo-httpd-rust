@@ -52,6 +52,10 @@ pub async fn nightly_task() {
             continue
         };
 
+        for u in user_needs_to_renew.clone() {
+            println!("{}", u.name);
+        }
+
         if user_needs_to_renew.is_empty() {
             continue
         };
