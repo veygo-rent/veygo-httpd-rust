@@ -48,173 +48,172 @@ pub async fn nightly_task() {
         let user_needs_to_renew = user_needs_to_renew_cmd
             .load::<model::Renter>(&mut pool);
 
-        let Ok(user_needs_to_renew) = user_needs_to_renew else {
-            continue
-        };
+        if let Ok(user_needs_to_renew) = user_needs_to_renew {
 
-        for u in user_needs_to_renew.clone() {
-            println!("{}", u.name);
-        }
+            for u in &user_needs_to_renew {
+                println!("{}", u.name);
+            }
 
-        if user_needs_to_renew.is_empty() {
-            continue
-        };
-
-        let today = Utc::now();
-        let mut year = today.year();
-        let mut month = today.month();
-
-        let renew_for_one_year = format!("{:02}{}", month, year + 1);
-
-        if month == 12 {
-            month = 1;
-            year += 1;
-        } else {
-            month += 1;
-        }
-        let renew_for_one_month = format!("{:02}{}", month, year);
-
-        for mut renter in user_needs_to_renew {
-            use crate::schema::apartments::dsl as apt_q;
-            let apartment = apt_q::apartments
-                .find(&renter.apartment_id)
-                .get_result::<model::Apartment>(&mut pool);
-
-            let Ok(apartment) = apartment else {
+            if user_needs_to_renew.is_empty() {
                 continue
             };
 
-            if !apartment.is_operating {
-                continue
+            let today = Utc::now();
+            let mut year = today.year();
+            let mut month = today.month();
+
+            let renew_for_one_year = format!("{:02}{}", month, year + 1);
+
+            if month == 12 {
+                month = 1;
+                year += 1;
+            } else {
+                month += 1;
             }
+            let renew_for_one_month = format!("{:02}{}", month, year);
 
-            let description;
-            let mut rent = match renter.plan_tier {
-                model::PlanTier::Platinum => {
-                    description = String::from("PLAT TIER SUBS");
-                    renter.plan_total_availability = apartment.platinum_tier_hours;
-                    apartment.platinum_tier_rate
+            for mut renter in user_needs_to_renew {
+                use crate::schema::apartments::dsl as apt_q;
+                let apartment = apt_q::apartments
+                    .find(&renter.apartment_id)
+                    .get_result::<model::Apartment>(&mut pool);
+
+                let Ok(apartment) = apartment else {
+                    continue
+                };
+
+                if !apartment.is_operating {
+                    continue
                 }
-                model::PlanTier::Gold => {
-                    description = String::from("GOLD TIER SUBS");
-                    renter.plan_total_availability = apartment.gold_tier_hours;
-                    apartment.gold_tier_rate
-                }
-                model::PlanTier::Silver => {
-                    description = String::from("SILVER TIER SUBS");
-                    renter.plan_total_availability = apartment.silver_tier_hours;
-                    apartment.silver_tier_rate
-                }
-                model::PlanTier::Free => {
-                    description = String::from("FREE TIER SUBS");
-                    renter.plan_total_availability = apartment.free_tier_hours;
-                    Decimal::zero()
-                }
-            };
-            if renter.is_plan_annual {
-                rent = rent * Decimal::new(100, 1);
-            }
 
-            let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, &renter.name);
-            if rent != Decimal::zero() {
-                if let Some(renew_id) = renter.subscription_payment_method_id &&
-                    let Some(addr) = renter.billing_address.clone() {
-
-                    // Get Payment Method
-                    use crate::schema::payment_methods::dsl as pm_q;
-                    let plan_pm = pm_q::payment_methods.find(renew_id).get_result::<model::PaymentMethod>(&mut pool);
-                    let Ok(plan_pm) = plan_pm else {
-                        continue
-                    };
-
-                    use crate::schema::apartments_taxes::dsl as at_q;
-                    use crate::schema::taxes::dsl as t_q;
-
-                    let vec_taxes = at_q::apartments_taxes
-                        .inner_join(t_q::taxes)
-                        .filter(at_q::apartment_id.eq(&renter.apartment_id))
-                        .filter(t_q::tax_type.eq(model::TaxType::Percent))
-                        .filter(t_q::is_sales_tax.eq(true))
-                        .select(t_q::multiplier)
-                        .get_results::<Decimal>(&mut pool);
-
-                    let Ok(vec_taxes) = vec_taxes else {
-                        continue
-                    };
-
-                    let mut sales_tax_rate = Decimal::zero();
-                    for vec_tax in vec_taxes {
-                        sales_tax_rate += vec_tax;
+                let description;
+                let mut rent = match renter.plan_tier {
+                    model::PlanTier::Platinum => {
+                        description = String::from("PLAT TIER SUBS");
+                        renter.plan_total_availability = apartment.platinum_tier_hours;
+                        apartment.platinum_tier_rate
                     }
+                    model::PlanTier::Gold => {
+                        description = String::from("GOLD TIER SUBS");
+                        renter.plan_total_availability = apartment.gold_tier_hours;
+                        apartment.gold_tier_rate
+                    }
+                    model::PlanTier::Silver => {
+                        description = String::from("SILVER TIER SUBS");
+                        renter.plan_total_availability = apartment.silver_tier_hours;
+                        apartment.silver_tier_rate
+                    }
+                    model::PlanTier::Free => {
+                        description = String::from("FREE TIER SUBS");
+                        renter.plan_total_availability = apartment.free_tier_hours;
+                        Decimal::zero()
+                    }
+                };
+                if renter.is_plan_annual {
+                    rent = rent * Decimal::new(100, 1);
+                }
 
-                    let taxed_rent = rent * (Decimal::one() + sales_tax_rate);
-                    let taxed_rent_in_int = taxed_rent.round_dp(2).mantissa() as i64;
+                let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, &renter.name);
+                if rent != Decimal::zero() {
+                    if let Some(renew_id) = renter.subscription_payment_method_id &&
+                        let Some(addr) = renter.billing_address.clone() {
 
-                    let payment_result = integration::stripe_veygo::create_payment_intent(
-                        &renter.stripe_id, &plan_pm.token, taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic, &description
-                    ).await;
+                        // Get Payment Method
+                        use crate::schema::payment_methods::dsl as pm_q;
+                        let plan_pm = pm_q::payment_methods.find(renew_id).get_result::<model::PaymentMethod>(&mut pool);
+                        let Ok(plan_pm) = plan_pm else {
+                            continue
+                        };
 
-                    match payment_result {
-                        Ok(_pi) => {
-                            let new_plan_payment = model::NewSubscriptionPayment{
-                                renter_id: renter.id,
-                                payment_method_id: renew_id,
-                                apartment_id: renter.apartment_id,
-                                renter_name: renter.name.clone(),
-                                renter_email: renter.student_email.clone(),
-                                renter_phone: renter.phone.clone(),
-                                renter_billing_address: addr,
-                                time: Default::default(),
-                                is_annual: renter.is_plan_annual,
-                                amount: rent,
-                                plan_tier: renter.plan_tier,
-                                plan_renewal_day: Default::default(),
-                            };
+                        use crate::schema::apartments_taxes::dsl as at_q;
+                        use crate::schema::taxes::dsl as t_q;
 
-                            use crate::schema::subscription_payments::dsl as sp_q;
-                            let result = diesel::insert_into(sp_q::subscription_payments)
-                                .values(&new_plan_payment)
-                                .get_result::<model::SubscriptionPayment>(&mut pool);
+                        let vec_taxes = at_q::apartments_taxes
+                            .inner_join(t_q::taxes)
+                            .filter(at_q::apartment_id.eq(&renter.apartment_id))
+                            .filter(t_q::tax_type.eq(model::TaxType::Percent))
+                            .filter(t_q::is_sales_tax.eq(true))
+                            .select(t_q::multiplier)
+                            .get_results::<Decimal>(&mut pool);
 
-                            let Ok(_sp) = result else {
-                                continue
-                            };
+                        let Ok(vec_taxes) = vec_taxes else {
+                            continue
+                        };
+
+                        let mut sales_tax_rate = Decimal::zero();
+                        for vec_tax in vec_taxes {
+                            sales_tax_rate += vec_tax;
                         }
-                        Err(err) => {
-                            match err {
-                                VeygoError::CardDeclined => {
-                                    // Downgrade plan
-                                    renter.plan_tier = model::PlanTier::Free;
-                                    renter.plan_total_availability = apartment.free_tier_hours;
 
-                                    // Downgrade email
-                                    integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
-                                }
-                                _ => {
+                        let taxed_rent = rent * (Decimal::one() + sales_tax_rate);
+                        let taxed_rent_in_int = taxed_rent.round_dp(2).mantissa() as i64;
+
+                        let payment_result = integration::stripe_veygo::create_payment_intent(
+                            &renter.stripe_id, &plan_pm.token, taxed_rent_in_int, PaymentIntentCaptureMethod::Automatic, &description
+                        ).await;
+
+                        match payment_result {
+                            Ok(_pi) => {
+                                let new_plan_payment = model::NewSubscriptionPayment{
+                                    renter_id: renter.id,
+                                    payment_method_id: renew_id,
+                                    apartment_id: renter.apartment_id,
+                                    renter_name: renter.name.clone(),
+                                    renter_email: renter.student_email.clone(),
+                                    renter_phone: renter.phone.clone(),
+                                    renter_billing_address: addr,
+                                    time: Default::default(),
+                                    is_annual: renter.is_plan_annual,
+                                    amount: rent,
+                                    plan_tier: renter.plan_tier,
+                                    plan_renewal_day: Default::default(),
+                                };
+
+                                use crate::schema::subscription_payments::dsl as sp_q;
+                                let result = diesel::insert_into(sp_q::subscription_payments)
+                                    .values(&new_plan_payment)
+                                    .get_result::<model::SubscriptionPayment>(&mut pool);
+
+                                let Ok(_sp) = result else {
                                     continue
+                                };
+                            }
+                            Err(err) => {
+                                match err {
+                                    VeygoError::CardDeclined => {
+                                        // Downgrade plan
+                                        renter.plan_tier = model::PlanTier::Free;
+                                        renter.plan_total_availability = apartment.free_tier_hours;
+
+                                        // Downgrade email
+                                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                                    }
+                                    _ => {
+                                        continue
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        // Downgrade plan
+                        renter.plan_tier = model::PlanTier::Free;
+                        renter.plan_total_availability = apartment.free_tier_hours;
+
+                        // Downgrade email
+                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to missing payment method. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
                     }
-                } else {
-                    // Downgrade plan
-                    renter.plan_tier = model::PlanTier::Free;
-                    renter.plan_total_availability = apartment.free_tier_hours;
-
-                    // Downgrade email
-                    integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to missing payment method. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
                 }
-            }
 
-            // Update renter exp
-            if renter.is_plan_annual {
-                renter.plan_expire_month_year = renew_for_one_year.clone();
-            } else {
-                renter.plan_expire_month_year = renew_for_one_month.clone();
+                // Update renter exp
+                if renter.is_plan_annual {
+                    renter.plan_expire_month_year = renew_for_one_year.clone();
+                } else {
+                    renter.plan_expire_month_year = renew_for_one_month.clone();
+                }
+                diesel::update(rt_q::renters.find(renter.id))
+                    .set(&renter).execute(&mut pool).unwrap();
             }
-            diesel::update(rt_q::renters.find(renter.id))
-                .set(&renter).execute(&mut pool).unwrap();
-        }
+        };
 
         let now = Utc::now();
         // Delete expired tokens
