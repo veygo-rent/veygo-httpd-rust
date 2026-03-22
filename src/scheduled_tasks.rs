@@ -50,14 +50,6 @@ pub async fn nightly_task() {
 
         if let Ok(user_needs_to_renew) = user_needs_to_renew {
 
-            for u in &user_needs_to_renew {
-                println!("{}", u.name);
-            }
-
-            if user_needs_to_renew.is_empty() {
-                continue
-            };
-
             let today = Utc::now();
             let mut year = today.year();
             let mut month = today.month();
@@ -73,6 +65,10 @@ pub async fn nightly_task() {
             let renew_for_one_month = format!("{:02}{}", month, year);
 
             for mut renter in user_needs_to_renew {
+
+                // DEBUG
+                println!("{}", &renter.name);
+
                 use crate::schema::apartments::dsl as apt_q;
                 let apartment = apt_q::apartments
                     .find(&renter.apartment_id)
