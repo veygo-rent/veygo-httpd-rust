@@ -869,7 +869,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     Ok(pmt) => {
                                         // insert successful
                                         let intent_id = pmt.clone().reference_number.unwrap();
-                                        // let _ = integration::stripe_veygo::capture_payment(&intent_id, None).await;
+                                        let _ = integration::stripe_veygo::capture_payment(&intent_id, None).await;
 
                                         methods::standard_replies::response_with_obj(inserted_agreement, StatusCode::CREATED)
                                     }
