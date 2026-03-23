@@ -163,6 +163,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         use crate::schema::locations::dsl as locations_query;
                         use crate::schema::vehicles::dsl as vehicles_query;
                         let all_vehicles = vehicles_query::vehicles
+                            .filter(crate::schema::vehicles::dsl::available)
                             .inner_join(locations_query::locations)
                             .filter(locations_query::apartment_id.eq(&body.apartment_id))
                             .select((vehicles_query::vehicles::all_columns(), locations_query::locations::all_columns()))

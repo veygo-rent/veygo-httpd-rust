@@ -242,6 +242,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .filter(apartment_query::is_operating)
                             .filter(location_query::is_operational)
                             .filter(vehicle_query::id.eq(&body.vehicle_id))
+                            .filter(vehicle_query::available)
                             .select(
                                 (
                                     vehicle_query::vehicles::all_columns(),
