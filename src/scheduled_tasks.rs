@@ -21,7 +21,9 @@ pub async fn nightly_task() {
 
         tokio::time::sleep(duration_until_midnight).await;
 
-        println!("====== Running Daily Tasks ======");
+        let now = Utc::now().date_naive();
+
+        println!("\n{}====== Running Daily Tasks ======", now);
 
         use diesel::dsl::sql;
         use crate::schema::renters::dsl as rt_q;
@@ -227,6 +229,6 @@ pub async fn nightly_task() {
         let _ = diesel::delete(
             ro_q::rate_offers.filter(ro_q::exp.lt(now))
         ).execute(&mut pool);
-        println!("===== Daily Tasks Completed =====");
+        println!("===== Daily Tasks Completed =====\n");
     }
 }
