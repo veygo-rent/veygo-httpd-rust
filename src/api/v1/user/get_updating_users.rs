@@ -110,14 +110,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let user_needs_to_renew = user_needs_to_renew_cmd
                         .load::<model::Renter>(&mut pool);
 
-                    if let Ok(user_needs_to_renew) = user_needs_to_renew {
-                        let pub_user: Vec<model::PublishRenter> = user_needs_to_renew
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect();
-                        methods::standard_replies::response_with_obj(pub_user, StatusCode::OK)
-                    } else {
-                        methods::standard_replies::internal_server_error_response(String::from("user/updating-user: DB error loading renewing renters"))
+                    match user_needs_to_renew {
+                        Ok(user_needs_to_renew) => {
+                            let pub_user: Vec<model::PublishRenter> = user_needs_to_renew
+                                .into_iter()
+                                .map(|x| x.into())
+                                .collect();
+                            methods::standard_replies::response_with_obj(pub_user, StatusCode::OK)
+                        }
+                        Err(err) => {
+                            methods::standard_replies::internal_server_error_response(String::from(format!("user/updating-user: DB error loading renewing renters {}", err)))
+                        }
                     }
                 }
             }
