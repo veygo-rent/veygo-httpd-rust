@@ -753,7 +753,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     use schema::payments::dsl as pmt_q;
                     let paid_amount = pmt_q::payments
                         .filter(pmt_q::agreement_id.eq(agreement_to_be_checked_in.id))
-                        .select(diesel::dsl::sum(pmt_q::amount))
+                        .select(diesel::dsl::sum(pmt_q::amount - pmt_q::refund_amount))
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(paid_amount) = paid_amount else {

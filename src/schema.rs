@@ -324,6 +324,7 @@ diesel::table! {
         payment_method_id -> Nullable<Int4>,
         amount_authorized -> Numeric,
         capture_before -> Nullable<Timestamptz>,
+        refund_amount -> Numeric,
     }
 }
 

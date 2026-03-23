@@ -554,22 +554,23 @@ create table subscription_payments
 
 create table payments
 (
-    id                serial,
-    payment_type      payment_type_enum                                     not null,
-    time              timestamp with time zone default CURRENT_TIMESTAMP    not null,
-    amount            numeric(8, 2)                                         not null,
-    note              text,
-    reference_number  varchar(36),
-    agreement_id      integer                                               not null,
-    renter_id         integer                                               not null,
-    payment_method_id integer,
-    amount_authorized numeric(8, 2)                                         not null,
-    capture_before    timestamp with time zone,
+    id                  serial,
+    payment_type        payment_type_enum                                           not null,
+    time                timestamp with time zone    default CURRENT_TIMESTAMP       not null,
+    amount              numeric(8, 2)                                               not null,
+    note                text,
+    reference_number    varchar(36),
+    agreement_id        integer                                                     not null,
+    renter_id           integer                                                     not null,
+    payment_method_id   integer,
+    amount_authorized   numeric(8, 2)                                               not null,
+    capture_before      timestamp with time zone,
+    refund_amount       numeric(8, 2)               default 0.00                    not null,
     constraint payments_pk primary key (id),
     constraint payments_renter_id_fk foreign key (renter_id) references renters(id),
     constraint payments_payment_method_id_fk foreign key (payment_method_id) references payment_methods(id),
     constraint payments_agreement_id_fk foreign key (agreement_id) references agreements(id),
-    constraint payments_amount_range check (amount_authorized > 0.0),
+    constraint payments_amount_range check (amount_authorized > 0.0 and amount >= 0.0 and refund_amount >= 0.0 and amount >= refund_amount),
     constraint payments_reference_number_uk unique (reference_number)
 );
 

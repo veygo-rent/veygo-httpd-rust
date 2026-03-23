@@ -1426,6 +1426,8 @@ pub struct Payment {
     pub amount_authorized: Decimal,
     #[serde(with = "chrono::serde::ts_seconds_option")]
     pub capture_before: Option<DateTime<Utc>>,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub refund_amount: Decimal,
 }
 
 #[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
