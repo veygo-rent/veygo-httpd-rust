@@ -8,6 +8,7 @@ use diesel::result::Error;
 use warp::http::StatusCode;
 use warp::{Filter, Reply, http::Method};
 use crate::helper_model::VeygoError;
+use crate::model::Tax;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct AvailabilityData {
@@ -281,6 +282,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         struct Availability {
                             offer: model::RateOffer,
                             vehicles: Vec<LocationWithVehicles>,
+                            taxes: Vec<Tax>,
                         }
                         let new_rate_offer = model::NewRateOffer{
                             renter_id: user_id,
@@ -296,7 +298,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error inserting rate offer"))
                         };
 
-                        let resp = Availability{ offer: rate_offer, vehicles: locations_with_vehicles };
+                        use crate::schema::apartments_taxes::dsl as at_q;
+                        use crate::schema::taxes::dsl as t_q;
+
+                        let taxes = at_q::apartments_taxes
+                            .inner_join(t_q::taxes)
+                            .filter(at_q::apartment_id.eq(body.apartment_id))
+                            .select(t_q::taxes::all_columns())
+                            .get_results::<Tax>(&mut pool);
+
+                        let Ok(taxes) = taxes else {
+                            return methods::standard_replies::internal_server_error_response(String::from("vehicle/availability: Database error loading taxes"))
+                        };
+
+                        let resp = Availability{ offer: rate_offer, vehicles: locations_with_vehicles, taxes };
 
                         methods::standard_replies::response_with_obj(resp, StatusCode::OK)
                     }
