@@ -23,6 +23,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 if method != Method::POST {
                     return methods::standard_replies::method_not_allowed_response();
                 }
+
+                if body.hours_using_reward < Decimal::zero() {
+                    return methods::standard_replies::bad_request("Invalid reward hour request")
+                }
+
                 let now = Utc::now();
                 let next_quarter = {
                     let minute = now.minute();
@@ -272,7 +277,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        let verified_promo: Option<model::Promo> = match body.promo_code {
+                        let verified_promo: Option<model::Promo> = match body.promo_code.clone() {
                             None => { None }
                             Some(code) => {
                                 use crate::schema::promos::dsl as promos_query;
@@ -458,17 +463,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        if let Some(rt_hours) = body.hours_using_reward {
-                            // using reward requested, verifying
-                            if rt_hours <= Decimal::zero() {
-                                return methods::standard_replies::bad_request("Invalid reward hour request")
-                            }
+                        if body.hours_using_reward > Decimal::ZERO {
 
                             let total_duration = body.end_time - body.start_time;
                             let total_duration_in_hours = Decimal::new(total_duration.num_minutes(), 0)
                                 / Decimal::new(60, 0);
 
-                            if rt_hours > total_duration_in_hours {
+                            if body.hours_using_reward > total_duration_in_hours {
                                 let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                                     title: String::from("Booking Not Allowed"),
                                     message: String::from("You are trying to redeem more hours than the rental period."),
@@ -484,7 +485,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 model::PlanTier::Platinum => { req_apt.platinum_tier_hours }
                             };
 
-                            if init_allowance < rt_hours {
+                            if init_allowance < body.hours_using_reward {
                                 let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                                     title: String::from("Booking Not Allowed"),
                                     message: String::from("You have exceeded your free hours limit. Please upgrade your plan. "),
@@ -518,7 +519,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             let used_free_hours = used_free_hours.unwrap().unwrap_or(Decimal::zero());
 
-                            if init_allowance - used_free_hours < rt_hours {
+                            if init_allowance - used_free_hours < body.hours_using_reward {
                                 let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                                     title: String::from("Booking Not Allowed"),
                                     message: String::from("You have exceeded your free hours limit. Please upgrade your plan. "),
@@ -627,12 +628,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         // 1. total rental revenue
                         let total_hours_reserved = Decimal::new(trip_duration.num_minutes(), 0) / Decimal::new(60, 0);
                         let total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
-                        let raw_hours_after_applying_credit = match body.hours_using_reward {
-                            None => { trip_duration }
-                            Some(credit) => {
-                                methods::rental_rate::calculate_duration_after_reward(trip_duration, credit)
-                            }
-                        };
+                        let raw_hours_after_applying_credit = methods::rental_rate::calculate_duration_after_reward(trip_duration, body.hours_using_reward);
                         let billable_days_count: i32 = methods::rental_rate::billable_days_count(trip_duration);
                         let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(raw_hours_after_applying_credit);
 
@@ -822,11 +818,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         }
 
-                        if let Some(duration) = body.hours_using_reward {
+                        if body.hours_using_reward > Decimal::zero() {
                             let new_reward_trans = model::NewRewardTransaction {
                                 agreement_id: Some(inserted_agreement.id),
-                                duration,
                                 renter_id: user_in_request.id,
+                                duration: body.hours_using_reward,
                             };
 
                             use schema::reward_transactions::dsl as rt_q;

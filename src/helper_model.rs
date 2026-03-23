@@ -138,8 +138,8 @@ pub struct NewAgreementRequest {
     pub rate_offer_id: i32,
     pub mileage_package_id: Option<i32>,
     pub promo_code: Option<String>,
-    #[serde(with = "rust_decimal::serde::str_option")]
-    pub hours_using_reward: Option<Decimal>,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub hours_using_reward: Decimal,
 }
 
 #[derive(Serialize, Debug, Clone)]
