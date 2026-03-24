@@ -624,10 +624,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     // 3. mileage package revenue
 
-                    let total_mileage_package_revenue = match agreement_to_be_checked_in.mileage_package_id {
+                    let (total_mileage_package_revenue, miles_allowed) = match agreement_to_be_checked_in.mileage_package_id {
                         None => {
                             // didn't select mp
-                            Decimal::zero()
+                            (Decimal::zero(), 10)
                         }
                         Some(mp_id) => {
                             use schema::mileage_packages::dsl as mp_q;
@@ -644,7 +644,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * agreement_to_be_checked_in.mileage_conversion
                                     };
 
-                                    base_rate_for_mp * Decimal::new(mileage as i64, 0) * Decimal::new(discount_rate as i64, 2)
+                                    (
+                                        base_rate_for_mp * Decimal::new(mileage as i64, 0) * Decimal::new(discount_rate as i64, 2),
+                                        mileage + 10
+                                    )
                                 }
                                 Err(err) => {
                                     return match err {
@@ -687,7 +690,35 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     // 5. low fuel & over mileage
 
                     let low_fuel_revenue = Decimal::ZERO;
-                    let over_mileage_revenue = Decimal::ZERO;
+                    let over_mileage_revenue = {
+                        let check_in_odo = check_in_snapshot.odometer;
+
+                        let check_out_snap_id = agreement_to_be_checked_in.vehicle_snapshot_before.unwrap();
+                        let check_out_odo = v_s_q::vehicle_snapshots
+                            .find(check_out_snap_id)
+                            .select(v_s_q::odometer)
+                            .get_result::<i32>(&mut pool);
+                        let Ok(check_out_odo) = check_out_odo else {
+                            return methods::standard_replies::internal_server_error_response(
+                                String::from("agreement/check-in: Database connection error looking up check out odometer")
+                            )
+                        };
+
+                        let total_driven = check_in_odo - check_out_odo;
+                        if total_driven <= miles_allowed {
+                            Decimal::ZERO
+                        } else {
+                            let over_mileage = total_driven - miles_allowed;
+                            let mileage_rate: Decimal = {
+                                if let Some(overwrite) = agreement_to_be_checked_in.mileage_rate_overwrite {
+                                    overwrite
+                                } else {
+                                    agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * agreement_to_be_checked_in.mileage_conversion
+                                }
+                            };
+                            Decimal::new(over_mileage as i64, 0) * mileage_rate
+                        }
+                    };
 
                     // 6. taxes
 
