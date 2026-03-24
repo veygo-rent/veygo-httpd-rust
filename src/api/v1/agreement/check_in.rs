@@ -173,30 +173,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                     }
 
+                    let mut vehicle_current_latitude: f64 = 0.00;
+                    let mut vehicle_current_longitude: f64 = 0.00;
+
                     let vehicle_snapshot_id = match body {
-                        helper_model::CheckInOutRequest::WithSnapshotId { vehicle_snapshot_id, .. } => { vehicle_snapshot_id }
-                        helper_model::CheckInOutRequest::WithImagePath {
-                            agreement_id,
-                            ref left_image_path,
-                            ref right_image_path,
-                            ref front_image_path,
-                            ref back_image_path,
-                            ref front_right_image_path,
-                            ref front_left_image_path,
-                            ref back_right_image_path,
-                            ref back_left_image_path,
-                        } => {
-                            let usr_in_question =
-                                methods::user::get_user_by_id(&access_token.user_id)
-                                    .await;
-                            let Ok(usr_in_question) = usr_in_question else {
-                                return methods::standard_replies::internal_server_error_response(
-                                    String::from("agreement/check-in: Loading user error"),
-                                );
-                            };
-                            if !usr_in_question.is_email_verified() {
-                                return methods::standard_replies::user_email_not_verified();
-                            }
+                        helper_model::CheckInOutRequest::WithSnapshotId { vehicle_snapshot_id, .. } => {
 
                             use schema::agreements::dsl as ag_q;
                             use schema::vehicles::dsl as veh_q;
@@ -214,7 +195,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             };
 
 
-                            let (fuel, odo) = match vehicle.remote_mgmt {
+                            let (_fuel, _odo, latitude, longitude) = match vehicle.remote_mgmt {
                                 model::RemoteMgmtType::Tesla => {
                                     // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
                                     let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
@@ -267,12 +248,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
                                     let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
 
+                                    let lat = tesla_body.response.drive_state.latitude;
+                                    let lon = tesla_body.response.drive_state.longitude;
+
                                     vehicle.odometer = odometer_i32;
                                     vehicle.tank_level_percentage = battery_level_i32;
 
                                     let _ = vehicle.save_changes::<model::Vehicle>(&mut pool);
 
-                                    (battery_level_i32, odometer_i32)
+                                    (battery_level_i32, odometer_i32, lat, lon)
                                 }
                                 _ => {
                                     return methods::standard_replies::internal_server_error_response(
@@ -281,6 +265,122 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 }
                             };
 
+                            vehicle_current_latitude = latitude;
+                            vehicle_current_longitude = longitude;
+
+                            vehicle_snapshot_id
+                        }
+                        helper_model::CheckInOutRequest::WithImagePath {
+                            agreement_id,
+                            ref left_image_path,
+                            ref right_image_path,
+                            ref front_image_path,
+                            ref back_image_path,
+                            ref front_right_image_path,
+                            ref front_left_image_path,
+                            ref back_right_image_path,
+                            ref back_left_image_path,
+                        } => {
+                            let usr_in_question =
+                                methods::user::get_user_by_id(&access_token.user_id)
+                                    .await;
+                            let Ok(usr_in_question) = usr_in_question else {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Loading user error"),
+                                );
+                            };
+                            if !usr_in_question.is_email_verified() {
+                                return methods::standard_replies::user_email_not_verified();
+                            }
+
+                            use schema::agreements::dsl as ag_q;
+                            use schema::vehicles::dsl as veh_q;
+
+                            let vehicle = ag_q::agreements
+                                .find(&agreement_id)
+                                .inner_join(veh_q::vehicles)
+                                .select(veh_q::vehicles::all_columns())
+                                .get_result::<model::Vehicle>(&mut pool);
+
+                            let Ok(mut vehicle) = vehicle else {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Loading vehicle error DB"),
+                                );
+                            };
+
+
+                            let (fuel, odo, latitude, longitude) = match vehicle.remote_mgmt {
+                                model::RemoteMgmtType::Tesla => {
+                                    // 1) Check online state via GET /api/1/vehicles/{vehicle_tag}
+                                    let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
+
+                                    for i in 0..16 { // up to ~10s total
+                                        if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                            if let Ok(body_text) = response.text().await {
+                                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                                                    let state = json
+                                                        .get("response")
+                                                        .and_then(|r| r.get("state"))
+                                                        .and_then(|s| s.as_str())
+                                                        .unwrap_or("");
+                                                    if state == "online" {
+                                                        break;
+                                                    }
+                                                    // Only on the first iteration, if offline, send wake_up once
+                                                    if i == 0 {
+                                                        let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
+                                                        let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                    }
+
+                                    // Fetch live Tesla vehicle data (odometer + battery level)
+                                    let vehicle_tag = &vehicle.remote_mgmt_id;
+                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+
+                                    let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
+                                        Ok(r) => r,
+                                        Err(_) => {
+                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
+                                        }
+                                    };
+
+                                    if !tesla_resp.status().is_success() {
+                                        return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
+                                    }
+
+                                    let tesla_body: helper_model::TeslaVehicleDataEnvelope = match tesla_resp.json().await {
+                                        Ok(b) => b,
+                                        Err(_) => {
+                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API response JSON decode error"));
+                                        }
+                                    };
+
+                                    let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
+                                    let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
+
+                                    let lat = tesla_body.response.drive_state.latitude;
+                                    let lon = tesla_body.response.drive_state.longitude;
+
+                                    vehicle.odometer = odometer_i32;
+                                    vehicle.tank_level_percentage = battery_level_i32;
+
+                                    let _ = vehicle.save_changes::<model::Vehicle>(&mut pool);
+
+                                    (battery_level_i32, odometer_i32, lat, lon)
+                                }
+                                _ => {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/check-in: Vehicle not supported for remote return"),
+                                    )
+                                }
+                            };
+
+                            vehicle_current_latitude = latitude;
+                            vehicle_current_longitude = longitude;
 
                             let snapshot_to_be_inserted = model::NewVehicleSnapshot {
                                 left_image: left_image_path.clone(),
@@ -360,6 +460,46 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     }
 
                     let (mut agreement_to_be_checked_in, vehicle,check_in_snapshot, stripe_id, payment_method_id) = ag_v_s_result.unwrap();
+
+                    let (lower_latitude, higher_latitude, lower_longitude, higher_longitude) = {
+                        let location_id = &vehicle.location_id;
+                        use schema::locations::dsl as l_q;
+                        use schema::apartments::dsl as a_q;
+                        let result = l_q::locations
+                            .find(location_id)
+                            .inner_join(a_q::apartments)
+                            .select((
+                                l_q::latitude_lower_bound,
+                                l_q::latitude_higher_bound,
+                                l_q::longitude_lower_bound,
+                                l_q::longitude_higher_bound,
+                                a_q::latitude_lower_bound,
+                                a_q::latitude_higher_bound,
+                                a_q::longitude_lower_bound,
+                                a_q::longitude_higher_bound,
+                            ))
+                            .get_result::<(Option<f64>, Option<f64>, Option<f64>, Option<f64>, f64, f64, f64, f64)>(&mut pool);
+
+                        let Ok(result) = result else {
+                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at loading location boundry"))
+                        };
+
+                        let lower_latitude = result.0.unwrap_or(result.4);
+                        let higher_latitude = result.1.unwrap_or(result.5);
+                        let lower_longitude = result.2.unwrap_or(result.6);
+                        let higher_longitude = result.3.unwrap_or(result.7);
+
+                        (lower_latitude, higher_latitude, lower_longitude, higher_longitude)
+                    };
+
+                    if !(lower_latitude <= vehicle_current_latitude && vehicle_current_latitude <= higher_latitude
+                        && lower_longitude <= vehicle_current_longitude && vehicle_current_longitude <= higher_longitude) {
+                        let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                            title: String::from("Check In Not Allowed"),
+                            message: String::from("Please return to the specific location"),
+                        };
+                        return methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN)
+                    }
 
                     // lock the vehicle
 

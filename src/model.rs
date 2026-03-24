@@ -724,6 +724,10 @@ pub struct Apartment {
     pub mileage_package_overwrite: Option<Decimal>,
     #[serde(with = "rust_decimal::serde::str")]
     pub mileage_conversion: Decimal,
+    pub latitude_lower_bound: f64,
+    pub latitude_higher_bound: f64,
+    pub longitude_lower_bound: f64,
+    pub longitude_higher_bound: f64,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
@@ -771,6 +775,10 @@ pub struct NewApartment {
     pub mileage_package_overwrite: Option<Decimal>,
     #[serde(with = "rust_decimal::serde::str")]
     pub mileage_conversion: Decimal,
+    pub latitude_lower_bound: Option<f64>,
+    pub latitude_higher_bound: Option<f64>,
+    pub longitude_lower_bound: Option<f64>,
+    pub longitude_higher_bound: Option<f64>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -784,6 +792,10 @@ pub struct Location {
     pub latitude: f64,
     pub longitude: f64,
     pub is_operational: bool,
+    pub latitude_lower_bound: Option<f64>,
+    pub latitude_higher_bound: Option<f64>,
+    pub longitude_lower_bound: Option<f64>,
+    pub longitude_higher_bound: Option<f64>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Deserialize)]
@@ -795,6 +807,10 @@ pub struct NewLocation {
     pub description: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
+    pub latitude_lower_bound: Option<f64>,
+    pub latitude_higher_bound: Option<f64>,
+    pub longitude_lower_bound: Option<f64>,
+    pub longitude_higher_bound: Option<f64>,
 }
 
 #[derive(Queryable, Identifiable, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

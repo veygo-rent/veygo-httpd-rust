@@ -163,6 +163,10 @@ diesel::table! {
         mileage_rate_overwrite -> Nullable<Numeric>,
         mileage_package_overwrite -> Nullable<Numeric>,
         mileage_conversion -> Numeric,
+        latitude_lower_bound -> Float8,
+        longitude_lower_bound -> Float8,
+        latitude_higher_bound -> Float8,
+        longitude_higher_bound -> Float8,
     }
 }
 
@@ -271,6 +275,10 @@ diesel::table! {
         latitude -> Float8,
         longitude -> Float8,
         is_operational -> Bool,
+        latitude_lower_bound -> Nullable<Float8>,
+        longitude_lower_bound -> Nullable<Float8>,
+        latitude_higher_bound -> Nullable<Float8>,
+        longitude_higher_bound -> Nullable<Float8>,
     }
 }
 

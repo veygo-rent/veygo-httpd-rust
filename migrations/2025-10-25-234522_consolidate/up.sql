@@ -100,31 +100,35 @@ create table transponder_companies
 create table apartments
 (
     id                              serial,
-    name                            varchar(26)             not null,
-    timezone                        varchar(36)             not null,
-    email                           varchar(36)             not null,
-    phone                           varchar(10)             not null,
-    address                         us_address_domain       not null,
-    accepted_school_email_domain    varchar(16)             not null,
-    free_tier_hours                 numeric(4, 2)           not null,
-    silver_tier_hours               numeric(4, 2)           not null,
-    silver_tier_rate                numeric(7, 4)           not null,
-    gold_tier_hours                 numeric(4, 2)           not null,
-    gold_tier_rate                  numeric(7, 4)           not null,
-    platinum_tier_hours             numeric(4, 2)           not null,
-    platinum_tier_rate              numeric(7, 4)           not null,
-    duration_rate                   numeric(6, 4)           not null,
+    name                            varchar(26)                         not null,
+    timezone                        varchar(36)                         not null,
+    email                           varchar(36)                         not null,
+    phone                           varchar(10)                         not null,
+    address                         us_address_domain                   not null,
+    accepted_school_email_domain    varchar(16)                         not null,
+    free_tier_hours                 numeric(4, 2)                       not null,
+    silver_tier_hours               numeric(4, 2)                       not null,
+    silver_tier_rate                numeric(7, 4)                       not null,
+    gold_tier_hours                 numeric(4, 2)                       not null,
+    gold_tier_rate                  numeric(7, 4)                       not null,
+    platinum_tier_hours             numeric(4, 2)                       not null,
+    platinum_tier_rate              numeric(7, 4)                       not null,
+    duration_rate                   numeric(6, 4)                       not null,
     liability_protection_rate       numeric(6, 4),
     pcdw_protection_rate            numeric(6, 4),
     pcdw_ext_protection_rate        numeric(6, 4),
     rsa_protection_rate             numeric(6, 4),
     pai_protection_rate             numeric(6, 4),
-    is_operating                    boolean                 not null,
-    is_public                       boolean                 not null,
+    is_operating                    boolean                             not null,
+    is_public                       boolean                             not null,
     uni_id                          integer,
     mileage_rate_overwrite          numeric(5, 4),
     mileage_package_overwrite       numeric(5, 4),
-    mileage_conversion              numeric(5, 4)           not null,
+    mileage_conversion              numeric(5, 4)                       not null,
+    latitude_lower_bound            double precision    default 0.00    not null,
+    longitude_lower_bound           double precision    default 0.00    not null,
+    latitude_higher_bound           double precision    default 0.00    not null,
+    longitude_higher_bound          double precision    default 0.00    not null,
     constraint apartments_pk primary key (id),
     constraint apartments_name_uk unique (name),
     constraint apartments_uni_id_fk foreign key (uni_id) references apartments(id),
@@ -234,15 +238,34 @@ create unique index payment_methods_fingerprint_enabled_uk
 
 create table locations
 (
-    id             serial,
-    apartment_id   integer              not null,
-    name           varchar(64)          not null,
-    description    text,
-    latitude       double precision     not null,
-    longitude      double precision     not null,
-    is_operational boolean default true not null,
+    id                              serial,
+    apartment_id                    integer                             not null,
+    name                            varchar(64)                         not null,
+    description                     text,
+    latitude                        double precision                    not null,
+    longitude                       double precision                    not null,
+    is_operational                  boolean             default true    not null,
+    latitude_lower_bound            double precision,
+    longitude_lower_bound           double precision,
+    latitude_higher_bound           double precision,
+    longitude_higher_bound          double precision,
     constraint locations_pk primary key (id),
-    constraint locations_apartment_id_fk foreign key (apartment_id) references apartments(id)
+    constraint locations_apartment_id_fk foreign key (apartment_id) references apartments(id),
+    constraint locations_bounds_all_or_none_ck check (
+        (
+            latitude_lower_bound is null
+            and longitude_lower_bound is null
+            and latitude_higher_bound is null
+            and longitude_higher_bound is null
+        )
+        or
+        (
+            latitude_lower_bound is not null
+            and longitude_lower_bound is not null
+            and latitude_higher_bound is not null
+            and longitude_higher_bound is not null
+        )
+    )
 );
 
 create table services

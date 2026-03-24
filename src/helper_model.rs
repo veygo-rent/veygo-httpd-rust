@@ -37,6 +37,7 @@ pub struct TeslaVehicleDataEnvelope {
 pub struct TeslaVehicleData {
     pub charge_state: TeslaChargeState,
     pub vehicle_state: TeslaVehicleState,
+    pub drive_state: TeslaDriveState,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +48,12 @@ pub struct TeslaChargeState {
 #[derive(Debug, Deserialize)]
 pub struct TeslaVehicleState {
     pub odometer: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TeslaDriveState {
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
 #[derive(Serialize, Debug, Clone)]
