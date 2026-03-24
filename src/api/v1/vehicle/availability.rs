@@ -288,7 +288,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let new_rate_offer = model::NewRateOffer{
                             renter_id: user_id,
                             apartment_id: body.apartment_id,
-                            multiplier: Decimal::new(100, 2),
+                            multiplier: Decimal::new(80, 2),
                         };
                         use crate::schema::rate_offers::dsl as rate_offers_query;
                         let rate_offer_add_result = diesel::insert_into(rate_offers_query::rate_offers)
