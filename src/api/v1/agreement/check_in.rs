@@ -225,7 +225,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                                     // Fetch live Tesla vehicle data (odometer + battery level)
                                     let vehicle_tag = &vehicle.remote_mgmt_id;
-                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data?endpoints=location_data%3Bcharge_state%3Bvehicle_state", vehicle_tag);
 
                                     let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                         Ok(r) => r,
@@ -339,7 +339,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                                     // Fetch live Tesla vehicle data (odometer + battery level)
                                     let vehicle_tag = &vehicle.remote_mgmt_id;
-                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data", vehicle_tag);
+                                    let tesla_path = format!("/api/1/vehicles/{}/vehicle_data?endpoints=location_data%3Bcharge_state%3Bvehicle_state", vehicle_tag);
 
                                     let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                         Ok(r) => r,
