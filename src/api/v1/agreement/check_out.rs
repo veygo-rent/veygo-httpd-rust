@@ -323,6 +323,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     use schema::agreements::dsl as agreement_q;
                     use schema::vehicle_snapshots::dsl as v_s_q;
+
                     let ag_v_s_result = v_s_q::vehicle_snapshots
                         .inner_join(
                             agreement_q::agreements.on(
@@ -360,6 +361,27 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     }
 
                     let (agreement_to_be_checked_out, check_out_snapshot) = ag_v_s_result.unwrap();
+
+                    let total_on_rental = agreement_q::agreements
+                        .filter(agreement_q::status.eq(model::AgreementStatus::Rental))
+                        .filter(agreement_q::vehicle_id.eq(agreement_to_be_checked_out.vehicle_id))
+                        .filter(agreement_q::actual_pickup_time.is_not_null())
+                        .filter(agreement_q::actual_drop_off_time.is_null())
+                        .filter(agreement_q::id.ne(&agreement_id))
+                        .count()
+                        .get_result::<i64>(&mut pool);
+
+                    let Ok(total_on_rental) = total_on_rental else {
+                        return methods::standard_replies::internal_server_error_response(String::from("agreement/check-out: SQL error loading agreement count"))
+                    };
+
+                    if total_on_rental != 0 {
+                        let msg = helper_model::ErrorResponse {
+                            title: "Unable to Check Out".to_string(),
+                            message: "Vehicle currently on rent".to_string(),
+                        };
+                        return methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN);
+                    }
 
                     let current_user = methods::user::get_user_by_id(&access_token.user_id).await;
                     if current_user.is_err() {
