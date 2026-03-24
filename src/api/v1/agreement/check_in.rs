@@ -810,9 +810,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         return methods::standard_replies::internal_server_error_response(
                             String::from("agreement/check-in: outstanding balance negative")
                         )
-                    }
-
-                    if outstanding_balance <= auth_hold_pmt.amount_authorized {
+                    } else if outstanding_balance == Decimal::zero() {
+                        auth_hold_pmt.capture_before = None;
+                        auth_hold_pmt.payment_type = model::PaymentType::Canceled;
+                        let _ = auth_hold_pmt.save_changes::<model::Payment>(&mut pool);
+                        let _ = integration::stripe_veygo::drop_auth(&auth_hold_pmt.reference_number.unwrap());
+                    } else if outstanding_balance <= auth_hold_pmt.amount_authorized {
                         let mut outstanding_balance_2dp = outstanding_balance.round_dp(2);
                         outstanding_balance_2dp.rescale(2);
                         auth_hold_pmt.amount = outstanding_balance_2dp;
