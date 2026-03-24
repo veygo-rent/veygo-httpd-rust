@@ -408,7 +408,6 @@ diesel::table! {
         drivers_license_expiration -> Nullable<Date>,
         insurance_id_image -> Nullable<Text>,
         insurance_liability_expiration -> Nullable<Date>,
-        insurance_collision_expiration -> Nullable<Date>,
         lease_agreement_image -> Nullable<Text>,
         apartment_id -> Int4,
         lease_agreement_expiration -> Nullable<Date>,
@@ -427,6 +426,7 @@ diesel::table! {
         admin_apple_apns -> Nullable<Text>,
         requires_secondary_driver_lic -> Bool,
         plan_total_availability -> Numeric,
+        insurance_collision_valid -> Bool,
     }
 }
 

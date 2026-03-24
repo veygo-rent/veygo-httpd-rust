@@ -173,8 +173,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         }
                     }
 
-                    let mut vehicle_current_latitude: f64 = 0.00;
-                    let mut vehicle_current_longitude: f64 = 0.00;
+                    let vehicle_current_latitude: f64;
+                    let vehicle_current_longitude: f64;
 
                     let vehicle_snapshot_id = match body {
                         helper_model::CheckInOutRequest::WithSnapshotId { vehicle_snapshot_id, .. } => {

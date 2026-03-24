@@ -166,7 +166,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         .await;
                                 }
                                 user.insurance_id_image = Some(file_path);
-                                user.insurance_collision_expiration = None;
+                                user.insurance_collision_valid = false;
                                 user.insurance_liability_expiration = None;
                             }
                         }

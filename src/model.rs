@@ -485,7 +485,6 @@ pub struct Renter {
     pub drivers_license_expiration: Option<NaiveDate>,
     pub insurance_id_image: Option<String>,
     pub insurance_liability_expiration: Option<NaiveDate>,
-    pub insurance_collision_expiration: Option<NaiveDate>,
     pub lease_agreement_image: Option<String>,
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
@@ -502,6 +501,7 @@ pub struct Renter {
     pub admin_apple_apns: Option<String>,
     pub requires_secondary_driver_lic: bool,
     pub plan_total_availability: Decimal,
+    pub insurance_collision_valid: bool,
 }
 
 impl From<Renter> for PublishRenter {
@@ -524,7 +524,6 @@ impl From<Renter> for PublishRenter {
             drivers_license_expiration: renter.drivers_license_expiration,
             insurance_id_image: renter.insurance_id_image,
             insurance_liability_expiration: renter.insurance_liability_expiration,
-            insurance_collision_expiration: renter.insurance_collision_expiration,
             lease_agreement_image: renter.lease_agreement_image,
             apartment_id: renter.apartment_id,
             lease_agreement_expiration: renter.lease_agreement_expiration,
@@ -539,6 +538,7 @@ impl From<Renter> for PublishRenter {
             subscription_payment_method_id: renter.subscription_payment_method_id,
             requires_secondary_driver_lic: renter.requires_secondary_driver_lic,
             plan_total_availability: renter.plan_total_availability,
+            insurance_collision_valid: renter.insurance_collision_valid,
         }
     }
 }
@@ -563,7 +563,6 @@ pub struct PublishRenter {
     pub drivers_license_expiration: Option<NaiveDate>,
     pub insurance_id_image: Option<String>,
     pub insurance_liability_expiration: Option<NaiveDate>,
-    pub insurance_collision_expiration: Option<NaiveDate>,
     pub lease_agreement_image: Option<String>,
     pub apartment_id: i32,
     pub lease_agreement_expiration: Option<NaiveDate>,
@@ -580,6 +579,7 @@ pub struct PublishRenter {
     pub requires_secondary_driver_lic: bool,
     #[serde(with = "rust_decimal::serde::str")]
     pub plan_total_availability: Decimal,
+    pub insurance_collision_valid: bool,
 }
 
 #[derive(Insertable, Debug, Clone)]
