@@ -1362,6 +1362,8 @@ pub struct NewAgreement {
     #[serde(with = "rust_decimal::serde::str_option")]
     pub mileage_package_overwrite: Option<Decimal>,
     #[serde(with = "rust_decimal::serde::str")]
+    pub utilization_factor: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
     pub minimum_earning_rate: Decimal,
 }
 

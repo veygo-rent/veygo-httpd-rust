@@ -786,6 +786,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             mileage_conversion: req_apt.mileage_conversion,
                             mileage_rate_overwrite: req_apt.mileage_rate_overwrite,
                             mileage_package_overwrite: req_apt.mileage_package_overwrite,
+                            utilization_factor: rate_offer,
                             minimum_earning_rate: total_subject_to_rental_tax,
                         };
 
