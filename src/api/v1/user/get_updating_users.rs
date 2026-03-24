@@ -90,19 +90,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let mut pool = POOL.get().unwrap();
 
-                    let one_day = 1.day();
-
                     let renewal_day_as_number = sql::<Numeric>("plan_renewal_day::numeric");
+                    let day_from_current_date = sql::<Numeric>("EXTRACT(DAY FROM CURRENT_DATE)");
+                    let month_from_current_date = sql::<Numeric>("EXTRACT(MONTH FROM CURRENT_DATE)");
+                    let month_from_current_date_plus_one = sql::<Numeric>("EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '1 day')");
 
                     let user_needs_to_renew_cmd = rt_q::renters
                         .filter(rt_q::plan_expire_month_year.eq(methods::diesel_fn::to_char_tstz(methods::diesel_fn::now(), "MMYYYY")))
                         .filter(
-                            renewal_day_as_number.clone().eq(methods::diesel_fn::extract_date("DAY", current_date))
+                            renewal_day_as_number.clone().eq(day_from_current_date.clone())
                                 .or(
-                                    renewal_day_as_number.gt(methods::diesel_fn::extract_date("DAY", current_date))
+                                    renewal_day_as_number.gt(day_from_current_date)
                                         .and(
-                                            methods::diesel_fn::extract_ts("MONTH", current_date + one_day)
-                                                .ne(methods::diesel_fn::extract_date("MONTH", current_date))
+                                            month_from_current_date
+                                                .ne(month_from_current_date_plus_one)
                                         )
                                 )
                         );
