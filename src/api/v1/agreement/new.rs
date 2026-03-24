@@ -818,6 +818,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         }
 
+                        use schema::reward_transactions::dsl as rt_q;
+
                         if body.hours_using_reward > Decimal::zero() {
                             let new_reward_trans = model::NewRewardTransaction {
                                 agreement_id: Some(inserted_agreement.id),
@@ -825,7 +827,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 duration: body.hours_using_reward,
                             };
 
-                            use schema::reward_transactions::dsl as rt_q;
                             let result = diesel::insert_into(rt_q::reward_transactions)
                                 .values(&new_reward_trans)
                                 .get_result::<model::RewardTransaction>(&mut pool);
@@ -843,6 +844,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             &user_in_request.stripe_id, &payment_method.token, total_stripe_amount_cent as i64, PaymentIntentCaptureMethod::Manual, &description
                         ).await;
 
+                        use crate::schema::payments::dsl as payment_query;
                         match stripe_auth {
                             Ok(pmi) => {
                                 // auth successful
@@ -858,7 +860,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     capture_before: None,
                                 };
 
-                                use crate::schema::payments::dsl as payment_query;
                                 let payment_result = diesel::insert_into(payment_query::payments)
                                     .values(&new_payment).get_result::<model::Payment>(&mut pool);
 
@@ -878,12 +879,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             Err(v_err) => {
-                                let _ = diesel::update(ag_q::agreements)
+                                let _ = diesel::delete(payment_query::payments)
+                                    .filter(payment_query::agreement_id.eq(inserted_agreement.id))
+                                    .execute(&mut pool);
+                                let _ = diesel::delete(ag_tx_q::agreements_taxes)
+                                    .filter(ag_tx_q::agreement_id.eq(inserted_agreement.id))
+                                    .execute(&mut pool);
+                                let _ = diesel::delete(rt_q::reward_transactions)
+                                    .filter(rt_q::agreement_id.eq(inserted_agreement.id))
+                                    .execute(&mut pool);
+                                let _ = diesel::delete(ag_q::agreements)
                                     .filter(ag_q::id.eq(inserted_agreement.id))
-                                    .set((
-                                        ag_q::status.eq(model::AgreementStatus::Canceled),
-                                        ag_q::minimum_earning_rate.eq(Decimal::zero()),
-                                    ))
                                     .execute(&mut pool);
 
                                 return match v_err {
