@@ -814,7 +814,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         auth_hold_pmt.capture_before = None;
                         auth_hold_pmt.payment_type = model::PaymentType::Canceled;
                         let _ = auth_hold_pmt.save_changes::<model::Payment>(&mut pool);
-                        let _ = integration::stripe_veygo::drop_auth(&auth_hold_pmt.reference_number.unwrap());
+                        let _ = integration::stripe_veygo::drop_auth(&auth_hold_pmt.reference_number.unwrap()).await;
                     } else if outstanding_balance <= auth_hold_pmt.amount_authorized {
                         let mut outstanding_balance_2dp = outstanding_balance.round_dp(2);
                         outstanding_balance_2dp.rescale(2);
