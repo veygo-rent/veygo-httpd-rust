@@ -4,10 +4,9 @@ use http::{Method, StatusCode};
 use warp::{Filter, Reply};
 use crate::{methods, model, POOL};
 use crate::helper_model::VeygoError;
-use diesel::dsl::{IntervalDsl, today as current_date};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
-    warp::path("updating-user")
+    warp::path("renewing-user")
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))
@@ -120,7 +119,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::standard_replies::response_with_obj(pub_user, StatusCode::OK)
                         }
                         Err(err) => {
-                            methods::standard_replies::internal_server_error_response(String::from(format!("user/updating-user: DB error loading renewing renters {}", err)))
+                            methods::standard_replies::internal_server_error_response(String::from(format!("user/renewing-user: DB error loading renewing renters {}", err)))
                         }
                     }
                 }

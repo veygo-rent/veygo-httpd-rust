@@ -1,8 +1,7 @@
-use crate::{POOL, integration, model, helper_model::VeygoError, methods::diesel_fn};
+use crate::{POOL, integration, model, helper_model::VeygoError, methods};
 use chrono::{Datelike, NaiveTime, Utc};
 use diesel::prelude::*;
 use std::time::Duration;
-use diesel::dsl::{IntervalDsl, today as current_date};
 use diesel::sql_types::Numeric;
 use rust_decimal::prelude::*;
 use stripe_core::{PaymentIntentCaptureMethod};
@@ -23,26 +22,27 @@ pub async fn nightly_task() {
 
         let now = Utc::now().date_naive();
 
-        println!("\n{}====== Running Daily Tasks ======", now);
+        println!("\n{}\n====== Running Daily Tasks ======", now);
 
         use diesel::dsl::sql;
         use crate::schema::renters::dsl as rt_q;
 
         let mut pool = POOL.get().unwrap();
 
-        let one_day = 1.day();
-
         let renewal_day_as_number = sql::<Numeric>("plan_renewal_day::numeric");
+        let day_from_current_date = sql::<Numeric>("EXTRACT(DAY FROM CURRENT_DATE)");
+        let month_from_current_date = sql::<Numeric>("EXTRACT(MONTH FROM CURRENT_DATE)");
+        let month_from_current_date_plus_one = sql::<Numeric>("EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '1 day')");
 
         let user_needs_to_renew_cmd = rt_q::renters
-            .filter(rt_q::plan_expire_month_year.eq(diesel_fn::to_char_tstz(diesel_fn::now(), "MMYYYY")))
+            .filter(rt_q::plan_expire_month_year.eq(methods::diesel_fn::to_char_tstz(methods::diesel_fn::now(), "MMYYYY")))
             .filter(
-                renewal_day_as_number.clone().eq(diesel_fn::extract_date("DAY", current_date))
+                renewal_day_as_number.clone().eq(day_from_current_date.clone())
                     .or(
-                        renewal_day_as_number.gt(diesel_fn::extract_date("DAY", current_date))
+                        renewal_day_as_number.gt(day_from_current_date)
                             .and(
-                                diesel_fn::extract_ts("MONTH", current_date + one_day)
-                                    .ne(diesel_fn::extract_date("MONTH", current_date))
+                                month_from_current_date
+                                    .ne(month_from_current_date_plus_one)
                             )
                     )
             );
@@ -67,9 +67,6 @@ pub async fn nightly_task() {
             let renew_for_one_month = format!("{:02}{}", month, year);
 
             for mut renter in user_needs_to_renew {
-
-                // DEBUG
-                println!("{}", &renter.name);
 
                 use crate::schema::apartments::dsl as apt_q;
                 let apartment = apt_q::apartments
