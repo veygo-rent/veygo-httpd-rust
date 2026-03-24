@@ -150,43 +150,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
 
                         let return_date = body.end_time.naive_utc().date();
-                        // Check if Renter insurance
-                        if let Some(_) = user_in_request.insurance_id_image {
-                            // has insurance image
-                            if let Some(lia_exp) = user_in_request.insurance_liability_expiration {
-                                if lia_exp <= return_date {
-                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                        title: String::from("Booking Not Allowed"),
-                                        message: String::from("Your insurance expires before trip ends. Please re-submit your insurance documents. "),
-                                    };
-                                    // RETURN: NOT_ACCEPTABLE
-                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                                } else {
-                                    if !user_in_request.insurance_collision_valid {
-                                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                            title: String::from("Booking Not Allowed"),
-                                            message: String::from("Your insurance is not a full coverage policy. Please re-submit your insurance documents. "),
-                                        };
-                                        // RETURN: NOT_ACCEPTABLE
-                                        return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                                    }
-                                }
-                            } else {
-                                let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                    title: String::from("Booking Not Allowed"),
-                                    message: String::from("Your insurance documents are pending verification. If you are still encountering this issue, please reach out to us. "),
-                                };
-                                // RETURN: NOT_ACCEPTABLE
-                                return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                            }
-                        } else {
-                            let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                title: String::from("Booking Not Allowed"),
-                                message: String::from("Your insurance document is not uploaded. Please submit your insurance id."),
-                            };
-                            // RETURN: FORBIDDEN
-                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                        }
 
                         // Check if Renter DL exp
 
@@ -229,6 +192,47 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             // RETURN: NOT_ACCEPTABLE
                             return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
                         };
+
+                        // Check if Renter insurance
+
+                        if let Some(_) = user_in_request.insurance_id_image {
+                            // has insurance image
+                            if let Some(lia_exp) = user_in_request.insurance_liability_expiration {
+                                if lia_exp <= return_date {
+                                    let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                        title: String::from("Booking Not Allowed"),
+                                        message: String::from("Your insurance expires before trip ends. Please re-submit your insurance documents. "),
+                                    };
+                                    // RETURN: NOT_ACCEPTABLE
+                                    return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                } else {
+                                    if !user_in_request.insurance_collision_valid {
+                                        let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                            title: String::from("Booking Not Allowed"),
+                                            message: String::from("Your insurance is not a full coverage policy. Please re-submit your insurance documents. "),
+                                        };
+                                        // RETURN: NOT_ACCEPTABLE
+                                        return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                    }
+                                }
+                            } else {
+                                let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                    title: String::from("Booking Not Allowed"),
+                                    message: String::from("Your insurance documents are pending verification. If you are still encountering this issue, please reach out to us. "),
+                                };
+                                // RETURN: NOT_ACCEPTABLE
+                                return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                            }
+                        } else {
+                            let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+                                title: String::from("Booking Not Allowed"),
+                                message: String::from("Your insurance document is not uploaded. Please submit your insurance id."),
+                            };
+                            // RETURN: FORBIDDEN
+                            return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                        }
+
+                        // Check if Renter is on DNR record
 
                         let dnr_records = user_in_request.get_dnr_count();
                         let Ok(record_count) = dnr_records else {
