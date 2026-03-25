@@ -1401,6 +1401,7 @@ pub struct Charge {
     pub vehicle_id: i32,
     pub transponder_company_id: Option<i32>,
     pub vehicle_identifier: Option<String>,
+    pub is_taxed: bool,
 }
 
 #[derive(Deserialize, Insertable, Debug, Clone, PartialEq)]
@@ -1418,6 +1419,7 @@ pub struct NewCharge {
     pub vehicle_id: i32,
     pub transponder_company_id: Option<i32>,
     pub vehicle_identifier: Option<String>,
+    pub is_taxed: bool,
 }
 
 #[derive(

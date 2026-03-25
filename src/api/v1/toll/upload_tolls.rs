@@ -245,6 +245,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             vehicle_id,
                                             transponder_company_id: Option::from(toll_company_to_move.id),
                                             vehicle_identifier: Option::from(String::from(vehicle_id_str)),
+                                            is_taxed: true,
                                         };
 
                                         use crate::schema::charges::dsl as c_q;

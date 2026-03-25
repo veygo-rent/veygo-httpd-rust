@@ -494,15 +494,16 @@ create index taxes_name_idx
 
 create table charges
 (
-    id                     serial,
-    name                   text                     not null,
-    time                   timestamp with time zone not null,
-    amount                 numeric(7, 4)            not null,
-    note                   text,
-    agreement_id           integer,
-    vehicle_id             integer                  not null,
-    transponder_company_id integer,
-    vehicle_identifier     varchar(26),
+    id                      serial,
+    name                    text                        not null,
+    time                    timestamp with time zone    not null,
+    amount                  numeric(7, 4)               not null,
+    note                    text,
+    agreement_id            integer,
+    vehicle_id              integer                     not null,
+    transponder_company_id  integer,
+    vehicle_identifier      varchar(26),
+    is_taxed                boolean     default true    not null,
     constraint charges_pk primary key (id),
     constraint charges_name_time_vehicle_uk unique (name, time, vehicle_id),
     constraint charges_transponder_company_id_fk foreign key (transponder_company_id) references transponder_companies(id),
@@ -686,7 +687,7 @@ create table policies
 
 insert into taxes (name, multiplier, is_sales_tax, tax_type)
 values ('IN Sales Tax', 0.07, true, 'percent'),
-       ('IN Car Rental Excise Tax', 0.04, false, 'percent');
+       ('IN Car Rental Excise Tax', 0.04, true, 'percent');
 
 insert into apartments (name,
                         timezone,

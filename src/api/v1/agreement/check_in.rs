@@ -650,6 +650,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 vehicle_id: agreement_to_be_checked_in.vehicle_id,
                                 transponder_company_id: None,
                                 vehicle_identifier: None,
+                                is_taxed: true,
                             };
 
                             use schema::charges::dsl as c_q;
@@ -811,18 +812,39 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     // 4. charges
 
-                    let total_charges_cost = c_q::charges
+
+                    // eg. toll road, tesla supercharging
+                    let total_taxed_charges_cost = c_q::charges
                         .filter(c_q::agreement_id.eq(agreement_to_be_checked_in.id))
+                        .filter(c_q::is_taxed)
                         .select(diesel::dsl::sum(c_q::amount))
                         .get_result::<Option<Decimal>>(&mut pool);
 
-                    let Ok(total_charges_cost) = total_charges_cost else {
+                    let Ok(total_taxed_charges_cost) = total_taxed_charges_cost else {
                         return methods::standard_replies::internal_server_error_response(
                             String::from("agreement/check-in: Database connection error at summing external charges cost")
                         )
                     };
 
-                    let total_charges_cost = match total_charges_cost {
+                    let total_taxed_charges_cost = match total_taxed_charges_cost {
+                        None => { Decimal::ZERO }
+                        Some(cost) => { cost }
+                    };
+
+                    // eg. parking citations and fines
+                    let total_not_taxed_charges_cost = c_q::charges
+                        .filter(c_q::agreement_id.eq(agreement_to_be_checked_in.id))
+                        .filter(c_q::is_taxed.eq(false))
+                        .select(diesel::dsl::sum(c_q::amount))
+                        .get_result::<Option<Decimal>>(&mut pool);
+
+                    let Ok(total_not_taxed_charges_cost) = total_not_taxed_charges_cost else {
+                        return methods::standard_replies::internal_server_error_response(
+                            String::from("agreement/check-in: Database connection error at summing external charges cost")
+                        )
+                    };
+
+                    let total_not_taxed_charges_cost = match total_not_taxed_charges_cost {
                         None => { Decimal::ZERO }
                         Some(cost) => { cost }
                     };
@@ -906,7 +928,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let total_subject_to_non_sales_tax = total_rental_revenue
                         + total_insurance_revenue + total_mileage_package_revenue
                         + low_fuel_revenue + over_mileage_revenue;
-                    let total_subject_to_sales_tax = total_subject_to_non_sales_tax + total_charges_cost;
+                    let total_subject_to_sales_tax = total_subject_to_non_sales_tax + total_taxed_charges_cost;
 
                     let total_revenue = total_subject_to_sales_tax;
 
@@ -916,7 +938,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let total_fixed_tax = local_tax_rate_fixed;
 
                     let total_stripe_amount = total_revenue + total_percentage_tax
-                        + total_daily_tax + total_fixed_tax;
+                        + total_daily_tax + total_fixed_tax + total_not_taxed_charges_cost;
                     let total_stripe_amount_2dp = total_stripe_amount.round_dp(2);
 
                     // settle payments

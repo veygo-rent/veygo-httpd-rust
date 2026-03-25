@@ -202,6 +202,7 @@ diesel::table! {
         transponder_company_id -> Nullable<Int4>,
         #[max_length = 26]
         vehicle_identifier -> Nullable<Varchar>,
+        is_taxed -> Bool,
     }
 }
 
