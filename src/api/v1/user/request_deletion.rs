@@ -1,7 +1,8 @@
 use http::{Method, StatusCode};
 use warp::{reply, Filter, Reply};
 use warp::reply::with_status;
-use crate::{methods, model};
+use crate::{methods, model, schema, POOL};
+use diesel::prelude::*;
 
 pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clone {
     warp::path::end()
@@ -30,6 +31,9 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                 methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                     .await;
             if let Ok((_valid_token, _token_id)) = if_token_valid {
+                use schema::access_tokens::dsl as at_q;
+                let mut pool = POOL.get().unwrap();
+                let _ = diesel::delete(at_q::access_tokens.filter(at_q::user_id.eq(user_id))).execute(&mut pool);
                 let msg = serde_json::json!({});
                 Ok((with_status(reply::json(&msg), StatusCode::OK).into_response(),))
             } else {
