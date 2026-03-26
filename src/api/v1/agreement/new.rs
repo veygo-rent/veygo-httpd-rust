@@ -669,7 +669,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         // 1. total rental revenue
                         let total_hours_reserved = Decimal::new(trip_duration.num_minutes(), 0) / Decimal::new(60, 0);
-                        let total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+                        let mut total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+                        total_hours_reserved_round_up.rescale(0);
+                        let total_hours_reserved_round_up_int = total_hours_reserved_round_up.mantissa() as i32;
                         let raw_hours_after_applying_credit = methods::rental_rate::calculate_duration_after_reward(trip_duration, body.hours_using_reward);
                         let billable_days_count: i32 = methods::rental_rate::billable_days_count(trip_duration);
                         let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(raw_hours_after_applying_credit);
@@ -756,20 +758,43 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             )
                         };
 
-                        let mut local_tax_rate_percent = Decimal::zero();
+                        let mut local_tax_rate_percent_sales = Decimal::zero();
+                        let mut local_tax_rate_percent_non_sales = Decimal::zero();
                         let mut local_tax_rate_daily = Decimal::zero();
                         let mut local_tax_rate_fixed = Decimal::zero();
+                        let mut certain_taxes_needed_to_apply_sales_tax = Decimal::zero();
 
                         for tax_obj in &taxes {
-                            match tax_obj.tax_type {
-                                model::TaxType::Percent => {
-                                    local_tax_rate_percent += tax_obj.multiplier;
-                                },
-                                model::TaxType::Daily => {
-                                    local_tax_rate_daily += tax_obj.multiplier;
+                            let mut tax_needed_to_be_counted = false;
+                            if let Some(threshold) = tax_obj.threshold && let Some(is_lower) = tax_obj.is_lower {
+                                if is_lower && total_hours_reserved_round_up_int < threshold || !is_lower && total_hours_reserved_round_up_int >= threshold {
+                                    tax_needed_to_be_counted = true;
                                 }
-                                model::TaxType::Fixed => {
-                                    local_tax_rate_fixed += tax_obj.multiplier;
+                            } else {
+                                tax_needed_to_be_counted = true;
+                            }
+
+                            if tax_needed_to_be_counted {
+                                match tax_obj.tax_type {
+                                    model::TaxType::Percent => {
+                                        if tax_obj.is_sales_tax {
+                                            local_tax_rate_percent_sales += tax_obj.multiplier;
+                                        } else {
+                                            local_tax_rate_percent_non_sales += tax_obj.multiplier;
+                                        }
+                                    },
+                                    model::TaxType::Daily => {
+                                        if tax_obj.is_sales_tax {
+                                            certain_taxes_needed_to_apply_sales_tax += tax_obj.multiplier * Decimal::new(billable_days_count as i64, 0);
+                                        }
+                                        local_tax_rate_daily += tax_obj.multiplier;
+                                    }
+                                    model::TaxType::Fixed => {
+                                        if tax_obj.is_sales_tax {
+                                            certain_taxes_needed_to_apply_sales_tax += tax_obj.multiplier;
+                                        }
+                                        local_tax_rate_fixed += tax_obj.multiplier;
+                                    }
                                 }
                             }
                         }
@@ -777,8 +802,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         // 5. subtotals
                         let total_subject_to_rental_tax = duration_revenue_after_promo
                             + insurance_revenue + mileage_package_cost;
+                        let total_subject_to_sales_tax = total_subject_to_rental_tax + certain_taxes_needed_to_apply_sales_tax;
 
-                        let total_percentage_tax = total_subject_to_rental_tax * local_tax_rate_percent;
+                        let total_percentage_tax = total_subject_to_rental_tax * local_tax_rate_percent_non_sales
+                            + total_subject_to_sales_tax * local_tax_rate_percent_sales;
                         let total_daily_tax = Decimal::new(billable_days_count as i64, 0) * local_tax_rate_daily;
                         let total_fixed_tax = local_tax_rate_fixed;
 

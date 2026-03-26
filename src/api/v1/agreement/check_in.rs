@@ -884,6 +884,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     // 6. taxes
 
+                    let mut hours_driven_round_up = total_hours_driven.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+                    hours_driven_round_up.rescale(0);
+                    let hours_driven_round_up_int = hours_driven_round_up.mantissa() as i32;
+
                     use schema::agreements_taxes::dsl as agreements_taxes_query;
                     use schema::taxes::dsl as t_q;
 
@@ -905,20 +909,39 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let mut local_tax_rate_percent_sales = Decimal::zero();
                     let mut local_tax_rate_percent_non_sales = Decimal::zero();
 
+                    let mut certain_taxes_needed_to_apply_sales_tax = Decimal::zero();
+
                     for tax_obj in &taxes {
-                        match tax_obj.tax_type {
-                            model::TaxType::Percent => {
-                                if tax_obj.is_sales_tax {
-                                    local_tax_rate_percent_sales += tax_obj.multiplier;
-                                } else {
-                                    local_tax_rate_percent_non_sales += tax_obj.multiplier;
-                                }
-                            },
-                            model::TaxType::Daily => {
-                                local_tax_rate_daily += tax_obj.multiplier;
+                        let mut tax_needed_to_be_counted = false;
+                        if let Some(threshold) = tax_obj.threshold && let Some(is_lower) = tax_obj.is_lower {
+                            if is_lower && hours_driven_round_up_int < threshold || !is_lower && hours_driven_round_up_int >= threshold {
+                                tax_needed_to_be_counted = true;
                             }
-                            model::TaxType::Fixed => {
-                                local_tax_rate_fixed += tax_obj.multiplier;
+                        } else {
+                            tax_needed_to_be_counted = true;
+                        }
+
+                        if tax_needed_to_be_counted {
+                            match tax_obj.tax_type {
+                                model::TaxType::Percent => {
+                                    if tax_obj.is_sales_tax {
+                                        local_tax_rate_percent_sales += tax_obj.multiplier;
+                                    } else {
+                                        local_tax_rate_percent_non_sales += tax_obj.multiplier;
+                                    }
+                                },
+                                model::TaxType::Daily => {
+                                    if tax_obj.is_sales_tax {
+                                        certain_taxes_needed_to_apply_sales_tax += tax_obj.multiplier * Decimal::new(billable_days_count_including_late_return as i64, 0);
+                                    }
+                                    local_tax_rate_daily += tax_obj.multiplier;
+                                }
+                                model::TaxType::Fixed => {
+                                    if tax_obj.is_sales_tax {
+                                        certain_taxes_needed_to_apply_sales_tax += tax_obj.multiplier;
+                                    }
+                                    local_tax_rate_fixed += tax_obj.multiplier;
+                                }
                             }
                         }
                     }
@@ -928,9 +951,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let total_subject_to_non_sales_tax = total_rental_revenue
                         + total_insurance_revenue + total_mileage_package_revenue
                         + low_fuel_revenue + over_mileage_revenue;
-                    let total_subject_to_sales_tax = total_subject_to_non_sales_tax + total_taxed_charges_cost;
+                    let total_revenue = total_subject_to_non_sales_tax + total_taxed_charges_cost;
 
-                    let total_revenue = total_subject_to_sales_tax;
+                    let total_subject_to_sales_tax = total_revenue + certain_taxes_needed_to_apply_sales_tax;
 
                     let total_percentage_tax = total_subject_to_non_sales_tax * local_tax_rate_percent_non_sales
                         + total_subject_to_sales_tax * local_tax_rate_percent_sales;

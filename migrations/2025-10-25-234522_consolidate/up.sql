@@ -485,8 +485,11 @@ create table taxes
     is_sales_tax    boolean                     not null,
     tax_type        tax_type_enum               not null,
     is_deposit_tax  boolean     default true    not null,
+    threshold       integer,
+    is_lower        boolean,
     constraint taxes_pk primary key (id),
-    constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0)
+    constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0),
+    constraint taxes_threshold_ck check ( threshold is null and is_lower is null or threshold is not null and is_lower is not null)
 );
 
 create index taxes_name_idx

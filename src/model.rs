@@ -1591,6 +1591,8 @@ pub struct NewTax {
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
     pub is_deposit_tax: bool,
+    pub threshold: Option<i32>,
+    pub is_lower: Option<bool>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
@@ -1604,6 +1606,8 @@ pub struct Tax {
     pub is_sales_tax: bool,
     pub tax_type: TaxType,
     pub is_deposit_tax: bool,
+    pub threshold: Option<i32>,
+    pub is_lower: Option<bool>,
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq, Serialize, Deserialize)]
