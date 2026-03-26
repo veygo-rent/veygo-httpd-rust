@@ -1,5 +1,5 @@
 use std::cmp::{max};
-use crate::{POOL, methods, model, helper_model, integration, schema};
+use crate::{POOL, methods, model, helper_model, integration, schema, proj_config};
 use diesel::prelude::*;
 use diesel::expression_methods::NullableExpressionMethods;
 use warp::{Filter, Rejection, Reply, http::{Method, StatusCode}};
@@ -851,7 +851,26 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     // 5. low fuel & over mileage
 
-                    let low_fuel_revenue = Decimal::ZERO;
+                    let check_in_percent = check_in_snapshot.level;
+                    let check_out_percent = {
+                        let check_out_snapshot_id = agreement_to_be_checked_in.vehicle_snapshot_before.unwrap();
+                        let check_out_percent = v_s_q::vehicle_snapshots
+                            .find(check_out_snapshot_id)
+                            .select(v_s_q::level)
+                            .get_result::<i32>(&mut pool);
+                        match check_out_percent {
+                            Ok(check_out_percent) => { check_out_percent }
+                            Err(_) => {
+                                return methods::standard_replies::internal_server_error_response(
+                                    String::from("agreement/check-in: Database connection error at fetching check out percent")
+                                )
+                            }
+                        }
+                    };
+
+                    let missing_fuel_level = max(0, check_out_percent - check_in_percent) as i64;
+
+                    let low_fuel_revenue = Decimal::new(missing_fuel_level, 0) * proj_config::PRICE_PER_CENT_ON_GAS;
                     let over_mileage_revenue = {
                         let check_in_odo = check_in_snapshot.odometer;
 
