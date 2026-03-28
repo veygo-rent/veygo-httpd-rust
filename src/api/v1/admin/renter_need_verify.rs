@@ -188,7 +188,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     };
 
                                     let mut hasher = Sha256::new();
-                                    let data = user.id.to_le_bytes();
+                                    let data = renter.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
                                     let object_path: String = format!("user_docs/{:X}/{}", result, doc_path_unsigned);
