@@ -1,6 +1,7 @@
 mod login;
 mod retrieve;
 mod update_apns;
+mod stats;
 
 use warp::Filter;
 
@@ -8,7 +9,8 @@ pub fn api_v1_admin() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
 {
     warp::path("admin")
         .and(
-            login::main()
+            stats::api_v1_admin_stats()
+                .or(login::main())
                 .or(retrieve::main())
                 .or(update_apns::main())
         )
