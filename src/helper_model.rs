@@ -129,6 +129,31 @@ pub enum CheckInOutRequest {
     },
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+pub enum VerifyDriversLicenseRequest {
+    #[serde(rename = "decline_primary")]
+    DeclinePrimary {
+        renter_id: i32,
+        reason: String,
+    },
+    #[serde(rename = "decline_secondary")]
+    DeclineSecondary {
+        renter_id: i32,
+        reason: String,
+    },
+    #[serde(rename = "require_secondary")]
+    RequireSecondary {
+        renter_id: i32,
+        reason: String,
+    },
+    #[serde(rename = "approved")]
+    Approved {
+        renter_id: i32,
+        renter_address: Option<model::UsAddress>,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct NewAgreementRequest {
     pub vehicle_id: i32,
