@@ -174,13 +174,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         use crate::schema::renters::dsl as r_q;
                         let mut pool = POOL.get().unwrap();
 
-                        let update_result = diesel::update
-                            (
-                                r_q::renters
-                                    .find(&access_token.user_id)
-                            )
-                            .set(&user)
-                            .get_result::<model::Renter>(&mut pool);
+                        let update_result = user.save_changes::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
                             return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: SQL error saving renter uploaded file"))

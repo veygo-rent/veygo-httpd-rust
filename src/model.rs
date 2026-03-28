@@ -427,6 +427,7 @@ impl FromSql<sql_types::GenderEnum, Pg> for Gender {
 #[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, AsChangeset,
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Agreement))]
 #[diesel(table_name = reward_transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -462,6 +463,7 @@ pub struct NewRewardTransaction {
     PartialEq,
     AsChangeset,
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Apartment))]
 #[diesel(table_name = renters)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -610,6 +612,7 @@ pub struct NewRenter {
     Eq,
     AsChangeset,
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Renter))]
 #[diesel(table_name = payment_methods)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -845,6 +848,7 @@ pub struct NewTransponderCompany {
 #[derive(
     Queryable, Identifiable, Associations, AsChangeset, Debug, Clone, PartialEq, Deserialize,
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Location))]
 #[diesel(table_name = vehicles)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1268,6 +1272,7 @@ impl From<Promo> for PublishPromo {
     Serialize,
     Deserialize,
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Vehicle))]
 #[diesel(belongs_to(Location))]
 #[diesel(belongs_to(Renter))]
@@ -1425,6 +1430,7 @@ pub struct NewCharge {
 #[derive(
     Queryable, Identifiable, Associations, Debug, Clone, PartialEq, Serialize, Deserialize, AsChangeset
 )]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(belongs_to(Agreement))]
 #[diesel(belongs_to(PaymentMethod))]
 #[diesel(belongs_to(Renter))]
@@ -1559,6 +1565,7 @@ pub struct RequestToken {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, AsChangeset, Queryable)]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(table_name = verifications)]
 #[diesel(belongs_to(Renter))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -1596,6 +1603,7 @@ pub struct NewTax {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(table_name = taxes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Tax {
@@ -1620,6 +1628,7 @@ pub struct NewMileagePackage {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(table_name = mileage_packages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct MileagePackage {
@@ -1654,6 +1663,7 @@ pub struct ApartmentTax {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, AsChangeset, Queryable)]
+#[changeset_options(treat_none_as_null = "true")]
 #[diesel(table_name = audits)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Audit {
