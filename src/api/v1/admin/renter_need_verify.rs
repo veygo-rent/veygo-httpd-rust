@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use http::{Method, StatusCode};
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::{Deserialize};
 use warp::{Filter, Reply};
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -13,12 +13,6 @@ enum TypeOfDocument {
     DriversLicense,
     LeaseAgreement,
     ProofOfInsurance,
-}
-
-#[derive(Serialize)]
-struct RenterNeedVerify {
-    renter: model::PublishRenter,
-    file_link: helper_model::FileLink,
 }
 
 impl FromStr for TypeOfDocument {
@@ -197,7 +191,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     ).await;
 
                                     let link = helper_model::FileLink{ file_link: link };
-                                    let msg = RenterNeedVerify { renter: renter_clone.into(), file_link: link };
+                                    let msg = helper_model::RenterNeedVerify { renter: renter_clone.into(), file_link: link };
 
                                     methods::standard_replies::response_with_obj(&msg, StatusCode::OK)
                                 }

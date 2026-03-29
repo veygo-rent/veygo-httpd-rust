@@ -171,7 +171,6 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                         }
 
-                        use crate::schema::renters::dsl as r_q;
                         let mut pool = POOL.get().unwrap();
 
                         let update_result = user.save_changes::<model::Renter>(&mut pool);

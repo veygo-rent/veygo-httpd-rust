@@ -16,6 +16,7 @@ pub fn api_v1_admin() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
                 .or(retrieve::main())
                 .or(update_apns::main())
                 .or(renter_need_verify::main())
+                .or(verify_dl::main())
         )
         .and(warp::path::end())
 }

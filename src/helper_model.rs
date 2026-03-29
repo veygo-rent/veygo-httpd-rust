@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde_derive::{Deserialize, Serialize};
-use crate::model;
+use crate::{model};
 use rust_decimal::prelude::*;
 
 #[derive(Debug, Deserialize)]
@@ -146,12 +146,23 @@ pub enum VerifyDriversLicenseRequest {
     RequireSecondary {
         renter_id: i32,
         reason: String,
+        drivers_license_number: Option<String>,
+        drivers_license_state_region: Option<String>,
     },
     #[serde(rename = "approved")]
     Approved {
         renter_id: i32,
+        drivers_license_number: Option<String>,
+        drivers_license_state_region: Option<String>,
+        drivers_license_expiration: NaiveDate,
         renter_address: Option<model::UsAddress>,
     }
+}
+
+#[derive(Serialize)]
+pub struct RenterNeedVerify {
+    pub renter: model::PublishRenter,
+    pub file_link: FileLink,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
