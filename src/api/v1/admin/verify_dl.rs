@@ -202,9 +202,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                 let save_result = renter.save_changes::<model::Renter>(&mut pool);
 
-                                if save_result.is_err() {
+                                if let Err(_err) = save_result {
                                     return methods::standard_replies::internal_server_error_response(
-                                        String::from("admin/verify-drivers-license: DB error updating renter"),
+                                        format!("DB error loading renter by id: {}", _err),
                                     )
                                 }
 

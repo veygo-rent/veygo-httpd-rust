@@ -909,70 +909,75 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         // stripe auth
 
-                        let description = "RSVP #".to_owned() + &*conf_id.clone();
-                        let stripe_auth = integration::stripe_veygo::create_payment_intent(
-                            &user_in_request.stripe_id, &payment_method.token, total_stripe_amount_cent as i64, PaymentIntentCaptureMethod::Manual, &description
-                        ).await;
+                        if total_stripe_amount_cent > 50 {
 
-                        use crate::schema::payments::dsl as payment_query;
-                        match stripe_auth {
-                            Ok(pmi) => {
-                                // auth successful
-                                let new_payment = model::NewPayment {
-                                    payment_type: model::PaymentType::Succeeded,
-                                    amount: total_stripe_amount_2dp,
-                                    note: None,
-                                    reference_number: Some(pmi.id.to_string()),
-                                    agreement_id: inserted_agreement.id,
-                                    renter_id: user_in_request.id,
-                                    payment_method_id: Some(payment_method.id),
-                                    amount_authorized: total_stripe_amount_2dp,
-                                    capture_before: None,
-                                };
+                            let description = "RSVP #".to_owned() + &*conf_id.clone();
+                            let stripe_auth = integration::stripe_veygo::create_payment_intent(
+                                &user_in_request.stripe_id, &payment_method.token, total_stripe_amount_cent as i64, PaymentIntentCaptureMethod::Manual, &description
+                            ).await;
 
-                                let payment_result = diesel::insert_into(payment_query::payments)
-                                    .values(&new_payment).get_result::<model::Payment>(&mut pool);
+                            use crate::schema::payments::dsl as payment_query;
+                            match stripe_auth {
+                                Ok(pmi) => {
+                                    // auth successful
+                                    let new_payment = model::NewPayment {
+                                        payment_type: model::PaymentType::Succeeded,
+                                        amount: total_stripe_amount_2dp,
+                                        note: None,
+                                        reference_number: Some(pmi.id.to_string()),
+                                        agreement_id: inserted_agreement.id,
+                                        renter_id: user_in_request.id,
+                                        payment_method_id: Some(payment_method.id),
+                                        amount_authorized: total_stripe_amount_2dp,
+                                        capture_before: None,
+                                    };
 
-                                match payment_result {
-                                    Ok(pmt) => {
-                                        // insert successful
-                                        let intent_id = pmt.clone().reference_number.unwrap();
-                                        let _ = integration::stripe_veygo::capture_payment(&intent_id, None).await;
+                                    let payment_result = diesel::insert_into(payment_query::payments)
+                                        .values(&new_payment).get_result::<model::Payment>(&mut pool);
 
-                                        methods::standard_replies::response_with_obj(inserted_agreement, StatusCode::CREATED)
+                                    match payment_result {
+                                        Ok(pmt) => {
+                                            // insert successful
+                                            let intent_id = pmt.clone().reference_number.unwrap();
+                                            let _ = integration::stripe_veygo::capture_payment(&intent_id, None).await;
+
+                                            methods::standard_replies::response_with_obj(inserted_agreement, StatusCode::CREATED)
+                                        }
+                                        Err(_) => {
+                                            methods::standard_replies::internal_server_error_response(
+                                                String::from("agreement/new: Failed to insert payment error")
+                                            )
+                                        }
                                     }
-                                    Err(_) => {
-                                        methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/new: Failed to insert payment error")
-                                        )
+                                }
+                                Err(v_err) => {
+                                    let _ = diesel::delete(payment_query::payments)
+                                        .filter(payment_query::agreement_id.eq(inserted_agreement.id))
+                                        .execute(&mut pool);
+                                    let _ = diesel::delete(ag_tx_q::agreements_taxes)
+                                        .filter(ag_tx_q::agreement_id.eq(inserted_agreement.id))
+                                        .execute(&mut pool);
+                                    let _ = diesel::delete(rt_q::reward_transactions)
+                                        .filter(rt_q::agreement_id.eq(inserted_agreement.id))
+                                        .execute(&mut pool);
+                                    let _ = diesel::delete(ag_q::agreements)
+                                        .filter(ag_q::id.eq(inserted_agreement.id))
+                                        .execute(&mut pool);
+
+                                    return match v_err {
+                                        VeygoError::CardDeclined => {
+                                            methods::standard_replies::card_declined()
+                                        }
+                                        _ => {
+                                            methods::standard_replies::internal_server_error_response(
+                                                String::from("agreement/new: Stripe error creating payment intent")
+                                            )
+                                        }
                                     }
                                 }
                             }
-                            Err(v_err) => {
-                                let _ = diesel::delete(payment_query::payments)
-                                    .filter(payment_query::agreement_id.eq(inserted_agreement.id))
-                                    .execute(&mut pool);
-                                let _ = diesel::delete(ag_tx_q::agreements_taxes)
-                                    .filter(ag_tx_q::agreement_id.eq(inserted_agreement.id))
-                                    .execute(&mut pool);
-                                let _ = diesel::delete(rt_q::reward_transactions)
-                                    .filter(rt_q::agreement_id.eq(inserted_agreement.id))
-                                    .execute(&mut pool);
-                                let _ = diesel::delete(ag_q::agreements)
-                                    .filter(ag_q::id.eq(inserted_agreement.id))
-                                    .execute(&mut pool);
-
-                                return match v_err {
-                                    VeygoError::CardDeclined => {
-                                        methods::standard_replies::card_declined()
-                                    }
-                                    _ => {
-                                        methods::standard_replies::internal_server_error_response(
-                                            String::from("agreement/new: Stripe error creating payment intent")
-                                        )
-                                    }
-                                }
-                            }
+                        } else {
+                            methods::standard_replies::response_with_obj(inserted_agreement, StatusCode::CREATED)
                         }
                     }
                 };
