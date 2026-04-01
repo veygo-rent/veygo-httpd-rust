@@ -198,8 +198,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     };
 
                                     let pending_insurance_approvals = r_q::renters
-                                        .filter(r_q::drivers_license_expiration.is_null())
-                                        .filter(r_q::drivers_license_image.is_not_null())
+                                        .filter(r_q::insurance_liability_expiration.is_null())
+                                        .filter(r_q::insurance_id_image.is_not_null())
                                         .select(diesel::dsl::count_star())
                                         .get_result::<i64>(&mut pool);
                                     let Ok(pending_insurance_approvals) = pending_insurance_approvals else {
