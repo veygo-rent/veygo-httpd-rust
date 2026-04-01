@@ -1,5 +1,6 @@
 use crate::{POOL, methods, model, helper_model, schema};
 use diesel::prelude::*;
+use rust_decimal::Decimal;
 use warp::{Filter, Rejection, Reply};
 use warp::http::{Method, StatusCode};
 use warp::reply::with_status;
@@ -189,6 +190,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 } else {
                                     None
                                 };
+
+                                use schema::reward_transactions::dsl as rt_query;
+                                let reward_transactions = rt_query::reward_transactions
+                                    .filter(rt_query::agreement_id.eq(&current.0.id))
+                                    .filter(rt_query::duration.gt(Decimal::ZERO))
+                                    .get_results::<model::RewardTransaction>(&mut pool);
+                                let Ok(reward_transactions) = reward_transactions else {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from("agreement/current: Database error loading reward transactions"),
+                                    );
+                                };
                                 
                                 let current_trip = helper_model::TripDetailedInfo {
                                     agreement: current.0,
@@ -201,6 +213,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     mileage_package,
                                     taxes,
                                     vehicle_snapshot_after: None,
+                                    reward_transactions
                                 };
                                 methods::standard_replies::response_with_obj(current_trip, StatusCode::OK)
                             }

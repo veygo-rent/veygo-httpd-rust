@@ -74,6 +74,7 @@ pub struct TripDetailedInfo {
     pub mileage_package: Option<model::MileagePackage>,
     pub taxes: Vec<model::Tax>,
     pub vehicle_snapshot_after: Option<model::VehicleSnapshot>,
+    pub reward_transactions: Vec<model::RewardTransaction>
 }
 
 #[derive(Serialize, Debug, Clone)]
