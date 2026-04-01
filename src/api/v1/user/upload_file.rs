@@ -109,7 +109,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let data = user.id.to_le_bytes();
                         (& mut hasher).update(data);
                         let result = hasher.finalize();
-                        let object_path: String = format!("user_docs/{:X}/", result);
+                        let object_path: String = format!("user_docs/{}/", hex::encode_upper(result));
 
                         let file_bytes = body.to_vec();
                         let file_path = integration::gcloud_storage_veygo::upload_file
@@ -123,12 +123,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match content_type {
                             UploadedFileType::DriversLicense => {
                                 if let Some(file) = user.drivers_license_image {
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     integration::gcloud_storage_veygo::delete_object(object_path)
                                         .await;
                                 }
                                 if let Some(file) = user.drivers_license_image_secondary {
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     integration::gcloud_storage_veygo::delete_object(object_path)
                                         .await;
                                 }
@@ -141,7 +141,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             UploadedFileType::DriversLicenseSecondary => {
                                 if let Some(file) = user.drivers_license_image_secondary {
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     integration::gcloud_storage_veygo::delete_object(object_path)
                                         .await;
                                 }
@@ -152,7 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             UploadedFileType::LeaseAgreement => {
                                 if let Some(file) = user.lease_agreement_image {
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     integration::gcloud_storage_veygo::delete_object(object_path)
                                         .await;
                                 }
@@ -161,7 +161,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             }
                             UploadedFileType::ProofOfInsurance => {
                                 if let Some(file) = user.insurance_id_image {
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     integration::gcloud_storage_veygo::delete_object(object_path)
                                         .await;
                                 }

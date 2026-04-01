@@ -33,7 +33,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
             let data = vehicle.vin.clone().into_bytes();
             hasher.update(data);
             let result = hasher.finalize();
-            let object_pwd: String = format!("vehicle_pictures/{:X}/", result);
+            let object_pwd: String = format!("vehicle_pictures/{}/", hex::encode_upper(result));
 
             let left_image_path: String = format!("{}{}", &object_pwd, &body.left_image_path);
             let right_image_path: String = format!("{}{}", &object_pwd, &body.right_image_path);

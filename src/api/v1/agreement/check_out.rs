@@ -80,7 +80,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let data = vin_num.clone().into_bytes();
                     hasher.update(data);
                     let result = hasher.finalize();
-                    let object_pwd: String = format!("vehicle_pictures/{:X}/", result);
+                    let object_pwd: String = format!("vehicle_pictures/{}/", hex::encode_upper(result));
 
                     let left_image_path: String = format!("{}{}", &object_pwd, &left_image_path);
                     let right_image_path: String = format!("{}{}", &object_pwd, &right_image_path);

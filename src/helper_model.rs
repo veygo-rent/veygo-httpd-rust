@@ -159,6 +159,22 @@ pub enum VerifyDriversLicenseRequest {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
+pub enum VerifyLeaseRequest {
+    #[serde(rename = "declined")]
+    Declined {
+        renter_id: i32,
+        reason: String,
+    },
+    #[serde(rename = "approved")]
+    Approved {
+        renter_id: i32,
+        lease_expiration: NaiveDate,
+        renter_address: model::UsAddress,
+    }
+}
+
 #[derive(Serialize)]
 pub struct RenterNeedVerify {
     pub renter: model::PublishRenter,

@@ -185,7 +185,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     let data = renter.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, doc_path_unsigned);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), doc_path_unsigned);
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;

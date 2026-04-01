@@ -93,7 +93,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let data = vehicle.vin.into_bytes();
                         (&mut hasher).update(data);
                         let result = hasher.finalize();
-                        let object_path: String = format!("vehicle_pictures/{:X}/", result);
+                        let object_path: String = format!("vehicle_pictures/{}/", hex::encode_upper(result));
 
                         let file_bytes = body.to_vec();
                         let file_path = integration::gcloud_storage_veygo::upload_file(

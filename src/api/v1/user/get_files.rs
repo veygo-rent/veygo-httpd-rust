@@ -117,7 +117,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let data = user.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
@@ -137,7 +137,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let data = user.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
@@ -157,7 +157,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let data = user.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
@@ -177,7 +177,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let data = user.id.to_le_bytes();
                                     hasher.update(data);
                                     let result = hasher.finalize();
-                                    let object_path: String = format!("user_docs/{:X}/{}", result, file);
+                                    let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file);
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;

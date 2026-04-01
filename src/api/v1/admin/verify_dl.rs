@@ -160,7 +160,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         (& mut hasher).update(data);
                                         let result = hasher.finalize();
                                         let file_name = renter.drivers_license_image.unwrap();
-                                        let object_path: String = format!("user_docs/{:X}/{}", result, file_name);
+                                        let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file_name);
                                         integration::gcloud_storage_veygo::delete_object(object_path)
                                             .await;
 
@@ -173,7 +173,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         (& mut hasher).update(data);
                                         let result = hasher.finalize();
                                         let file_name = renter.drivers_license_image_secondary.unwrap();
-                                        let object_path: String = format!("user_docs/{:X}/{}", result, file_name);
+                                        let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), file_name);
                                         integration::gcloud_storage_veygo::delete_object(object_path)
                                             .await;
 
@@ -202,9 +202,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                 let save_result = renter.save_changes::<model::Renter>(&mut pool);
 
-                                if let Err(_err) = save_result {
+                                if let Err(err) = save_result {
                                     return methods::standard_replies::internal_server_error_response(
-                                        format!("DB error loading renter by id: {}", _err),
+                                        format!("admin/verify-drivers-license: DB error saving renter by id: {}", err),
                                     )
                                 }
 
@@ -254,7 +254,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let data = next_renter.id.to_le_bytes();
                                 hasher.update(data);
                                 let result = hasher.finalize();
-                                let object_path: String = format!("user_docs/{:X}/{}", result, doc_path_unsigned);
+                                let object_path: String = format!("user_docs/{}/{}", hex::encode_upper(result), doc_path_unsigned);
                                 let link = integration::gcloud_storage_veygo::get_signed_url(
                                     &object_path,
                                 ).await;
