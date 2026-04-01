@@ -520,12 +520,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 return Ok((with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN).into_response(),));
                             }
 
-                            let init_allowance = match user_in_request.plan_tier {
-                                model::PlanTier::Free => { req_apt.free_tier_hours }
-                                model::PlanTier::Silver => { req_apt.silver_tier_hours }
-                                model::PlanTier::Gold => { req_apt.gold_tier_hours }
-                                model::PlanTier::Platinum => { req_apt.platinum_tier_hours }
-                            };
+                            let init_allowance = user_in_request.plan_total_availability;
 
                             if init_allowance < body.hours_using_reward {
                                 let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
