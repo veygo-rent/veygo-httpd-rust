@@ -672,11 +672,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut total_hours_reserved_round_up = total_hours_reserved.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
                         total_hours_reserved_round_up.rescale(0);
                         let total_hours_reserved_round_up_int = total_hours_reserved_round_up.mantissa() as i32;
-                        let raw_hours_after_applying_credit = methods::rental_rate::calculate_duration_after_reward(trip_duration, body.hours_using_reward);
-                        let billable_days_count: i32 = methods::rental_rate::billable_days_count(trip_duration);
-                        let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(raw_hours_after_applying_credit);
 
-                        let duration_revenue = billable_duration_hours * req_apt.duration_rate * req_vehicle.msrp_factor * rate_offer;
+                        let billable_days_count: i32 = methods::rental_rate::billable_days_count(trip_duration);
+                        let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(trip_duration);
+
+                        let duration_revenue_before_reward = billable_duration_hours * req_apt.duration_rate * req_vehicle.msrp_factor * rate_offer;
+
+                        let avg_hourly_rate = duration_revenue_before_reward / total_hours_reserved;
+
+                        let duration_revenue = duration_revenue_before_reward - avg_hourly_rate * body.hours_using_reward;
 
                         let duration_revenue_after_promo = match verified_promo.clone() {
                             None => { duration_revenue }

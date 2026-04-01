@@ -698,6 +698,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let reward_used_sum = re_q::reward_transactions
                         .filter(re_q::renter_id.eq(agreement_to_be_checked_in.renter_id))
                         .filter(re_q::agreement_id.eq(agreement_to_be_checked_in.id))
+                        .filter(re_q::duration.gt(Decimal::ZERO))
                         .select(diesel::dsl::sum(re_q::duration))
                         .get_result::<Option<Decimal>>(&mut pool);
 
@@ -707,17 +708,22 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         )
                     };
 
-                    let raw_hours_after_applying_credit = match reward_used_sum {
-                        None => { trip_duration }
+                    let reward_hours = match reward_used_sum {
+                        None => { Decimal::ZERO }
                         Some(credit) => {
-                            methods::rental_rate::calculate_duration_after_reward(trip_duration, credit)
+                            credit
                         }
                     };
 
                     let billable_days_count_including_late_return: i32 = methods::rental_rate::billable_days_count(trip_duration_including_late_return);
-                    let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(raw_hours_after_applying_credit);
+                    let billable_duration_hours: Decimal = methods::rental_rate::calculate_billable_duration_hours(trip_duration);
 
-                    let duration_revenue = billable_duration_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * rate_offer;
+                    let duration_revenue_before_reward = billable_duration_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * rate_offer;
+
+                    let avg_hourly_rate = duration_revenue_before_reward / total_hours_reserved;
+
+                    let duration_revenue = duration_revenue_before_reward - avg_hourly_rate * reward_hours;
+
                     let duration_revenue_after_promo = match agreement_to_be_checked_in.clone().promo_id {
                         None => { duration_revenue }
                         Some(promo) => {
