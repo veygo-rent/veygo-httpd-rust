@@ -139,8 +139,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         }
                                         TypeOfDocument::ProofOfInsurance => {
                                             r_q::renters
-                                                .filter(r_q::drivers_license_expiration.is_null())
-                                                .filter(r_q::drivers_license_image.is_not_null())
+                                                .filter(r_q::insurance_liability_expiration.is_null())
+                                                .filter(r_q::insurance_id_image.is_not_null())
                                                 .into_boxed()
                                         }
                                     }.limit(1)
