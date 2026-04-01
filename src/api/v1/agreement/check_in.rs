@@ -851,7 +851,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     // 5. low fuel & over mileage
 
-                    let check_in_percent = check_in_snapshot.level;
+                    let check_in_percent = check_in_snapshot.level + 10;
                     let check_out_percent = {
                         let check_out_snapshot_id = agreement_to_be_checked_in.vehicle_snapshot_before.unwrap();
                         let check_out_percent = v_s_q::vehicle_snapshots
@@ -1014,7 +1014,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         return methods::standard_replies::internal_server_error_response(
                             String::from("agreement/check-in: outstanding balance negative")
                         )
-                    } else if outstanding_balance == Decimal::zero() {
+                    } else if outstanding_balance <= Decimal::new(50, 2) {
                         auth_hold_pmt.capture_before = None;
                         auth_hold_pmt.payment_type = model::PaymentType::Canceled;
                         let _ = auth_hold_pmt.save_changes::<model::Payment>(&mut pool);
@@ -1038,39 +1038,42 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let mut still_need_to_process_2dp = still_need_to_process.round_dp(2);
                         still_need_to_process_2dp.rescale(2);
 
-                        let description = "RSVP #".to_owned() + &*agreement_to_be_checked_in.confirmation.clone();
-                        let pmi = integration::stripe_veygo::create_payment_intent(&stripe_id, &payment_method_id, still_need_to_process_2dp.mantissa() as i64, PaymentIntentCaptureMethod::Automatic, &description).await;
+                        if still_need_to_process_2dp > Decimal::new(50, 2) {
 
-                        match pmi {
-                            Ok(pmi) => {
-                                let new_payment = model::NewPayment {
-                                    payment_type: model::PaymentType::Succeeded,
-                                    amount: still_need_to_process_2dp,
-                                    note: None,
-                                    reference_number: Some(pmi.id.to_string()),
-                                    agreement_id: agreement_to_be_checked_in.id,
-                                    renter_id: agreement_to_be_checked_in.renter_id,
-                                    payment_method_id: Some(agreement_to_be_checked_in.payment_method_id),
-                                    amount_authorized: still_need_to_process_2dp,
-                                    capture_before: None,
-                                };
+                            let description = "RSVP #".to_owned() + &*agreement_to_be_checked_in.confirmation.clone();
+                            let pmi = integration::stripe_veygo::create_payment_intent(&stripe_id, &payment_method_id, still_need_to_process_2dp.mantissa() as i64, PaymentIntentCaptureMethod::Automatic, &description).await;
 
-                                let payment_result = diesel::insert_into(pmt_q::payments)
-                                    .values(&new_payment).get_result::<model::Payment>(&mut pool);
+                            match pmi {
+                                Ok(pmi) => {
+                                    let new_payment = model::NewPayment {
+                                        payment_type: model::PaymentType::Succeeded,
+                                        amount: still_need_to_process_2dp,
+                                        note: None,
+                                        reference_number: Some(pmi.id.to_string()),
+                                        agreement_id: agreement_to_be_checked_in.id,
+                                        renter_id: agreement_to_be_checked_in.renter_id,
+                                        payment_method_id: Some(agreement_to_be_checked_in.payment_method_id),
+                                        amount_authorized: still_need_to_process_2dp,
+                                        capture_before: None,
+                                    };
 
-                                if payment_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: DB saving final payment error, payment collected")
-                                    )
+                                    let payment_result = diesel::insert_into(pmt_q::payments)
+                                        .values(&new_payment).get_result::<model::Payment>(&mut pool);
+
+                                    if payment_result.is_err() {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/check-in: DB saving final payment error, payment collected")
+                                        )
+                                    }
                                 }
-                            }
-                            Err(err) => {
-                                return if err == VeygoError::CardDeclined {
-                                    methods::standard_replies::card_declined()
-                                } else {
-                                    methods::standard_replies::internal_server_error_response(
-                                        String::from("agreement/check-in: Stripe cannot process outstanding payment")
-                                    )
+                                Err(err) => {
+                                    return if err == VeygoError::CardDeclined {
+                                        methods::standard_replies::card_declined()
+                                    } else {
+                                        methods::standard_replies::internal_server_error_response(
+                                            String::from("agreement/check-in: Stripe cannot process outstanding payment")
+                                        )
+                                    }
                                 }
                             }
                         }
