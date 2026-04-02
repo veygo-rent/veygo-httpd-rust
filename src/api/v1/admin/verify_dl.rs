@@ -196,7 +196,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         renter.drivers_license_number = drivers_license_number;
                                         renter.drivers_license_state_region = drivers_license_state_region;
                                         renter.drivers_license_expiration = Some(drivers_license_expiration);
-                                        renter.billing_address = renter_address;
+                                        renter.billing_address = renter_address.clone();
+                                        
+                                        if let Some(addr) = renter_address {
+                                            let stripe_id = &renter.stripe_id;
+                                            let _ = integration::stripe_veygo::update_stripe_customer_address(stripe_id, addr);
+                                        }
                                     }
                                 };
 

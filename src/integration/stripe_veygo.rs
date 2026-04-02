@@ -122,7 +122,6 @@ pub async fn update_stripe_customer_email(
     }
 }
 
-#[allow(dead_code)]
 pub async fn update_stripe_customer_address(
     customer_id: &str,
     address: model::UsAddress

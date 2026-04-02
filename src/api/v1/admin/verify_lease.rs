@@ -121,7 +121,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                 match body {
                                     helper_model::VerifyLeaseRequest::Approved { lease_expiration, renter_address, .. } => {
-                                        renter.billing_address = Some(renter_address);
+                                        if renter.billing_address != Some(renter_address.clone()) {
+                                            renter.billing_address = Some(renter_address.clone());
+
+                                            let stripe_id = &renter.stripe_id;
+                                            let _ = integration::stripe_veygo::update_stripe_customer_address(stripe_id, renter_address);
+                                        }
                                         renter.lease_agreement_expiration = Some(lease_expiration);
                                     },
                                     helper_model::VerifyLeaseRequest::Declined { reason, .. } => {

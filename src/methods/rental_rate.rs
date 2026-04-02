@@ -1,4 +1,4 @@
-use chrono::{Duration, TimeDelta};
+use chrono::{TimeDelta};
 use rust_decimal::prelude::*;
 
 pub fn calculate_billable_duration_hours ( raw_duration: TimeDelta ) -> Decimal {
