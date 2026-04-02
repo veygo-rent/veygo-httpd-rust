@@ -235,6 +235,8 @@ create table payment_methods
 create unique index payment_methods_fingerprint_enabled_uk
     on payment_methods(fingerprint)
     where is_enabled;
+create unique index payment_methods_token_uk
+    on payment_methods(token);
 
 create table locations
 (
