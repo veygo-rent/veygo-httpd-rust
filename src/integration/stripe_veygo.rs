@@ -46,8 +46,8 @@ pub async fn retrieve_payment_method_from_stripe(
             let card = payment_method.card.unwrap();
             let accepted_cards: &[&str] = &[ "amex", "mastercard", "visa", "discover" ];
             let accepted_funding_methods: &[&str] = &[ "credit", "debit" ];
-            if !accepted_cards.contains(&card.brand.as_str()) &&
-                !accepted_funding_methods.contains(&card.funding.as_str())
+            if !accepted_cards.contains(&card.brand.as_str())
+                || !accepted_funding_methods.contains(&card.funding.as_str())
             {
                 return Err(helper_model::VeygoError::CardNotSupported)
             }
