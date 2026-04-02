@@ -779,7 +779,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         Some(mp_id) => {
                             use schema::mileage_packages::dsl as mp_q;
                             let mp_result = mp_q::mileage_packages
-                                .filter(mp_q::is_active)
                                 .find(mp_id)
                                 .select((mp_q::miles, mp_q::discounted_rate))
                                 .get_result::<(i32, i32)>(&mut pool);
@@ -796,21 +795,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         mileage + 10
                                     )
                                 }
-                                Err(err) => {
-                                    return match err {
-                                        Error::NotFound => {
-                                            let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                                title: String::from("Booking Not Allowed"),
-                                                message: String::from("Invalid mileage package option selected"),
-                                            };
-                                            methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                                        }
-                                        _ => {
-                                            methods::standard_replies::internal_server_error_response(
-                                                String::from( "agreement/check-in: Database error loading mileage package"),
-                                            )
-                                        }
-                                    }
+                                Err(_) => {
+                                    return methods::standard_replies::internal_server_error_response(
+                                        String::from( "agreement/check-in: Database error loading mileage package"),
+                                    )
                                 }
                             }
                         }

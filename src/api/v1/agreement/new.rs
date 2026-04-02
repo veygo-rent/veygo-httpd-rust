@@ -720,21 +720,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                         base_rate_for_mp * Decimal::new(mileage as i64, 0) * Decimal::new(discount_rate as i64, 2)
                                     }
-                                    Err(err) => {
-                                        return match err {
-                                            Error::NotFound => {
-                                                let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                                    title: String::from("Booking Not Allowed"),
-                                                    message: String::from("Invalid mileage package option selected"),
-                                                };
-                                                methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
-                                            }
-                                            _ => {
-                                                methods::standard_replies::internal_server_error_response(
-                                                    String::from( "agreement/new: Database error loading mileage package"),
-                                                )
-                                            }
-                                        }
+                                    Err(_) => {
+                                        return methods::standard_replies::internal_server_error_response(
+                                            String::from( "agreement/new: Database error loading mileage package"),
+                                        )
                                     }
                                 }
                             }
