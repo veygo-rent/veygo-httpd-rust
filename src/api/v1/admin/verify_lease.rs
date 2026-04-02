@@ -125,7 +125,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             renter.billing_address = Some(renter_address.clone());
 
                                             let stripe_id = &renter.stripe_id;
-                                            let _ = integration::stripe_veygo::update_stripe_customer_address(stripe_id, renter_address);
+                                            let _ = integration::stripe_veygo::update_stripe_customer_address(stripe_id, renter_address).await;
                                         }
                                         renter.lease_agreement_expiration = Some(lease_expiration);
                                     },
