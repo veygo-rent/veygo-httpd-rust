@@ -149,6 +149,11 @@ pub async fn nightly_task() {
 
                         match payment_result {
                             Ok(_pi) => {
+                                let now = Utc::now();
+                                let _ = diesel::update(pm_q::payment_methods.filter(pm_q::token.eq(&plan_pm.token)))
+                                    .set(pm_q::last_used_date_time.eq(now))
+                                    .execute(&mut pool);
+                                
                                 let new_plan_payment = model::NewSubscriptionPayment{
                                     renter_id: renter.id,
                                     payment_method_id: renew_id,

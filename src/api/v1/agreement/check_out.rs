@@ -415,6 +415,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     match stripe_auth {
                         Ok(pmi) => {
+                            let now = Utc::now();
+                            let _ = diesel::update(pm_q::payment_methods.filter(pm_q::token.eq(&pm_str)))
+                                .set(pm_q::last_used_date_time.eq(now))
+                                .execute(&mut pool);
+                            
                             use schema::payments::dsl as p_q;
                             let new_deposit = model::NewPayment {
                                 payment_type: pmi.clone().status.into(),

@@ -918,6 +918,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             use crate::schema::payments::dsl as payment_query;
                             match stripe_auth {
                                 Ok(pmi) => {
+                                    let now = Utc::now();
+                                    let _ = diesel::update(payment_method_query::payment_methods.filter(payment_method_query::token.eq(&payment_method.token)))
+                                        .set(payment_method_query::last_used_date_time.eq(now))
+                                        .execute(&mut pool);
                                     // auth successful
                                     let new_payment = model::NewPayment {
                                         payment_type: model::PaymentType::Succeeded,

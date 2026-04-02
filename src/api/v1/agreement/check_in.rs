@@ -1051,6 +1051,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                             match pmi {
                                 Ok(pmi) => {
+                                    let now = Utc::now();
+                                    let _ = diesel::update(pm_q::payment_methods.filter(pm_q::token.eq(&payment_method_id)))
+                                        .set(pm_q::last_used_date_time.eq(now))
+                                        .execute(&mut pool);
+                                    
                                     let new_payment = model::NewPayment {
                                         payment_type: model::PaymentType::Succeeded,
                                         amount: still_need_to_process_2dp,
