@@ -90,7 +90,7 @@ impl model::Renter {
                     .or(phone.eq(Some(&self.phone)))
                     .or(email.eq(Some(&self.student_email)))
             )
-            .filter(exp.is_null().or(exp.lt(today)))
+            .filter(exp.is_null().or(exp.ge(today)))
             .count()
             .first::<i64>(&mut pool);
 
@@ -142,7 +142,7 @@ fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentLis
                 .or(phone.eq(Some(&renter.phone)))
                 .or(email.eq(Some(&renter.student_email)))
         )
-        .filter(exp.is_null().or(exp.lt(today)))
+        .filter(exp.is_null().or(exp.ge(today)))
         .order(id.asc())
         .get_results::<model::DoNotRentList>(&mut pool);
 
