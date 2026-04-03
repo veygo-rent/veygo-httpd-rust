@@ -129,7 +129,7 @@ pub async fn update_stripe_customer_address(
     let client = stripe_client().await;
     let address_parsed = OptionalFieldsCustomerAddress {
         city: Some(address.city),
-        country: Some(String::from("United States")),
+        country: Some(String::from("US")),
         line1: Some(address.street_address),
         line2: address.extended_address,
         postal_code: Some(address.zipcode),
