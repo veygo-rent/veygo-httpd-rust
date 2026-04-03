@@ -46,11 +46,31 @@ pub async fn retrieve_payment_method_from_stripe(
             let card = payment_method.card.unwrap();
             let accepted_cards: &[&str] = &[ "amex", "mastercard", "visa", "discover" ];
             let accepted_funding_methods: &[&str] = &[ "credit", "debit" ];
+            let accepted_cvc_checks: &[&str] = &[ "pass" ];
+            let accepted_postal_code_checks: &[&str] = &[ "pass", "unavailable" ];
             if !accepted_cards.contains(&card.brand.as_str())
                 || !accepted_funding_methods.contains(&card.funding.as_str())
             {
                 return Err(helper_model::VeygoError::CardNotSupported)
             }
+            if let Some(check) = card.checks {
+                if let Some(cvc_check) = check.cvc_check {
+                    if !accepted_cvc_checks.contains(&cvc_check.as_str()) {
+                        return Err(helper_model::VeygoError::CardDeclined)
+                    }
+                } else {
+                    return Err(helper_model::VeygoError::CardDeclined)
+                }
+
+                if let Some(postal_code_check) = check.address_postal_code_check {
+                    if !accepted_postal_code_checks.contains(&postal_code_check.as_str()) {
+                        return Err(helper_model::VeygoError::CardDeclined)
+                    }
+                } else {
+                    return Err(helper_model::VeygoError::CardDeclined)
+                }
+            }
+
             let mut masked_card_number = format!("**** **** **** {}", card.last4);
             if card.brand == "amex" {
                 masked_card_number = format!("**** ****** *{}", card.last4);

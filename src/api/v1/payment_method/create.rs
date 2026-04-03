@@ -175,6 +175,9 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 VeygoError::InputDataError => {
                                     methods::standard_replies::card_invalid()
                                 }
+                                VeygoError::CardDeclined => {
+                                    methods::standard_replies::card_declined()
+                                }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response(
                                         String::from("payment-method/create: Stripe error retrieving payment method")
