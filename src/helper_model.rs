@@ -2,6 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde_derive::{Deserialize, Serialize};
 use crate::{model};
 use rust_decimal::prelude::*;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct TeslaChargingSessionsResponse {
@@ -11,6 +12,8 @@ pub struct TeslaChargingSessionsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct TeslaChargingSessionMin {
+    #[allow(dead_code)]
+    pub id: Uuid,
     pub start_date_time: DateTime<Utc>,
     pub location: TeslaChargingLocationMin,
     pub total_cost: TeslaTotalCostMin,
