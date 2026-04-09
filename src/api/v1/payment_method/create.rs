@@ -3,8 +3,8 @@ use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use http::Method;
 use serde_derive::{Deserialize, Serialize};
-use warp::{Filter};
-use warp::http::StatusCode;
+use stripe_core::SetupIntentStatus;
+use warp::{Filter, http::StatusCode};
 use crate::helper_model::VeygoError;
 use crate::integration::stripe_veygo;
 
@@ -84,17 +84,17 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         }
                     }
 
-                    let new_pm_result = stripe_veygo::retrieve_payment_method_from_stripe
-                        (
+                    let new_pm_result = stripe_veygo::retrieve_payment_method_from_stripe(
                             &request_body.pm_id,
                             &request_body.cardholder_name,
                             &access_token.user_id,
-                            &request_body.nickname
-                        )
+                            &request_body.nickname,
+                            false,
+                    )
                         .await;
 
                     match new_pm_result {
-                        Ok(new_pm) => {
+                        Ok(mut new_pm) => {
                             use crate::schema::payment_methods::dsl as pm_q;
                             let mut pool = POOL.get().unwrap();
                             let card_in_db = diesel::select
@@ -130,26 +130,66 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 )
                             };
 
-                            let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token).await;
+                            let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token, "veygo-app://3ds-dismissed").await;
 
                             match attach_result {
-                                Ok(_) => {
-                                    use crate::schema::payment_methods::dsl as pm_q;
-                                    let inserted_pm_card = diesel::insert_into(pm_q::payment_methods)
-                                        .values(&new_pm)
-                                        .get_result::<model::PaymentMethod>(&mut pool);
-
-                                    return match inserted_pm_card {
-                                        Ok(pm) => {
-                                            let pub_pm: model::PublishPaymentMethod = pm.into();
-                                            methods::standard_replies::response_with_obj(pub_pm, StatusCode::CREATED)
+                                Ok(setup_intent) => {
+                                    return match setup_intent.status {
+                                        SetupIntentStatus::RequiresAction => {
+                                            let next_step_opt = setup_intent.next_action;
+                                            return if let Some(next_step) = next_step_opt
+                                                && let Some(url_set) = next_step.redirect_to_url
+                                                && let Some(return_url) = url_set.return_url
+                                                && let Some(url) = url_set.url {
+                                                use crate::schema::payment_methods::dsl as pm_q;
+                                                let inserted_pm_card = diesel::insert_into(pm_q::payment_methods)
+                                                    .values(&new_pm)
+                                                    .get_result::<model::PaymentMethod>(&mut pool);
+                                                match inserted_pm_card {
+                                                    Ok(_) => {
+                                                        let msg = serde_json::json!({
+                                                            "return_url": return_url,
+                                                            "url": url
+                                                        });
+                                                        methods::standard_replies::response_with_obj(msg, StatusCode::OK)
+                                                    }
+                                                    Err(_) => {
+                                                        methods::standard_replies::internal_server_error_response(
+                                                            String::from("payment-method/create: SQL error inserting payment method")
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                methods::standard_replies::internal_server_error_response(
+                                                    String::from("payment-method/create: Unknown next step")
+                                                )
+                                            };
                                         }
-                                        Err(_) => {
+                                        SetupIntentStatus::Succeeded => {
+                                            new_pm.is_enabled = true;
+                                            use crate::schema::payment_methods::dsl as pm_q;
+                                            let inserted_pm_card = diesel::insert_into(pm_q::payment_methods)
+                                                .values(&new_pm)
+                                                .get_result::<model::PaymentMethod>(&mut pool);
+
+                                            match inserted_pm_card {
+                                                Ok(pm) => {
+                                                    let pub_pm: model::PublishPaymentMethod = pm.into();
+                                                    methods::standard_replies::response_with_obj(pub_pm, StatusCode::CREATED)
+                                                }
+                                                Err(_) => {
+                                                    methods::standard_replies::internal_server_error_response(
+                                                        String::from("payment-method/create: SQL error inserting payment method")
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        _ => {
                                             methods::standard_replies::internal_server_error_response(
-                                                String::from("payment-method/create: SQL error inserting payment method")
+                                                String::from("payment-method/create: Setup Intent Status error")
                                             )
                                         }
-                                    }
+                                    };
                                 }
                                 Err(err) => {
                                     match err {

@@ -1,6 +1,6 @@
 use warp::{Filter, Reply};
 use bytes;
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, SaveChangesDsl};
+use diesel::prelude::*;
 use http::StatusCode;
 use stripe_webhook::{Webhook, EventObject};
 use warp::reply::with_status;
@@ -24,42 +24,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     Ok(event) => {
                         let obj = event.clone().data.object;
                         match obj {
-                            EventObject::PaymentIntentCanceled(pmi) => {
-                                let payment_intent = pmi.clone();
-                                tokio::spawn(async move {
-                                    let mut pool = POOL.get().unwrap();
-
-                                    use crate::schema::payments::dsl as p_q;
-                                    let agreement_id_result = p_q::payments
-                                        .filter(p_q::reference_number.eq(&payment_intent.id.as_str()))
-                                        .select(p_q::agreement_id)
-                                        .get_result::<i32>(&mut pool);
-
-                                    match agreement_id_result {
-                                        Ok(ag_id) => {
-                                            use crate::schema::agreements::dsl as a_q;
-
-                                            let ag_that_payment_being_canceled = a_q::agreements
-                                                .find(ag_id)
-                                                .get_result::<model::Agreement>(&mut pool)
-                                                .unwrap();
-
-                                            match ag_that_payment_being_canceled.status {
-                                                model::AgreementStatus::Rental => {}
-                                                _ => {
-                                                    // TODO: Do nothing
-                                                }
-                                            }
-                                        }
-                                        Err(_) => {}
-                                    }
-                                });
-                            }
                             EventObject::PaymentMethodAutomaticallyUpdated(pm) => {
                                 let payment_method = pm.clone();
                                 let pm_id = pm.id;
                                 if let Some(payment_method_card) = payment_method.card {
-                                    let _ = tokio::spawn(async move {
+                                    tokio::spawn(async move {
                                         let mut pool = POOL.get().unwrap();
                                         use crate::schema::payment_methods::dsl as pm_q;
 
@@ -80,8 +49,24 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                             let _ = said_payment.save_changes::<model::PaymentMethod>(&mut pool);
                                         };
-                                    }).await;
+                                    });
                                 };
+                            }
+                            EventObject::SetupIntentSucceeded(set_i) => {
+                                if let Some(pmi) = set_i.payment_method {
+                                    let pmi_id = pmi.id().to_string();
+                                    tokio::spawn(async move {
+                                        let mut pool = POOL.get().unwrap();
+                                        use crate::schema::payment_methods::dsl as pm_q;
+                                        let _ = diesel::update
+                                            (
+                                                pm_q::payment_methods
+                                                    .filter(pm_q::token.eq(&pmi_id))
+                                            )
+                                            .set(pm_q::is_enabled.eq(true))
+                                            .execute(&mut pool);
+                                    });
+                                }
                             }
                             _ => {}
                         }

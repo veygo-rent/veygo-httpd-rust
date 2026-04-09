@@ -12,7 +12,8 @@ use stripe_core::payment_intent::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
 };
 use stripe_core::setup_intent::{
-    CreateSetupIntent, CreateSetupIntentAutomaticPaymentMethods, CreateSetupIntentAutomaticPaymentMethodsAllowRedirects
+    CreateSetupIntent, CreateSetupIntentPaymentMethodOptions, CreateSetupIntentPaymentMethodOptionsCard,
+    CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure
 };
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
@@ -35,9 +36,10 @@ async fn stripe_client() -> &'static Client {
 
 pub async fn retrieve_payment_method_from_stripe(
     pi_id: &str,
-    cardholder_name: &String,   // Required as Stripe does not return the full name
-    renter_id: &i32,            // Must be provided
-    nickname: &Option<String>,  // Optional user-defined alias
+    cardholder_name: &String,
+    renter_id: &i32,
+    nickname: &Option<String>,
+    is_enabled: bool,
 ) -> Result<model::NewPaymentMethod, helper_model::VeygoError> {
     let client = stripe_client().await;
     let payment_method = RetrievePaymentMethod::new(pi_id).send(client).await;
@@ -66,7 +68,7 @@ pub async fn retrieve_payment_method_from_stripe(
                 token: pi_id.to_string(),
                 fingerprint: card.fingerprint.unwrap(),
                 nickname: nickname.clone(),
-                is_enabled: true,
+                is_enabled,
                 renter_id: renter_id.clone(),
                 last_used_date_time: None,
             })
@@ -188,6 +190,7 @@ pub async fn create_stripe_refund(
 pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: &String,
     pm_id: &String,
+    return_url: &str
 ) -> Result<SetupIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
     let result = CreateSetupIntent::new()
@@ -195,16 +198,20 @@ pub async fn attach_payment_method_to_stripe_customer(
         .customer(stripe_customer_id)
         .payment_method(pm_id)
         .confirm(true)
-        .automatic_payment_methods(CreateSetupIntentAutomaticPaymentMethods {
-            allow_redirects: Some(CreateSetupIntentAutomaticPaymentMethodsAllowRedirects::Never),
-            enabled: true
+        .return_url(return_url)
+        .payment_method_options(CreateSetupIntentPaymentMethodOptions {
+            card: Some(CreateSetupIntentPaymentMethodOptionsCard {
+                request_three_d_secure: Some(CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure::Any),
+                ..Default::default()
+            }),
+            ..Default::default()
         })
         .send(client)
         .await;
 
     match result {
         Ok(si) => {
-            if si.status == SetupIntentStatus::Succeeded {
+            if si.status == SetupIntentStatus::Succeeded || si.status == SetupIntentStatus::RequiresAction {
                 Ok(si)
             } else {
                 Err(helper_model::VeygoError::CardDeclined)

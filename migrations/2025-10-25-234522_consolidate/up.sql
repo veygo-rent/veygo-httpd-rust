@@ -194,6 +194,7 @@ create table renters
     constraint renters_pk primary key (id),
     constraint renters_student_email_uk unique (student_email),
     constraint renters_phone_uk unique (phone),
+    constraint renter_stripe_id_uk unique (stripe_id),
     constraint renters_apartment_id_fk foreign key (apartment_id) references apartments(id)
 );
 
