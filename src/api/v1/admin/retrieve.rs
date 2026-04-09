@@ -13,7 +13,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(
             async move |method: Method, auth: String, user_agent: String| {
                 if method != Method::GET {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -45,7 +45,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/retrieve: Token verification unexpected error"),
                                 )
                             }
@@ -55,7 +55,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let user = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(user) = user else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("admin/retrieve: Database error loading renter by id"),
                             );
                         };
@@ -77,13 +77,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     ).execute(&mut pool);
                                     methods::standard_replies::response_with_obj::<model::PublishRenter>(user.into(), StatusCode::OK)
                                 } else {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("admin/retrieve: Token extension failed (returned false)"),
                                     )
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/retrieve: Token extension error"),
                                 )
                             }

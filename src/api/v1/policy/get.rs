@@ -13,13 +13,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::query::<HashMap<String, String>>())
         .and_then(async move |method: Method, request: HashMap<String, String>| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
 
             let policy_type: model::PolicyType = {
                 let raw_policy_str = request.get("type");
                 let Some(raw_policy_str) = raw_policy_str else {
-                    return methods::standard_replies::bad_request("unknown policy type");
+                    return methods::standard_replies::bad_request_400("unknown policy type");
                 };
                 let raw_policy_str = raw_policy_str.clone().to_lowercase();
                 if raw_policy_str.eq(&String::from("rental")) {
@@ -31,7 +31,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 } else if raw_policy_str.eq(&String::from("usage")) {
                     model::PolicyType::Usage
                 } else {
-                    return methods::standard_replies::bad_request("unknown policy type");
+                    return methods::standard_replies::bad_request_400("unknown policy type");
                 }
             };
 
@@ -43,7 +43,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     if let Ok(date_input) = try_date {
                         date_input
                     } else {
-                        return methods::standard_replies::bad_request("invalid date");
+                        return methods::standard_replies::bad_request_400("invalid date");
                     }
                 } else {
                     let today = Utc::now();
@@ -72,7 +72,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(String::from("policy/get: Failed to retrieve policy"))
+                            methods::standard_replies::internal_server_error_response_500(String::from("policy/get: Failed to retrieve policy"))
                         }
                     }
                 }

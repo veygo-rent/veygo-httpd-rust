@@ -42,10 +42,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(
             async move |method: Method, body: UpdateApartmentBody, auth: String, user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 if !is_valid_email(&body.student_email) {
-                    return methods::standard_replies::bad_request("Email is invalid")
+                    return methods::standard_replies::bad_request_400("Email is invalid")
                 }
 
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -79,7 +79,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Token verification unexpected error"))
                             }
                         }
                     }
@@ -90,11 +90,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Token extension error"));
                             }
                         }
 
@@ -115,12 +115,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 use crate::schema::renters::dsl as r_q;
                                 let renter = r_q::renters.find(&access_token.user_id).get_result::<model::Renter>(&mut pool);
                                 let Ok(mut renter) = renter else {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Database error loading renter"))
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Database error loading renter"))
                                 };
 
                                 let stripe_result = stripe_veygo::update_stripe_customer_email(&renter.stripe_id, &body.student_email).await;
                                 if stripe_result.is_err() {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Stripe error updating email"))
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Stripe error updating email"))
                                 }
 
                                 renter.student_email = body.student_email.clone();
@@ -138,7 +138,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(&pub_renter, StatusCode::OK)
                                     }
                                     Err(_) => {
-                                        methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: SQL error updating renter apartment"))
+                                        methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: SQL error updating renter apartment"))
                                     }
                                 }
                             }
@@ -151,7 +151,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(msg, StatusCode::FORBIDDEN)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response(String::from("user/update-apartment: Database error loading apartment"))
+                                        methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Database error loading apartment"))
                                     }
                                 }
                             }

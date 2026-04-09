@@ -71,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |method: Method, mut renter_create_data: CreateUserData, user_agent: String| {
             if method != Method::POST {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             use crate::schema::renters::dsl::*;
             let mut pool = POOL.get().unwrap();
@@ -81,7 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
             if !is_valid_email(&renter_create_data.student_email) || !is_valid_phone_number(&renter_create_data.phone) {
                 // invalid email or phone number format
-                methods::standard_replies::bad_request("Please check your email and phone number format")
+                methods::standard_replies::bad_request_400("Please check your email and phone number format")
             } else {
                 // valid email
                 let result = renters.filter(student_email.eq(&email_clone)
@@ -155,7 +155,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     ).await;
 
                                     let Ok(customer) = stripe_result else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("user/create: Stripe error creating customer")
                                         );
                                     };
@@ -179,7 +179,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         .get_result::<model::Renter>(&mut pool);
 
                                     let Ok(renter) = renter else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("user/create: SQL error inserting renter")
                                         );
                                     };

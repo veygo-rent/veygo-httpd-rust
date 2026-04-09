@@ -18,7 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and_then(
             async move |method: Method, body: Bytes, auth: String, vehicle_vin: String, file_name: String, user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 use schema::vehicles::dsl as v_q;
@@ -27,7 +27,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     .filter(v_q::vin.eq(&vehicle_vin)).get_result::<model::Vehicle>(&mut pool);
 
                 if vehicle_result.is_err() {
-                    return methods::standard_replies::bad_request("Vehicle does not exist")
+                    return methods::standard_replies::bad_request_400("Vehicle does not exist")
                 }
 
                 let vehicle = vehicle_result.unwrap();
@@ -62,7 +62,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("vehicle/upload-image: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("vehicle/upload-image: Token verification unexpected error"))
                             }
                         }
                     }
@@ -73,11 +73,11 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("vehicle/upload-image: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/upload-image: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/upload-image: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/upload-image: Token extension error"));
                             }
                         }
                         

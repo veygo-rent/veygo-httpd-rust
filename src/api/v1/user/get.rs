@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |usr_id: i32, method:Method, auth: String, user_agent: String| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -46,7 +46,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get: Token verification unexpected error")
                             )
                         }
@@ -59,13 +59,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/get: Token extension failed (returned false)")
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get: Token extension error")
                             );
                         }
@@ -75,7 +75,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .await;
 
                     let Ok(admin) = admin else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("user/get: Database error loading admin user")
                         );
                     };
@@ -107,7 +107,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("user/get: Database error loading renter")
                                     )
                                 }

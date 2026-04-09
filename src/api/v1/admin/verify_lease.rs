@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |method: Method, body: helper_model::VerifyLeaseRequest, auth: String, user_agent: String| {
             if method != Method::PATCH {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
 
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -48,7 +48,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("admin/verify-lease: Token verification unexpected error"),
                             )
                         }
@@ -58,7 +58,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let user = methods::user::get_user_by_id(&access_token.user_id)
                         .await;
                     let Ok(user) = user else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("admin/verify-lease: Database error loading renter by id"),
                         );
                     };
@@ -74,13 +74,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     match result {
                         Err(_) => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("admin/verify-lease: Token extension error"),
                             )
                         }
                         Ok(is_renewed) => {
                             if !is_renewed {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/verify-lease: Token extension failed (returned false)"),
                                 )
                             } else {
@@ -111,7 +111,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 methods::standard_replies::response_with_obj(&msg, StatusCode::NOT_FOUND)
                                             }
                                             _ => {
-                                                methods::standard_replies::internal_server_error_response(
+                                                methods::standard_replies::internal_server_error_response_500(
                                                     String::from("admin/verify-lease: DB error loading renter by id"),
                                                 )
                                             }
@@ -148,7 +148,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let save_result = renter.save_changes::<model::Renter>(&mut pool);
 
                                 if let Err(_err) = save_result {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         format!("admin/verify-lease: DB error saving renter by id: {}", _err),
                                     )
                                 }
@@ -171,7 +171,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                                             }
                                             _ => {
-                                                methods::standard_replies::internal_server_error_response(
+                                                methods::standard_replies::internal_server_error_response_500(
                                                     String::from("admin/verify-lease: DB error loading renter"),
                                                 )
                                             }

@@ -38,12 +38,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(
             async move |method: Method, auth: String, renter_type: String, user_agent: String| {
                 if method != Method::GET {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 let renter_type = TypeOfDocument::from_str(&*renter_type);
                 let Ok(renter_type) = renter_type else {
-                    return methods::standard_replies::bad_request("Renter type not supported");
+                    return methods::standard_replies::bad_request_400("Renter type not supported");
                 };
 
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -77,7 +77,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/renter-need-verify: Token verification unexpected error"),
                                 )
                             }
@@ -87,7 +87,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let user = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(user) = user else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("admin/renter-need-verify: Database error loading admin by id"),
                             );
                         };
@@ -103,13 +103,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         match result {
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/renter-need-verify: Token extension error"),
                                 )
                             }
                             Ok(is_renewed) => {
                                 if !is_renewed {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("admin/renter-need-verify: Token extension failed (returned false)"),
                                     )
                                 } else {
@@ -155,7 +155,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                     methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                                                 }
                                                 _ => {
-                                                    methods::standard_replies::internal_server_error_response(
+                                                    methods::standard_replies::internal_server_error_response_500(
                                                         String::from("admin/renter-need-verify: DB error loading renter"),
                                                     )
                                                 }

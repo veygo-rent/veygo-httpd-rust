@@ -16,7 +16,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                 // Checking method is GET
                 if method != Method::GET {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 // Pool connection
@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/current: Token verification unexpected error"),
                                 )
                             }
@@ -66,13 +66,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/current: Token extension failed (returned false)"),
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/current: Token extension error"),
                                 );
                             }
@@ -84,7 +84,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let user_in_request = match user_in_request {
                             Ok(temp) => { temp }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/current: Database error loading renter"),
                                 );
                             }
@@ -141,7 +141,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .select(tax_query::taxes::all_columns())
                                     .get_results::<model::Tax>(&mut pool);
                                 let Ok(taxes) = taxes else {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/current: Database error loading taxes"),
                                     );
                                 };
@@ -152,7 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         .find(id)
                                         .get_result::<model::Promo>(&mut pool);
                                     let Ok(promo) = result else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/current: Database error loading promo"),
                                         );
                                     };
@@ -167,7 +167,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         .filter(vehicle_snapshot_query::id.eq(&snapshot_id))
                                         .get_result::<model::VehicleSnapshot>(&mut pool);
                                     let Ok(vs_before) = result else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/current: Database error loading vehicle snapshot"),
                                         );
                                     };
@@ -182,7 +182,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         .find(id)
                                         .get_result::<model::MileagePackage>(&mut pool);
                                     let Ok(mp) = result else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/current: Database error loading mileage package"),
                                         );
                                     };
@@ -197,7 +197,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .filter(rt_query::duration.gt(Decimal::ZERO))
                                     .get_results::<model::RewardTransaction>(&mut pool);
                                 let Ok(reward_transactions) = reward_transactions else {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/current: Database error loading reward transactions"),
                                     );
                                 };

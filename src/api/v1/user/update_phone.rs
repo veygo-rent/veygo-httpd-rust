@@ -48,7 +48,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 let access_token = model::RequestToken { user_id, token: token_and_id[0].parse().unwrap() };
                 if !is_valid_phone_number(&body.phone_number) {
                     // invalid email or phone number format
-                    return methods::standard_replies::bad_request("Please check your phone number format");
+                    return methods::standard_replies::bad_request_400("Please check your phone number format");
                 };
                 let if_token_valid = methods::tokens::verify_user_token(
                     &access_token.user_id,
@@ -65,7 +65,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("user/update-phone: Token verification unexpected error"))
                             }
                         }
                     }
@@ -76,11 +76,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/update-phone: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("user/update-phone: Token extension error"));
                             }
                         }
 
@@ -96,7 +96,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response(String::from("user/update-phone: SQL error updating renter phone"));
+                            return methods::standard_replies::internal_server_error_response_500(String::from("user/update-phone: SQL error updating renter phone"));
                         };
                         let renter: model::PublishRenter = renter.into();
 

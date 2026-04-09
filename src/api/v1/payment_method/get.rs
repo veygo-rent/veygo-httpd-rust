@@ -11,7 +11,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |method: Method, auth: String, user_agent: String| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -43,7 +43,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("payment-method/get: Token verification unexpected error"),
                             )
                         }
@@ -56,13 +56,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/get: Token extension failed (returned false)"),
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("payment-method/get: Token extension error"),
                             );
                         }
@@ -87,7 +87,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             payments
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("payment-method/get: Database error loading payment methods"),
                             );
                         }

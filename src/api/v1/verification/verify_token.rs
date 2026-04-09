@@ -54,7 +54,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: Token verification unexpected error"))
                             }
                         }
                     }
@@ -65,11 +65,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: Token extension error"));
                             }
                         }
                         
@@ -120,12 +120,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 .get_result::<model::Renter>(&mut pool)
                                         }
                                         model::VerificationType::ResetPassword => {
-                                            return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: Wrong verification method called. "));
+                                            return methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: Wrong verification method called. "));
                                         }
                                     };
 
                                     let Ok(updated_renter) = updated_renter else {
-                                        return methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: SQL error updating renter verification state"));
+                                        return methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: SQL error updating renter verification state"));
                                     };
                                     let updated_renter: model::PublishRenter = updated_renter.into();
 
@@ -138,7 +138,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(String::from("verification/verify-token: SQL error deleting verification row"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("verification/verify-token: SQL error deleting verification row"))
                             }
                         }
                     }

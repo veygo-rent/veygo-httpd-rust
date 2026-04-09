@@ -18,7 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         auth: String,
                         user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("toll/add-company: Token verification unexpected error")
                                 )
                             }
@@ -64,13 +64,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("toll/add-company: Token extension failed (returned false)")
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("toll/add-company: Token extension error")
                                 );
                             }
@@ -80,7 +80,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                             .await;
 
                         let Ok(admin) = admin else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("toll/add-company: Database error loading admin user")
                             );
                         };
@@ -110,7 +110,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                         methods::standard_replies::response_with_obj(msg, StatusCode::CONFLICT)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response(
+                                        methods::standard_replies::internal_server_error_response_500(
                                             String::from("toll/add-company: SQL error inserting transponder company")
                                         )
                                     }

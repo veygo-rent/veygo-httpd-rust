@@ -43,12 +43,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
         .and_then(
             async move |method: Method, body: Bytes, auth: String, file_type: String, file_name: String, user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
                 let Ok(content_type) = content_type_parsed_result else {
-                    return methods::standard_replies::bad_request("File type not supported");
+                    return methods::standard_replies::bad_request_400("File type not supported");
                 };
 
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -81,7 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("user/upload-file: Token verification unexpected error"))
                             }
                         }
                     }
@@ -92,17 +92,17 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/upload-file: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("user/upload-file: Token extension error"));
                             }
                         }
 
                         let user = methods::user::get_user_by_id(&access_token.user_id).await;
                         let Ok(mut user) = user else {
-                            return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: Database error loading renter"))
+                            return methods::standard_replies::internal_server_error_response_500(String::from("user/upload-file: Database error loading renter"))
                         };
 
                         let mut hasher = Sha256::new();
@@ -176,7 +176,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let update_result = user.save_changes::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response(String::from("user/upload-file: SQL error saving renter uploaded file"))
+                            return methods::standard_replies::internal_server_error_response_500(String::from("user/upload-file: SQL error saving renter uploaded file"))
                         };
                         let renter: model::PublishRenter = renter.into();
 

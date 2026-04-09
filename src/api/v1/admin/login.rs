@@ -21,7 +21,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |method: Method, login_data: LoginData, user_agent: String| {
             if method != Method::POST {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let mut pool = POOL.get().unwrap();
             use crate::schema::renters::dsl::*;
@@ -72,7 +72,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::response_with_obj(err_msg, StatusCode::UNAUTHORIZED);
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("admin/login: Database error loading renter by student email"),
                             )
                         }

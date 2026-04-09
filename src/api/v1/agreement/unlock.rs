@@ -13,7 +13,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
         .and_then(async move |conf_id: String, method: Method, auth: String, user_agent: String| {
             // Checking method is GET
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
 
             // Pool connection
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/unlock: Token verification unexpected error"),
                             )
                         }
@@ -64,13 +64,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/unlock: Token extension failed (returned false)"),
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/unlock: Token extension error"),
                             );
                         }
@@ -82,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let user_in_request = match user_in_request {
                         Ok(temp) => { temp }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/unlock: Database error loading renter"),
                             );
                         }
@@ -103,7 +103,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     methods::standard_replies::agreement_not_allowed_response()
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/unlock: Database error loading agreement"),
                                     )
                                 }
@@ -123,7 +123,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<(model::RemoteMgmtType, String)>(&mut pool);
 
                     let Ok((vehicle_remote_mgmt, mgmt_id)) = result else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/unlock: Database error loading vehicle remote mgmt info"),
                         )
                     };

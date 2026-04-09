@@ -20,7 +20,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(
             async move |method: Method, body: UpdateApnsBody, auth: String, user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/update-apns: Token verification unexpected error"),
                                 )
                             }
@@ -84,19 +84,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             methods::standard_replies::response_with_obj(pub_renter, StatusCode::OK)
                                         }
                                         Err(_) => {
-                                            methods::standard_replies::internal_server_error_response(
+                                            methods::standard_replies::internal_server_error_response_500(
                                                 String::from("admin/update-apns: SQL error updating admin_apple_apns"),
                                             )
                                         }
                                     }
                                 } else {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("admin/update-apns: Token extension failed (returned false)"),
                                     )
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("admin/update-apns: Token extension error"),
                                 )
                             }

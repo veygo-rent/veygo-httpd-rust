@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                               auth: String,
                               user_agent: String| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -47,7 +47,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get-reward-hours: Token verification unexpected error")
                             )
                         }
@@ -60,13 +60,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/get-reward-hours: Token extension failed (returned false)")
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get-reward-hours: Token extension error")
                             );
                         }
@@ -74,7 +74,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let current_user = methods::user::get_user_by_id(&access_token.user_id).await;
                     if current_user.is_err() {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("user/get-reward-hours: Database error loading renter"),
                         );
                     }
@@ -87,7 +87,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let is_active_plan = match user_plan_renew_date {
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get-reward-hours: Plan renewal date parse error"),
                             );
                         },
@@ -116,7 +116,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .select(diesel::dsl::sum(reward_q::duration))
                         .first::<Option<Decimal>>(&mut pool);
                     if used_free_hours.is_err() {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("user/get-reward-hours: Database error summing used reward hours"),
                         )
                     }
@@ -130,7 +130,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .select(diesel::dsl::sum(reward_q::duration))
                         .first::<Option<Decimal>>(&mut pool);
                     if credit_hours.is_err() {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("user/get-reward-hours: Database error summing credited credit hours"),
                         )
                     }

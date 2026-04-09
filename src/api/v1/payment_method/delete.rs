@@ -18,7 +18,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         auth: String,
                         user_agent: String| {
                 if method != Method::DELETE {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -50,7 +50,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/delete: Token verification unexpected error")
                                 )
                             }
@@ -63,13 +63,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("payment-method/delete: Token extension failed (returned false)")
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/delete: Token extension error")
                                 );
                             }
@@ -87,14 +87,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         match result {
                             Ok(count) => {
                                 if count != 1{
-                                    methods::standard_replies::bad_request("Payment method not found.")
+                                    methods::standard_replies::bad_request_400("Payment method not found.")
                                 } else {
                                     let msg = serde_json::json!({});
                                     Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::OK).into_response(),))
                                 }
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/delete: SQL error disabling payment method")
                                 )
                             }

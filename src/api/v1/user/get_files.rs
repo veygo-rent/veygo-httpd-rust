@@ -59,7 +59,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         .await;
                 let content_type_parsed_result = UploadedFileType::from_str(&*file_type);
                 if content_type_parsed_result.is_err() {
-                    return methods::standard_replies::bad_request("File type not supported");
+                    return methods::standard_replies::bad_request_400("File type not supported");
                 }
                 return match if_token_valid {
                     Err(err) => {
@@ -71,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/get-files: Token verification unexpected error")
                                 )
                             }
@@ -84,13 +84,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("user/get-files: Token extension failed (returned false)")
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/get-files: Token extension error")
                                 );
                             }
@@ -99,13 +99,13 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let user = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(user) = user else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get-files: Database error loading renter")
                             );
                         };
 
                         let Ok(content_type_parsed_result) = content_type_parsed_result else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("user/get-files: File type parse state invalid")
                             );
                         };

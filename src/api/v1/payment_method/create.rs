@@ -26,7 +26,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                               request_body: CreatePaymentMethodsRequestBody,
                               auth: String, user_agent: String| {
             if method != Method::POST {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -59,7 +59,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("payment-method/create: Token verification unexpected error")
                             )
                         }
@@ -72,13 +72,13 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/create: Token extension failed (returned false)")
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("payment-method/create: Token extension error")
                             );
                         }
@@ -106,7 +106,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                             ).get_result::<bool>(&mut pool);
 
                             let Ok(card_in_db) = card_in_db else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/create: Database error checking existing card fingerprint")
                                 )
                             };
@@ -115,7 +115,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                     title: "Payment Method Existed".to_string(),
                                     message: "Please try a different credit card. ".to_string(),
                                 };
-                                return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
+                                return methods::standard_replies::response_with_obj(err_msg, StatusCode::PAYMENT_REQUIRED)
                             }
 
                             use crate::schema::renters::dsl as renter_q;
@@ -125,7 +125,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 .get_result::<String>(&mut pool);
 
                             let Ok(stripe_id) = stripe_id else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("payment-method/create: Database error loading renter stripe_id")
                                 )
                             };
@@ -154,13 +154,13 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                                         methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                                                     }
                                                     Err(_) => {
-                                                        methods::standard_replies::internal_server_error_response(
+                                                        methods::standard_replies::internal_server_error_response_500(
                                                             String::from("payment-method/create: SQL error inserting payment method")
                                                         )
                                                     }
                                                 }
                                             } else {
-                                                methods::standard_replies::internal_server_error_response(
+                                                methods::standard_replies::internal_server_error_response_500(
                                                     String::from("payment-method/create: Unknown next step")
                                                 )
                                             };
@@ -178,14 +178,14 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                                     methods::standard_replies::response_with_obj(pub_pm, StatusCode::CREATED)
                                                 }
                                                 Err(_) => {
-                                                    methods::standard_replies::internal_server_error_response(
+                                                    methods::standard_replies::internal_server_error_response_500(
                                                         String::from("payment-method/create: SQL error inserting payment method")
                                                     )
                                                 }
                                             }
                                         }
                                         _ => {
-                                            methods::standard_replies::internal_server_error_response(
+                                            methods::standard_replies::internal_server_error_response_500(
                                                 String::from("payment-method/create: Setup Intent Status error")
                                             )
                                         }
@@ -194,10 +194,10 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 Err(err) => {
                                     match err {
                                         VeygoError::CardDeclined => {
-                                            methods::standard_replies::card_declined()
+                                            methods::standard_replies::card_declined_402()
                                         }
                                         _ => {
-                                            methods::standard_replies::internal_server_error_response(
+                                            methods::standard_replies::internal_server_error_response_500(
                                                 String::from("payment-method/create: Stripe error attaching payment method to customer")
                                             )
                                         }
@@ -210,13 +210,13 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                         Err(err) => {
                             return match err {
                                 VeygoError::CardNotSupported => {
-                                    methods::standard_replies::card_invalid()
+                                    methods::standard_replies::card_invalid_402()
                                 }
                                 VeygoError::InputDataError => {
-                                    methods::standard_replies::card_invalid()
+                                    methods::standard_replies::card_invalid_402()
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("payment-method/create: Stripe error retrieving payment method")
                                     )
                                 }

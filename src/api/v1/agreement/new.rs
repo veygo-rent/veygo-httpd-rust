@@ -21,11 +21,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         auth: String,
                         user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 if body.hours_using_reward < Decimal::zero() {
-                    return methods::standard_replies::bad_request("Invalid reward hour request")
+                    return methods::standard_replies::bad_request_400("Invalid reward hour request")
                 }
 
                 let now = Utc::now();
@@ -61,7 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     || trip_duration > max_trip_duration
                 {
                     // RETURN: BAD_REQUEST
-                    return methods::standard_replies::bad_request("Time is invalid")
+                    return methods::standard_replies::bad_request_400("Time is invalid")
                 }
                 let mut pool = POOL.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -96,7 +96,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Token verification unexpected error")
                                 )
                             }
@@ -108,13 +108,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/new: Token extension failed (returned false)")
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Token extension error")
                                 );
                             }
@@ -122,7 +122,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let user_in_request = methods::user::get_user_by_id(&access_token.user_id).await;
                         let Ok(user_in_request) = user_in_request else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error loading renter")
                             )
                         };
@@ -133,7 +133,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let is_active_plan = match user_plan_renew_date {
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Plan renewal date parse error"),
                                 );
                             },
@@ -236,7 +236,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let dnr_records = user_in_request.get_dnr_count();
                         let Ok(record_count) = dnr_records else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error checking DNR records")
                             )
                         };
@@ -269,7 +269,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<i64>(&mut pool);
 
                         let Ok(renter_agreements_blocking_count) = renter_agreements_blocking_count else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error checking blocking agreements")
                             )
                         };
@@ -336,7 +336,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 methods::standard_replies::promo_code_not_allowed_response(&code)
                                             }
                                             _ => {
-                                                methods::standard_replies::internal_server_error_response(
+                                                methods::standard_replies::internal_server_error_response_500(
                                                     String::from("agreement/new: Database error loading promo")
                                                 )
                                             }
@@ -353,7 +353,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     .count()
                                     .get_result::<i64>(&mut pool);
                                 let Ok(count_of_this_renter_usage) = count_of_this_renter_usage else {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/new: Database error counting renter promo usage")
                                     )
                                 };
@@ -369,7 +369,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         .count()
                                         .get_result::<i64>(&mut pool);
                                     let Ok(count_of_agreements) = count_of_agreements else {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/new: Database error counting promo usage")
                                         )
                                     };
@@ -406,7 +406,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let is_auth = match is_auth {
                             Ok(is_auth) => { is_auth }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Database error loading authorization")
                                 )
                             }
@@ -550,7 +550,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .select(diesel::dsl::sum(reward_q::duration))
                                 .first::<Option<Decimal>>(&mut pool);
                             if used_free_hours.is_err() {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Database error summing used reward hours"),
                                 )
                             }
@@ -587,7 +587,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(err_msg, StatusCode::PAYMENT_REQUIRED)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response(String::from("agreement/new: Database error loading credit card"))
+                                        methods::standard_replies::internal_server_error_response_500(String::from("agreement/new: Database error loading credit card"))
                                     }
                                 }
                             }
@@ -615,7 +615,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 )
                         )).get_result::<bool>(&mut pool);
                         let Ok(is_conflict) = is_conflict else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error checking vehicle conflict")
                             )
                         };
@@ -655,7 +655,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         }
                                         _ => {
                                             // diesel db error
-                                            methods::standard_replies::internal_server_error_response(String::from("agreement/new: Database error loading rate offer"))
+                                            methods::standard_replies::internal_server_error_response_500(String::from("agreement/new: Database error loading rate offer"))
                                         }
                                     }
                                 }
@@ -721,7 +721,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         base_rate_for_mp * Decimal::new(mileage as i64, 0) * Decimal::new(discount_rate as i64, 2)
                                     }
                                     Err(_) => {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from( "agreement/new: Database error loading mileage package"),
                                         )
                                     }
@@ -741,7 +741,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_results::<model::Tax>(&mut pool);
 
                         let Ok(taxes) = taxes else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error loading apartment taxes")
                             )
                         };
@@ -807,7 +807,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         let conf_id = methods::agreement::generate_unique_agreement_confirmation();
                         let Ok(conf_id) = conf_id else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Failed to generate agreement confirmation")
                             )
                         };
@@ -852,7 +852,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Agreement>(&mut pool);
 
                         let Ok(inserted_agreement) = inserted_agreement else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Failed to insert agreement error")
                             )
                         };
@@ -870,7 +870,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let _ = diesel::delete(ag_tx_q::agreements_taxes
                                     .filter(ag_tx_q::agreement_id.eq(inserted_agreement.id)))
                                     .execute(&mut pool);
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Failed to insert agreement tax record error")
                                 )
                             }
@@ -889,7 +889,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .values(&new_reward_trans)
                                 .get_result::<model::RewardTransaction>(&mut pool);
                             if result.is_err() {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/new: Failed to insert reward transaction record error")
                                 )
                             }
@@ -936,7 +936,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             methods::standard_replies::response_with_obj(inserted_agreement, StatusCode::CREATED)
                                         }
                                         Err(_) => {
-                                            methods::standard_replies::internal_server_error_response(
+                                            methods::standard_replies::internal_server_error_response_500(
                                                 String::from("agreement/new: Failed to insert payment error")
                                             )
                                         }
@@ -958,10 +958,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                     return match v_err {
                                         VeygoError::CardDeclined => {
-                                            methods::standard_replies::card_declined()
+                                            methods::standard_replies::card_declined_402()
                                         }
                                         _ => {
-                                            methods::standard_replies::internal_server_error_response(
+                                            methods::standard_replies::internal_server_error_response_500(
                                                 String::from("agreement/new: Stripe error creating payment intent")
                                             )
                                         }

@@ -13,7 +13,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |conf_id: String, method: Method, auth: String, user_agent: String| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let mut pool = POOL.get().unwrap();
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -45,7 +45,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Token verification unexpected error"),
                             )
                         }
@@ -58,13 +58,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/get: Token extension failed (returned false)"),
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Token extension error"),
                             );
                         }
@@ -83,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     methods::standard_replies::agreement_not_allowed_response()
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/get: Database error loading agreement"),
                                     )
                                 }
@@ -100,7 +100,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     } else {
                         let admin = methods::user::get_user_by_id(&user_id).await;
                         if admin.is_err() {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Database error loading admin"),
                             );
                         }
@@ -110,7 +110,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .select(loc_q::apartment_id)
                             .get_result::<i32>(&mut pool);
                         let Ok(apt_id) = apt_id else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Database error loading apartment id"),
                             );
                         };
@@ -157,7 +157,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         )>(&mut pool);
 
                     let Ok(ag_detailed_tup) = ag_detailed_tup else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/get: Database error loading apartment details"),
                         );
                     };
@@ -168,7 +168,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .find(&snapshot_id)
                             .get_result::<model::VehicleSnapshot>(&mut pool);
                         let Ok(vs_before) = result else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Database error loading before vehicle snapshot"),
                             );
                         };
@@ -183,7 +183,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .find(&snapshot_id)
                             .get_result::<model::VehicleSnapshot>(&mut pool);
                         let Ok(vs_after) = result else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/get: Database error loading after vehicle snapshot"),
                             );
                         };
@@ -200,7 +200,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .select(tax_query::taxes::all_columns())
                         .get_results::<model::Tax>(&mut pool);
                     let Ok(taxes) = taxes else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/get: Database error loading taxes"),
                         );
                     };
@@ -211,7 +211,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .filter(rt_query::duration.gt(Decimal::ZERO))
                         .get_results::<model::RewardTransaction>(&mut pool);
                     let Ok(reward_transactions) = reward_transactions else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/get: Database error loading reward transactions"),
                         );
                     };

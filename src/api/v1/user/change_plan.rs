@@ -28,7 +28,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         auth: String,
                         user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -60,7 +60,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/change-plan: Token verification unexpected error")
                                 )
                             }
@@ -73,13 +73,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("user/change-plan: Token extension failed (returned false)")
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/change-plan: Token extension error")
                                 );
                             }
@@ -91,7 +91,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let mut user_in_request = match user_in_request {
                             Ok(temp) => { temp }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/change-plan: Database error loading renter")
                                 )
                             }
@@ -107,7 +107,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let apartment = match apartment {
                             Ok(apt) => { apt }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("user/change-plan: Database error loading apartment")
                                 )
                             }
@@ -126,13 +126,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             match result {
                                 Ok(count) => {
                                     if count != 1 {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("user/change-plan: SQL error updating renter to Free (unexpected row count)")
                                         )
                                     }
                                 }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("user/change-plan: Database error updating renter to Free")
                                     )
                                 }
@@ -156,7 +156,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     methods::standard_replies::response_with_obj(pub_renter, StatusCode::OK)
                                 }
                                 Err(_) => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("user/change-plan: SQL error saving renter Free plan")
                                     )
                                 }
@@ -180,17 +180,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         // TODO: Calculate plan credits or start new plans
 
 
-                                        methods::standard_replies::internal_server_error_response(
+                                        methods::standard_replies::internal_server_error_response_500(
                                             String::from("user/change-plan: Not implemented (plan change calculation)")
                                         )
                                     }
                                     Err(err) => {
                                         match err {
                                             Error::NotFound => {
-                                                methods::standard_replies::card_invalid()
+                                                methods::standard_replies::card_invalid_402()
                                             }
                                             _ => {
-                                                methods::standard_replies::internal_server_error_response(
+                                                methods::standard_replies::internal_server_error_response_500(
                                                     String::from("user/change-plan: Database error loading payment method")
                                                 )
                                             }
@@ -198,7 +198,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 }
                             } else {
-                                methods::standard_replies::card_invalid()
+                                methods::standard_replies::card_invalid_402()
                             }
                         }
                     }

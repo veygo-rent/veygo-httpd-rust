@@ -20,7 +20,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and_then(
             async move |method: Method, body: UpdateApnsBody, auth: String, user_agent: String| {
                 if method != Method::POST {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("user/update-apns: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("user/update-apns: Token verification unexpected error"))
                             }
                         }
                     }
@@ -62,11 +62,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("user/update-apns: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apns: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("user/update-apns: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apns: Token extension error"));
                             }
                         }
 
@@ -82,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             .get_result::<model::Renter>(&mut pool);
 
                         let Ok(renter) = update_result else {
-                            return methods::standard_replies::internal_server_error_response(String::from("user/update-apns: SQL error updating apple_apns"));
+                            return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apns: SQL error updating apple_apns"));
                         };
 
                         let renter: model::PublishRenter = renter.into();

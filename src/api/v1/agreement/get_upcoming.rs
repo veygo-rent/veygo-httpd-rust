@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         auth: String,
                         user_agent: String| {
                 if method != Method::GET {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
                 let mut pool = POOL.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -45,7 +45,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/get_upcoming: Token verification unexpected error"),
                                 )
                             }
@@ -58,13 +58,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/get_upcoming: Token extension failed (returned false)"),
                                     );
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/get_upcoming: Token extension error"),
                                 );
                             }
@@ -109,7 +109,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 methods::standard_replies::response_with_obj(trips, StatusCode::OK)
                             }
                             Err(_) => {
-                                methods::standard_replies::internal_server_error_response(
+                                methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/get_upcoming: Database error loading agreements"),
                                 )
                             }

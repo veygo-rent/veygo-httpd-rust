@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |query: HashMap<String, String>, method: Method, auth: String, user_agent: String| {
             if method != Method::GET {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
             if token_and_id.len() != 2 {
@@ -46,7 +46,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("apartment/get-taxes: Token verification unexpected error")
                             )
                         }
@@ -59,13 +59,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("apartment/get-taxes: Token extension failed (returned false)")
                                 );
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("apartment/get-taxes: Token extension error")
                             );
                         }
@@ -75,7 +75,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         .await;
 
                     let Ok(user) = user else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("apartment/get-taxes: Database error loading admin user")
                         );
                     };
@@ -85,7 +85,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     let mut pool = POOL.get().unwrap();
                     return if let Some(request_apt_id_str) = request_apt_id_str {
                         let Ok(request_apt_id) = request_apt_id_str.parse::<i32>() else  {
-                            return methods::standard_replies::bad_request("Invalid apartment ID");
+                            return methods::standard_replies::bad_request_400("Invalid apartment ID");
                         };
 
                         use schema::apartments::dsl as apt_q;
@@ -105,7 +105,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         methods::standard_replies::response_with_obj(error_msg, StatusCode::FORBIDDEN)
                                     }
                                     _ => {
-                                        methods::standard_replies::internal_server_error_response(
+                                        methods::standard_replies::internal_server_error_response_500(
                                             String::from("apartment/get-taxes: Database error loading apartment")
                                         )
                                     }
@@ -124,7 +124,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("apartment/get-taxes: Database error loading apartment")
                                 )
                             }
@@ -145,7 +145,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let all_taxes_belong_to_apt = match all_taxes_belong_to_apt {
                             Ok(res) => { res }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("apartment/get-taxes: Database error loading taxes")
                                 )
                             }
@@ -178,7 +178,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             let taxes = match taxes {
                                 Ok(res) => { res }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("apartment/get-taxes: Database error loading taxes")
                                     )
                                 }
@@ -186,7 +186,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                             methods::standard_replies::response_with_obj(taxes, StatusCode::OK)
                         } else {
-                            methods::standard_replies::bad_request("Invalid request parameter")
+                            methods::standard_replies::bad_request_400("Invalid request parameter")
                         }
                     }
                 }

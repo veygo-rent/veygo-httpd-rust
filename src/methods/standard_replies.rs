@@ -2,7 +2,7 @@ use crate::{model, helper_model, integration};
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
-pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection> {
+pub fn bad_request_400(err_msg: &str) -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Bad Request"),
         message: err_msg.to_string(),
@@ -12,7 +12,7 @@ pub fn bad_request(err_msg: &str) -> Result<(warp::reply::Response,), Rejection>
         StatusCode::BAD_REQUEST,
     ).into_response(),))
 }
-pub fn internal_server_error_response(msg: String) -> Result<(warp::reply::Response,), Rejection> {
+pub fn internal_server_error_response_500(msg: String) -> Result<(warp::reply::Response,), Rejection> {
     let moved_msg = msg.clone();
     let _ = tokio::spawn(async move {
         let dev = integration::sendgrid_veygo::make_email_obj("dev@veygo.rent", "Veygo Dev Team");
@@ -37,7 +37,7 @@ pub fn internal_server_error_response(msg: String) -> Result<(warp::reply::Respo
     ).into_response(),))
 }
 
-pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejection> {
+pub fn method_not_allowed_response_405() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Method Not Allowed"),
         message: String::from("Using third party applications is not encouraged. And Veygo will not guarantee the product. "),
@@ -49,8 +49,7 @@ pub fn method_not_allowed_response() -> Result<(warp::reply::Response,), Rejecti
     .into_response(),))
 }
 
-pub fn card_declined(
-) -> Result<(warp::reply::Response,), Rejection> {
+pub fn card_declined_402() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Credit Card Declined"),
         message: String::from("Please check your card details and try again."),
@@ -58,7 +57,7 @@ pub fn card_declined(
     Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::PAYMENT_REQUIRED).into_response(),))
 }
 
-pub fn card_invalid() -> Result<(warp::reply::Response,), Rejection> {
+pub fn card_invalid_402() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Credit Card Invalid"),
         message: String::from("Please check your card details and try again."),

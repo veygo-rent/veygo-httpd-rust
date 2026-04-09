@@ -14,7 +14,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
             async move |method: Method, auth: String, user_agent: String| {
                 // Checking method is GET
                 if method != Method::GET {
-                    return methods::standard_replies::method_not_allowed_response();
+                    return methods::standard_replies::method_not_allowed_response_405();
                 }
 
                 // Pool connection
@@ -48,7 +48,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::tokens::token_invalid_return()
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("vehicle/user-identify: Token verification unexpected error"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("vehicle/user-identify: Token verification unexpected error"))
                             }
                         }
                     }
@@ -59,18 +59,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
-                                    return methods::standard_replies::internal_server_error_response(String::from("vehicle/user-identify: Token extension failed (returned false)"));
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/user-identify: Token extension failed (returned false)"));
                                 }
                             }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/user-identify: Token extension error"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/user-identify: Token extension error"));
                             }
                         }
 
                         let user_in_request = methods::user::get_user_by_id(&access_token.user_id)
                             .await;
                         let Ok(user_in_request) = user_in_request else {
-                            return methods::standard_replies::internal_server_error_response(String::from("vehicle/user-identify: Database error loading renter"));
+                            return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/user-identify: Database error loading renter"));
                         };
 
                         use crate::schema::agreements::dsl as agreement_query;
@@ -105,7 +105,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     .filter(agreement_query::actual_drop_off_time.is_null())
                             )).get_result::<bool>(&mut pool);
                             let Ok(previous_agreement_exist) = previous_agreement_exist else {
-                                return methods::standard_replies::internal_server_error_response(String::from("vehicle/user-identify: Database error checking previous agreement"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/user-identify: Database error checking previous agreement"));
                             };
 
                             if previous_agreement_exist {

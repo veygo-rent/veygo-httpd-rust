@@ -24,7 +24,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
             
             // Checking method is POST
             if method != Method::POST {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
 
             let agreement_id = match body {
@@ -35,7 +35,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
             match body {
                 helper_model::CheckInOutRequest::WithSnapshotId { agreement_id, vehicle_snapshot_id } => {
                     if agreement_id <= 0 || vehicle_snapshot_id <= 0 {
-                        return methods::standard_replies::bad_request("wrong parameters. ")
+                        return methods::standard_replies::bad_request_400("wrong parameters. ")
                     }
                 }
                 helper_model::CheckInOutRequest::WithImagePath {
@@ -50,7 +50,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     ref back_left_image_path,
                 } => {
                     if agreement_id <= 0 {
-                        return methods::standard_replies::bad_request("wrong parameters. ")
+                        return methods::standard_replies::bad_request_400("wrong parameters. ")
                     }
 
                     use schema::agreements::dsl as ag_q;
@@ -67,10 +67,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         Err(err) => {
                             return match err {
                                 Error::NotFound => {
-                                    methods::standard_replies::bad_request("Loading vehicles failed")
+                                    methods::standard_replies::bad_request_400("Loading vehicles failed")
                                 }
                                 _ => {
-                                    methods::standard_replies::internal_server_error_response(
+                                    methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/check-in: DB Error loading VIN number"),
                                     )
                                 }
@@ -115,7 +115,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
                     while let Some((label, _path, ok)) = futures.next().await {
                         if !ok {
-                            return methods::standard_replies::bad_request(
+                            return methods::standard_replies::bad_request_400(
                                 &format!("{} does not exist", label),
                             );
                         }
@@ -154,7 +154,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::tokens::token_invalid_return()
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at token verification"))
+                            methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at token verification"))
                         }
                     }
                 }
@@ -165,11 +165,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     match ext_result {
                         Ok(bool) => {
                             if !bool {
-                                return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: SQL error at extending token"));
+                                return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: SQL error at extending token"));
                             }
                         }
                         Err(_) => {
-                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at extending token"));
+                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at extending token"));
                         }
                     }
 
@@ -189,7 +189,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_result::<model::Vehicle>(&mut pool);
 
                             let Ok(mut vehicle) = vehicle else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Loading vehicle error DB"),
                                 );
                             };
@@ -230,18 +230,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                         Ok(r) => r,
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
+                                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
                                         }
                                     };
 
                                     if !tesla_resp.status().is_success() {
-                                        return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
+                                        return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
                                     }
 
                                     let tesla_body: helper_model::TeslaVehicleDataEnvelope = match tesla_resp.json().await {
                                         Ok(b) => b,
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API response JSON decode error"));
+                                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API response JSON decode error"));
                                         }
                                     };
 
@@ -259,7 +259,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     (battery_level_i32, odometer_i32, lat, lon)
                                 }
                                 _ => {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/check-in: Vehicle not supported for remote return"),
                                     )
                                 }
@@ -285,7 +285,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::user::get_user_by_id(&access_token.user_id)
                                     .await;
                             let Ok(usr_in_question) = usr_in_question else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Loading user error"),
                                 );
                             };
@@ -303,7 +303,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_result::<model::Vehicle>(&mut pool);
 
                             let Ok(mut vehicle) = vehicle else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Loading vehicle error DB"),
                                 );
                             };
@@ -344,18 +344,18 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
                                         Ok(r) => r,
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
+                                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API error fetching vehicle_data"));
                                         }
                                     };
 
                                     if !tesla_resp.status().is_success() {
-                                        return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
+                                        return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API returned non-success for vehicle_data"));
                                     }
 
                                     let tesla_body: helper_model::TeslaVehicleDataEnvelope = match tesla_resp.json().await {
                                         Ok(b) => b,
                                         Err(_) => {
-                                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Tesla API response JSON decode error"));
+                                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Tesla API response JSON decode error"));
                                         }
                                     };
 
@@ -373,7 +373,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     (battery_level_i32, odometer_i32, lat, lon)
                                 }
                                 _ => {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from("agreement/check-in: Vehicle not supported for remote return"),
                                     )
                                 }
@@ -409,7 +409,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     vs.id
                                 }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: SQL error inserting vehicle snapshot"))
+                                    return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: SQL error inserting vehicle snapshot"))
                                 }
                             }
                         }
@@ -454,7 +454,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN)
                             }
                             _ => {
-                                methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at loading vehicle snapshot"))
+                                methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at loading vehicle snapshot"))
                             }
                         }
                     }
@@ -481,7 +481,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .get_result::<(Option<f64>, Option<f64>, Option<f64>, Option<f64>, f64, f64, f64, f64)>(&mut pool);
 
                         let Ok(result) = result else {
-                            return methods::standard_replies::internal_server_error_response(String::from("agreement/check-in: Database connection error at loading location boundry"))
+                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at loading location boundry"))
                         };
 
                         let lower_latitude = result.0.unwrap_or(result.4);
@@ -535,12 +535,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             let result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
 
                             let Ok(resp) = result else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Tesla API error at door_lock request")
                                 );
                             };
                             if resp.status() != StatusCode::OK {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Tesla API returned non-200 at door_lock request")
                                 );
                             }
@@ -570,7 +570,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .execute(&mut pool);
 
                     if result.is_err() {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at mapping unmapped charges")
                         )
                     }
@@ -592,13 +592,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let result = integration::tesla_curl::tesla_make_request(Method::GET, &charge_history_path, None).await;
 
                         let Ok(resp) = result else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/check-in: Tesla API error at fetching charging sessions")
                             )
                         };
 
                         if resp.status() != StatusCode::OK {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/check-in: Tesla API returned non-200 at fetching charging sessions")
                             )
                         }
@@ -606,7 +606,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let body_text = match resp.text().await {
                             Ok(t) => t,
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Tesla API response body read error at charging sessions")
                                 )
                             }
@@ -615,14 +615,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         let parsed: helper_model::TeslaChargingSessionsResponse = match serde_json::from_str(&body_text) {
                             Ok(p) => p,
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: JSON parse error at charging sessions")
                                 )
                             }
                         };
 
                         if parsed.status_code != 1000 {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/check-in: Tesla charging sessions returned failure status_code")
                             )
                         }
@@ -637,7 +637,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             let charging_note = format!("Tesla charging at {}", location);
                             let incl_vat_opt = Decimal::try_from(incl_vat);
                             if incl_vat_opt.is_err() {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Decimal conversion error for Tesla charging cost")
                                 )
                             }
@@ -665,7 +665,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         continue;
                                     }
                                     _ => {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/check-in: DB error inserting charges")
                                         )
                                     }
@@ -703,7 +703,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(reward_used_sum) = reward_used_sum else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at summing reward hours")
                         )
                     };
@@ -734,7 +734,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 .get_result::<Decimal>(&mut pool);
 
                             let Ok(discount) = discount else {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Database connection error looking up promo amount")
                                 )
                             };
@@ -796,7 +796,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                     )
                                 }
                                 Err(_) => {
-                                    return methods::standard_replies::internal_server_error_response(
+                                    return methods::standard_replies::internal_server_error_response_500(
                                         String::from( "agreement/check-in: Database error loading mileage package"),
                                     )
                                 }
@@ -815,7 +815,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(total_taxed_charges_cost) = total_taxed_charges_cost else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at summing external charges cost")
                         )
                     };
@@ -833,7 +833,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(total_not_taxed_charges_cost) = total_not_taxed_charges_cost else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at summing external charges cost")
                         )
                     };
@@ -855,7 +855,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         match check_out_percent {
                             Ok(check_out_percent) => { check_out_percent }
                             Err(_) => {
-                                return methods::standard_replies::internal_server_error_response(
+                                return methods::standard_replies::internal_server_error_response_500(
                                     String::from("agreement/check-in: Database connection error at fetching check out percent")
                                 )
                             }
@@ -874,7 +874,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .select(v_s_q::odometer)
                             .get_result::<i32>(&mut pool);
                         let Ok(check_out_odo) = check_out_odo else {
-                            return methods::standard_replies::internal_server_error_response(
+                            return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/check-in: Database connection error looking up check out odometer")
                             )
                         };
@@ -911,7 +911,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_results::<model::Tax>(&mut pool);
 
                     let Ok(taxes) = taxes else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database error loading apartment taxes")
                         )
                     };
@@ -986,7 +986,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .get_result::<Option<Decimal>>(&mut pool);
 
                     let Ok(paid_amount) = paid_amount else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at summing paid amount")
                         )
                     };
@@ -997,7 +997,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         .find(agreement_to_be_checked_in.deposit_pmt_id.unwrap())
                         .get_result::<model::Payment>(&mut pool);
                     let Ok(mut auth_hold_pmt) = auth_hold_pmt else {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: Database connection error at loading auth hold payment")
                         )
                     };
@@ -1005,7 +1005,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let outstanding_balance = total_stripe_amount_2dp - paid_amount;
 
                     if outstanding_balance < Decimal::zero() {
-                        return methods::standard_replies::internal_server_error_response(
+                        return methods::standard_replies::internal_server_error_response_500(
                             String::from("agreement/check-in: outstanding balance negative")
                         )
                     } else if outstanding_balance <= Decimal::new(50, 2) {
@@ -1060,16 +1060,16 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         .values(&new_payment).get_result::<model::Payment>(&mut pool);
 
                                     if payment_result.is_err() {
-                                        return methods::standard_replies::internal_server_error_response(
+                                        return methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/check-in: DB saving final payment error, payment collected")
                                         )
                                     }
                                 }
                                 Err(err) => {
                                     return if err == VeygoError::CardDeclined {
-                                        methods::standard_replies::card_declined()
+                                        methods::standard_replies::card_declined_402()
                                     } else {
-                                        methods::standard_replies::internal_server_error_response(
+                                        methods::standard_replies::internal_server_error_response_500(
                                             String::from("agreement/check-in: Stripe cannot process outstanding payment")
                                         )
                                     }
@@ -1084,7 +1084,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             methods::standard_replies::response_with_obj(&ag, StatusCode::OK)
                         }
                         Err(_) => {
-                            methods::standard_replies::internal_server_error_response(
+                            methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/check-in: could not save agreement updates")
                             )
                         }

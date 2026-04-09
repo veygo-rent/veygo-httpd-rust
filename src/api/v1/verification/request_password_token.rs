@@ -19,7 +19,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::body::json())
         .and_then(|method: Method, body: BodyData| async move {
             if method != Method::POST {
-                return methods::standard_replies::method_not_allowed_response();
+                return methods::standard_replies::method_not_allowed_response_405();
             }
 
             let mut pool = POOL.get().unwrap();
@@ -38,7 +38,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                         }
                         _ => {
-                            methods::standard_replies::internal_server_error_response(String::from("verification/request-password-token: Fetching user info error"))
+                            methods::standard_replies::internal_server_error_response_500(String::from("verification/request-password-token: Fetching user info error"))
                         }
                     }
                 }
@@ -58,7 +58,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 .execute(&mut pool);
 
             let Ok(_) = result else {
-                return methods::standard_replies::internal_server_error_response(String::from("verification/request-password-token: Cannot insert OTP"))
+                return methods::standard_replies::internal_server_error_response_500(String::from("verification/request-password-token: Cannot insert OTP"))
             };
 
             let email = integration::sendgrid_veygo::make_email_obj(
@@ -81,7 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             )
                 .await;
             if email_result.is_err() {
-                return methods::standard_replies::internal_server_error_response(String::from("verification/request-token: SendGrid error sending verification email"));
+                return methods::standard_replies::internal_server_error_response_500(String::from("verification/request-token: SendGrid error sending verification email"));
             }
 
             let msg = serde_json::json!({});
