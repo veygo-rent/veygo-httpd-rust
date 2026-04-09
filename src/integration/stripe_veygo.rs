@@ -12,8 +12,7 @@ use stripe_core::payment_intent::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
 };
 use stripe_core::setup_intent::{
-    CreateSetupIntent, CreateSetupIntentPaymentMethodOptions, CreateSetupIntentPaymentMethodOptionsCard,
-    CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure
+    CreateSetupIntent
 };
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
@@ -201,13 +200,6 @@ pub async fn attach_payment_method_to_stripe_customer(
         .customer(stripe_customer_id)
         .payment_method(pm_id)
         .confirm(true)
-        .payment_method_options(CreateSetupIntentPaymentMethodOptions {
-            card: Some(CreateSetupIntentPaymentMethodOptionsCard {
-                request_three_d_secure: Some(CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure::Challenge),
-                ..Default::default()
-            }),
-            ..Default::default()
-        })
         .return_url(return_url)
         .send(client)
         .await;
