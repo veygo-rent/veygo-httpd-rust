@@ -68,6 +68,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     });
                                 }
                             }
+                            EventObject::SetupIntentSetupFailed(set_i) => {
+                                if let Some(pmi) = set_i.payment_method {
+                                    let pmi_id = pmi.id().to_string();
+                                    tokio::spawn(async move {
+                                        let mut pool = POOL.get().unwrap();
+                                        use crate::schema::payment_methods::dsl as pm_q;
+                                        let _ = diesel::delete
+                                            (
+                                                pm_q::payment_methods
+                                                    .filter(pm_q::token.eq(&pmi_id))
+                                            )
+                                            .execute(&mut pool);
+                                    });
+                                }
+                            }
                             _ => {}
                         }
                         let empty_msg = serde_json::json!({});
