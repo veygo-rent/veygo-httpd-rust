@@ -130,7 +130,7 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                                 )
                             };
 
-                            let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token, "veygo-app://3ds-dismissed", true).await;
+                            let attach_result = stripe_veygo::attach_payment_method_to_stripe_customer(&stripe_id, &new_pm.token, "veygo-app://3ds-dismissed", false).await;
 
                             match attach_result {
                                 Ok(setup_intent) => {
