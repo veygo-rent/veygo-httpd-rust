@@ -12,7 +12,8 @@ use stripe_core::payment_intent::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
 };
 use stripe_core::setup_intent::{
-    CreateSetupIntent,
+    CreateSetupIntent, CreateSetupIntentPaymentMethodOptions, CreateSetupIntentPaymentMethodOptionsCard,
+    CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure
 };
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
@@ -44,36 +45,33 @@ pub async fn retrieve_payment_method_from_stripe(
     let payment_method = RetrievePaymentMethod::new(pi_id).send(client).await;
     match payment_method {
         Ok(payment_method) => {
-            if let Some(card) = payment_method.card {
-                let accepted_cards: &[&str] = &["amex", "mastercard", "visa", "discover"];
-                let accepted_funding_methods: &[&str] = &["credit", "debit"];
-                if !accepted_cards.contains(&card.brand.as_str())
-                    || !accepted_funding_methods.contains(&card.funding.as_str())
-                {
-                    return Err(helper_model::VeygoError::CardNotSupported)
-                }
-                let mut masked_card_number = format!("**** **** **** {}", card.last4);
-                if card.brand == "amex" {
-                    masked_card_number = format!("**** ****** *{}", card.last4);
-                }
-                let network = card.brand; // Visa, Mastercard, etc.
-                let expiration = format!("{:02}/{}", card.exp_month, card.exp_year);
-
-                Ok(model::NewPaymentMethod {
-                    cardholder_name: cardholder_name.to_string(),
-                    masked_card_number,
-                    network,
-                    expiration,
-                    token: pi_id.to_string(),
-                    fingerprint: card.fingerprint.unwrap(),
-                    nickname: nickname.clone(),
-                    is_enabled,
-                    renter_id: renter_id.clone(),
-                    last_used_date_time: None,
-                })
-            } else {
-                Err(helper_model::VeygoError::InputDataError)
+            let card = payment_method.card.unwrap();
+            let accepted_cards: &[&str] = &[ "amex", "mastercard", "visa", "discover" ];
+            let accepted_funding_methods: &[&str] = &[ "credit", "debit" ];
+            if !accepted_cards.contains(&card.brand.as_str())
+                || !accepted_funding_methods.contains(&card.funding.as_str())
+            {
+                return Err(helper_model::VeygoError::CardNotSupported)
             }
+            let mut masked_card_number = format!("**** **** **** {}", card.last4);
+            if card.brand == "amex" {
+                masked_card_number = format!("**** ****** *{}", card.last4);
+            }
+            let network = card.brand; // Visa, Mastercard, etc.
+            let expiration = format!("{:02}/{}", card.exp_month, card.exp_year);
+
+            Ok(model::NewPaymentMethod {
+                cardholder_name: cardholder_name.to_string(),
+                masked_card_number,
+                network,
+                expiration,
+                token: pi_id.to_string(),
+                fingerprint: card.fingerprint.unwrap(),
+                nickname: nickname.clone(),
+                is_enabled,
+                renter_id: renter_id.clone(),
+                last_used_date_time: None,
+            })
         }
         Err(e) => {
             match e {
@@ -201,6 +199,13 @@ pub async fn attach_payment_method_to_stripe_customer(
         .payment_method(pm_id)
         .confirm(true)
         .return_url(return_url)
+        .payment_method_options(CreateSetupIntentPaymentMethodOptions {
+            card: Some(CreateSetupIntentPaymentMethodOptionsCard {
+                request_three_d_secure: Some(CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure::Any),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
         .send(client)
         .await;
 
