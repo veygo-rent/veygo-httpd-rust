@@ -52,6 +52,20 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     });
                                 };
                             }
+                            EventObject::PaymentMethodDetached(pm_d) => {
+                                tokio::spawn(async move {
+                                    let pmi_id = pm_d.id.to_string();
+                                    let mut pool = POOL.get().unwrap();
+                                    use crate::schema::payment_methods::dsl as pm_q;
+                                    let _ = diesel::update
+                                        (
+                                            pm_q::payment_methods
+                                                .filter(pm_q::token.eq(&pmi_id))
+                                        )
+                                        .set(pm_q::is_enabled.eq(false))
+                                        .execute(&mut pool);
+                                });
+                            }
                             EventObject::SetupIntentSucceeded(set_i) => {
                                 if let Some(pmi) = set_i.payment_method {
                                     let pmi_id = pmi.id().to_string();
