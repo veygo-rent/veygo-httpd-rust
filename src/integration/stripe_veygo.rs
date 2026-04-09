@@ -12,7 +12,8 @@ use stripe_core::payment_intent::{
     CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
 };
 use stripe_core::setup_intent::{
-    CreateSetupIntent
+    CreateSetupIntent, CreateSetupIntentPaymentMethodOptions, CreateSetupIntentPaymentMethodOptionsCard,
+    CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure
 };
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
@@ -192,13 +193,22 @@ pub async fn create_stripe_refund(
 pub async fn attach_payment_method_to_stripe_customer(
     stripe_customer_id: &String,
     pm_id: &String,
-    return_url: &str
+    return_url: &str,
+    request_3ds: bool,
 ) -> Result<SetupIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
     let result = CreateSetupIntent::new()
         .attach_to_self(false)
         .customer(stripe_customer_id)
         .payment_method(pm_id)
+        .payment_method_types(vec![String::from("card")])
+        .payment_method_options(CreateSetupIntentPaymentMethodOptions {
+            card: Some(CreateSetupIntentPaymentMethodOptionsCard {
+                request_three_d_secure: if request_3ds { Some(CreateSetupIntentPaymentMethodOptionsCardRequestThreeDSecure::Challenge) } else { None },
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
         .confirm(true)
         .return_url(return_url)
         .send(client)
