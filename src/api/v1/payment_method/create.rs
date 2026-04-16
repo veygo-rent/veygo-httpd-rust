@@ -1,10 +1,9 @@
 use crate::{POOL, methods, model, helper_model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use http::Method;
 use serde_derive::{Deserialize, Serialize};
 use stripe_core::SetupIntentStatus;
-use warp::{Filter, http::StatusCode};
+use warp::{Filter, http::Method, http::StatusCode};
 use crate::helper_model::VeygoError;
 use crate::integration::stripe_veygo;
 

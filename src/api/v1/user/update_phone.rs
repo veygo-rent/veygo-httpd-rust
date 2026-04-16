@@ -100,7 +100,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         };
                         let renter: model::PublishRenter = renter.into();
 
-                        return methods::standard_replies::response_with_obj(renter, http::StatusCode::OK);
+                        return methods::standard_replies::response_with_obj(renter, warp::http::StatusCode::OK);
                     }
                 };
             },

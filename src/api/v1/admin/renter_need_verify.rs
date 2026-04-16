@@ -1,7 +1,6 @@
 use std::str::FromStr;
-use http::{Method, StatusCode};
 use serde_derive::{Deserialize};
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 use diesel::prelude::*;
 use diesel::result::Error;
 use sha2::{Digest, Sha256};

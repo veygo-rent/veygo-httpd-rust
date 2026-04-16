@@ -2,9 +2,8 @@ use bcrypt::{hash, DEFAULT_COST};
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel::result::Error;
-use http::StatusCode;
 use serde_derive::{Deserialize, Serialize};
-use warp::{Filter, Reply, http::method::Method};
+use warp::{Filter, Reply, http::{Method, StatusCode}};
 use crate::{helper_model, methods, model, schema, POOL};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

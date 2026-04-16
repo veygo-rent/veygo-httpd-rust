@@ -1,12 +1,10 @@
 use crate::{POOL, methods, model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use http::Method;
-use warp::http::StatusCode;
-use warp::{Filter, Rejection, Reply};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 use crate::helper_model::VeygoError;
 
-pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path!("delete" / i32)
         .and(warp::method())
         .and(warp::header::<String>("auth"))

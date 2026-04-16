@@ -3,12 +3,10 @@ use crate::{POOL, methods, model, helper_model};
 use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
-use http::Method;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
-use warp::http::StatusCode;
 use warp::reply::with_status;
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct CreateUserData {

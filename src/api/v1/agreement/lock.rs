@@ -1,10 +1,9 @@
 use diesel::result::Error;
-use warp::{Filter, Rejection, Reply, http::Method};
 use crate::{schema, helper_model, methods, model, POOL, integration};
 use diesel::prelude::*;
-use http::StatusCode;
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 
-pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path!("lock" / String)
         .and(warp::path::end())
         .and(warp::method())

@@ -1,9 +1,7 @@
 use crate::model::Apartment;
 use crate::{POOL, schema, methods};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use http::Method;
-use warp::{Filter, Reply};
-use warp::http::StatusCode;
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("get-universities")

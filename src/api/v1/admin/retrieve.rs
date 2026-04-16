@@ -1,7 +1,6 @@
 use diesel::prelude::*;
-use http::StatusCode;
 use crate::{methods, model, POOL};
-use warp::{Filter, Reply, http::Method};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 use crate::helper_model::VeygoError;
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {

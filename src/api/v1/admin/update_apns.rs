@@ -1,8 +1,7 @@
 use crate::{POOL, methods, model};
 use diesel::prelude::*;
-use http::{Method, StatusCode};
 use serde_derive::{Deserialize, Serialize};
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 use crate::helper_model::VeygoError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

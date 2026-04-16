@@ -81,7 +81,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 .filter(at_q::type_.eq(model::TokenType::User))
                                 .filter(at_q::id.ne(&valid_token.1))
                         ).execute(&mut pool);
-                        methods::standard_replies::response_with_obj(user, http::StatusCode::OK)
+                        methods::standard_replies::response_with_obj(user, warp::http::StatusCode::OK)
                     }
                 };
             },

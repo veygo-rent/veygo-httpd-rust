@@ -1,6 +1,5 @@
 use askama::Template;
-use http::StatusCode;
-use warp::{Filter, Reply, http::method::Method};
+use warp::{Filter, Reply, http::{Method, StatusCode}};
 use crate::{schema, methods, model, POOL, integration};
 use diesel::prelude::*;
 use diesel::result::Error;

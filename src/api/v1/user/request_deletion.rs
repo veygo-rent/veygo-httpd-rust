@@ -1,5 +1,4 @@
-use http::{Method, StatusCode};
-use warp::{reply, Filter, Reply};
+use warp::{reply, Filter, Reply, http::{Method, StatusCode}};
 use warp::reply::with_status;
 use crate::{methods, model, schema, POOL};
 use diesel::prelude::*;

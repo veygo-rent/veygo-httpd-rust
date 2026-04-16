@@ -3,7 +3,7 @@ use bytes::{Bytes};
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
-use http::Method;
+use warp::http::Method;
 use warp::Filter;
 use warp::http::StatusCode;
 use sha2::{Sha256, Digest};

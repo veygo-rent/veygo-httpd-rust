@@ -1,8 +1,7 @@
 use diesel::result::Error;
 use diesel::prelude::*;
-use http::{Method, StatusCode};
 use sha2::{Digest, Sha256};
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::Method, http::StatusCode};
 use crate::{helper_model, integration, methods, model, schema, POOL};
 use crate::helper_model::VeygoError;
 

@@ -1,7 +1,6 @@
 use crate::{methods, model, POOL};
 use diesel::prelude::*;
-use http::{Method, StatusCode};
-use warp::{Filter, Reply};
+use warp::{Filter, Reply, http::{Method, StatusCode}};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("mileage-packages")
