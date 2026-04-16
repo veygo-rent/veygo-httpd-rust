@@ -148,11 +148,6 @@ create table apartments
     )
 );
 
-create index apartments_email_idx
-    on apartments (email);
-create index apartments_phone_idx
-    on apartments (phone);
-
 create table renters
 (
     id                              serial,
@@ -197,9 +192,6 @@ create table renters
     constraint renter_stripe_id_uk unique (stripe_id),
     constraint renters_apartment_id_fk foreign key (apartment_id) references apartments(id)
 );
-
-create index renters_name_idx
-    on renters (name);
 
 create table access_tokens
 (
@@ -494,9 +486,6 @@ create table taxes
     constraint taxes_multiplier_range check (multiplier > 0.0 and multiplier < 1.0),
     constraint taxes_threshold_ck check ( threshold is null and is_lower is null or threshold is not null and is_lower is not null)
 );
-
-create index taxes_name_idx
-    on taxes (name);
 
 create table charges
 (

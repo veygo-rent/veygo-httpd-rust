@@ -23,7 +23,6 @@ drop table if exists claims;
 
 drop table if exists charges;
 
-drop index if exists taxes_name_idx;
 drop table if exists taxes;
 
 drop index if exists verifications_code_idx;
@@ -57,11 +56,8 @@ drop table if exists payment_methods;
 drop index if exists access_tokens_user_id_token_idx;
 drop table if exists access_tokens;
 
-drop index if exists renters_name_idx;
 drop table if exists renters;
 
-drop index if exists apartments_email_idx;
-drop index if exists apartments_phone_idx;
 drop table if exists apartments;
 
 drop table if exists transponder_companies;
