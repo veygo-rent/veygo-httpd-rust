@@ -41,33 +41,31 @@ async fn main() {
         "Main thread is now running",
         None,
         None,
-    )
-    .await;
+    );
+
     // delete all objects in the bucket if there are NO users (fresh installation)
-    {
-        let mut pool = POOL.get().unwrap();
-        use crate::schema::renters::dsl as renter_query;
+    let mut pool = POOL.get().unwrap();
+    use crate::schema::renters::dsl as renter_query;
 
-        // SELECT COUNT(*) FROM renters
-        let renter_exists =
-            diesel::select(diesel::dsl::exists(renter_query::renters.as_query())).get_result::<bool>(&mut pool);
+    // SELECT COUNT(*) FROM renters
+    let renter_exists =
+        diesel::select(diesel::dsl::exists(renter_query::renters.as_query())).get_result::<bool>(&mut pool);
 
-        match renter_exists {
-            Ok(false) => {
-                // No users present -> treat as fresh install and wipe prior user storage
-                if let Err(e) = integration::gcloud_storage_veygo::delete_all_objects().await {
-                    eprintln!("Bucket wipe failed: {e}");
-                } else {
-                    eprintln!("Bucket wiped: no renters found (fresh install)");
-                }
+    match renter_exists {
+        Ok(false) => {
+            // No users present -> treat as fresh install and wipe prior user storage
+            if let Err(e) = integration::gcloud_storage_veygo::delete_all_objects().await {
+                eprintln!("Bucket wipe failed: {e}");
+            } else {
+                eprintln!("Bucket wiped: no renters found (fresh install)");
             }
-            Ok(_) => {
-                // At least one user exists; do nothing
-            }
-            Err(e) => {
-                // On DB error, DO NOT delete it; just log
-                eprintln!("DB check for renters failed; not deleting bucket: {e}");
-            }
+        }
+        Ok(_) => {
+            // At least one user exists; do nothing
+        }
+        Err(e) => {
+            // On DB error, DO NOT delete it; just log
+            eprintln!("DB check for renters failed; not deleting bucket: {e}");
         }
     }
 
