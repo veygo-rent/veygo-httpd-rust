@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 mod api;
 mod integration;
 mod methods;
@@ -34,14 +33,18 @@ static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 #[tokio::main]
 
 async fn main() {
-    let _ = integration::sendgrid_veygo::send_email(
-        Option::from("Veygo Server"),
-        integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
-        "Main thread now running",
-        "Main thread is now running",
-        None,
-        None,
-    );
+    spawn(async {
+        if let Err(err) = integration::sendgrid_veygo::send_email(
+            Option::from("Veygo Server"),
+            integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
+            "Main thread now running",
+            "Main thread is now running",
+            None,
+            None,
+        ).await {
+            eprintln!("failed to send startup email: {err}");
+        }
+    });
 
     // delete all objects in the bucket if there are NO users (fresh installation)
     let mut pool = POOL.get().unwrap();
