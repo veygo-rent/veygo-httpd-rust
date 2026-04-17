@@ -17,22 +17,24 @@ use warp::Filter;
 
 pub fn api_v1_user() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
 {
+    let routes = login::main()
+        .or(create::main())
+        .or(update_apartment::main())
+        .or(update_phone::main())
+        .or(upload_file::main())
+        .or(get_files::main())
+        .or(change_plan::main())
+        .or(retrieve::main())
+        .or(rm_token::main())
+        .or(update_apns::main())
+        .or(get::main())
+        .or(verify_promo::main())
+        .or(get_reward_hours::main())
+        .or(request_deletion::main())
+        .boxed();
+
     warp::path("user")
-        .and(
-            login::main()
-                .or(create::main())
-                .or(update_apartment::main())
-                .or(update_phone::main())
-                .or(upload_file::main())
-                .or(get_files::main())
-                .or(change_plan::main())
-                .or(retrieve::main())
-                .or(rm_token::main())
-                .or(update_apns::main())
-                .or(get::main())
-                .or(verify_promo::main())
-                .or(get_reward_hours::main())
-                .or(request_deletion::main())
-        )
+        .and(routes)
         .and(warp::path::end())
+        .boxed()
 }

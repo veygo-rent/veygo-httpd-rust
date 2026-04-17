@@ -6,7 +6,13 @@ use warp::Filter;
 
 pub fn api_v1_payment_method()
 -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    let routes = get::main()
+        .or(create::main())
+        .or(delete::main())
+        .boxed();
+
     warp::path("payment-method")
-        .and(get::main().or(create::main()).or(delete::main()))
+        .and(routes)
         .and(warp::path::end())
+        .boxed()
 }

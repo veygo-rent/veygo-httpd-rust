@@ -9,14 +9,16 @@ use warp::Filter;
 
 pub fn api_v1_apartment()
 -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    let routes = get_universities::main()
+        .or(get_taxes::main())
+        .or(get_all_apartments::main())
+        .or(add_apartment::main())
+        .or(get_apartment_locations::main())
+        .or(add_location::main())
+        .boxed();
+
     warp::path("apartment")
-        .and(
-            get_universities::main()
-                .or(get_taxes::main())
-                .or(get_all_apartments::main())
-                .or(add_apartment::main())
-                .or(get_apartment_locations::main())
-                .or(add_location::main()),
-        )
+        .and(routes)
         .and(warp::path::end())
+        .boxed()
 }

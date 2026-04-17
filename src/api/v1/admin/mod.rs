@@ -11,16 +11,18 @@ use warp::Filter;
 
 pub fn api_v1_admin() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
 {
+    let routes = stats::api_v1_admin_stats()
+        .or(login::main())
+        .or(retrieve::main())
+        .or(update_apns::main())
+        .or(renter_need_verify::main())
+        .or(verify_dl::main())
+        .or(verify_lease::main())
+        .or(verify_ins::main())
+        .boxed();
+
     warp::path("admin")
-        .and(
-            stats::api_v1_admin_stats()
-                .or(login::main())
-                .or(retrieve::main())
-                .or(update_apns::main())
-                .or(renter_need_verify::main())
-                .or(verify_dl::main())
-                .or(verify_lease::main())
-                .or(verify_ins::main())
-        )
+        .and(routes)
         .and(warp::path::end())
+        .boxed()
 }

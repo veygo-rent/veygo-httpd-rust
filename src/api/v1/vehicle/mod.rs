@@ -10,15 +10,17 @@ use warp::Filter;
 
 pub fn api_v1_vehicle()
 -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    let routes = availability::main()
+        .or(new::main())
+        .or(get::main())
+        .or(get_mileage_packages::main())
+        .or(user_identify::main())
+        .or(upload_image::main())
+        .or(generate_snapshot::main())
+        .boxed();
+
     warp::path("vehicle")
-        .and(
-            availability::main()
-                .or(new::main())
-                .or(get::main())
-                .or(get_mileage_packages::main())
-                .or(user_identify::main())
-                .or(upload_image::main())
-                .or(generate_snapshot::main())
-        )
+        .and(routes)
         .and(warp::path::end())
+        .boxed()
 }
