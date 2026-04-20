@@ -213,6 +213,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         format!("admin/verify-drivers-license: DB error saving renter by id: {}", err),
                                     )
                                 }
+                                
+                                tokio::spawn(async move {
+                                    if let Some(renter_app_apns) = renter.apple_apns {
+                                        let _ = integration::apns_veygo::send_notification(
+                                            &renter_app_apns, "Congrats", "Your driver's license has been approved", false
+                                        ).await;
+                                    }
+                                });
 
                                 let next_renter = r_q::renters
                                     .filter(r_q::drivers_license_expiration.is_null())

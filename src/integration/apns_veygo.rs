@@ -4,14 +4,17 @@ use a2::{
 };
 use std::fs::File;
 
-#[allow(dead_code)]
 pub async fn send_notification(
-    sandbox: bool,
-    device_token: String,
-    title: String,
-    message: String,
+    device_token: &str,
+    title: &str,
+    message: &str,
     is_admin_app: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let (sandbox, device_token) = if let Some(stripped) = device_token.strip_prefix('!') {
+        (true, stripped)
+    } else {
+        (false, device_token)
+    };
     let key_file: String;
     let team_id = String::from("F84843HABV");
     let key_id: String;
@@ -30,7 +33,7 @@ pub async fn send_notification(
     }
 
     // Read the private key from the disk
-    let private_key = File::open(key_file).unwrap();
+    let private_key = File::open(key_file)?;
 
     // Which service to call, test or production?
     let endpoint = if sandbox {

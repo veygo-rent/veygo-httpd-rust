@@ -147,6 +147,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     )
                                 }
 
+                                tokio::spawn(async move {
+                                    if let Some(renter_app_apns) = renter.apple_apns {
+                                        let _ = integration::apns_veygo::send_notification(
+                                            &renter_app_apns, "Congrats", "Your insurance has been approved", false
+                                        ).await;
+                                    }
+                                });
+
                                 let next_renter = r_q::renters
                                     .filter(r_q::insurance_liability_expiration.is_null())
                                     .filter(r_q::insurance_id_image.is_not_null())
