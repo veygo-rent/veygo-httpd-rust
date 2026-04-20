@@ -118,7 +118,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 };
 
-                                match body {
+                                match body.clone() {
                                     helper_model::VerifyLeaseRequest::Approved { lease_expiration, renter_address, .. } => {
                                         if renter.billing_address != Some(renter_address.clone()) {
                                             renter.billing_address = Some(renter_address.clone());
@@ -152,13 +152,26 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     )
                                 }
 
-                                tokio::spawn(async move {
-                                    if let Some(renter_app_apns) = renter.apple_apns {
-                                        let _ = integration::apns_veygo::send_notification(
-                                            &renter_app_apns, "Congrats", "Your address has been approved", false
-                                        ).await;
+                                match body {
+                                    helper_model::VerifyLeaseRequest::Approved { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Congrats", "Your address has been approved", false
+                                                ).await;
+                                            }
+                                        });
                                     }
-                                });
+                                    helper_model::VerifyLeaseRequest::Declined { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Bad News", "Your address has been declined", false
+                                                ).await;
+                                            }
+                                        });
+                                    }
+                                };
 
                                 let next_renter = r_q::renters
                                     .filter(r_q::lease_agreement_expiration.is_null())

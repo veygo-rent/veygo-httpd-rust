@@ -152,7 +152,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 };
 
-                                match body {
+                                match body.clone() {
                                     helper_model::VerifyDriversLicenseRequest::DeclinePrimary { renter_id, reason, .. } => {
                                         let mut hasher = Sha256::new();
                                         let data = renter_id.to_le_bytes();
@@ -213,14 +213,36 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         format!("admin/verify-drivers-license: DB error saving renter by id: {}", err),
                                     )
                                 }
-                                
-                                tokio::spawn(async move {
-                                    if let Some(renter_app_apns) = renter.apple_apns {
-                                        let _ = integration::apns_veygo::send_notification(
-                                            &renter_app_apns, "Congrats", "Your driver's license has been approved", false
-                                        ).await;
+
+                                match body {
+                                    helper_model::VerifyDriversLicenseRequest::Approved { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Congrats", "Your driver's license has been approved", false
+                                                ).await;
+                                            }
+                                        });
                                     }
-                                });
+                                    helper_model::VerifyDriversLicenseRequest::RequireSecondary { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Next Step Required", "Please submit a supplementary document for your license", false
+                                                ).await;
+                                            }
+                                        });
+                                    }
+                                    _ => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Bad News", "Your driver's license has been declined", false
+                                                ).await;
+                                            }
+                                        });
+                                    }
+                                };
 
                                 let next_renter = r_q::renters
                                     .filter(r_q::drivers_license_expiration.is_null())

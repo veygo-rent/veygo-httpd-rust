@@ -118,7 +118,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
                                 };
                                 
-                                match body { 
+                                match body.clone() {
                                     helper_model::VerifyInsuranceRequest::Approved { insurance_liability_expiration, insurance_collision_valid, .. } => {
                                         renter.insurance_liability_expiration = Some(insurance_liability_expiration);
                                         renter.insurance_collision_valid = insurance_collision_valid;
@@ -147,13 +147,26 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     )
                                 }
 
-                                tokio::spawn(async move {
-                                    if let Some(renter_app_apns) = renter.apple_apns {
-                                        let _ = integration::apns_veygo::send_notification(
-                                            &renter_app_apns, "Congrats", "Your insurance has been approved", false
-                                        ).await;
+                                match body {
+                                    helper_model::VerifyInsuranceRequest::Approved { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Congrats", "Your insurance has been approved", false
+                                                ).await;
+                                            }
+                                        });
                                     }
-                                });
+                                    helper_model::VerifyInsuranceRequest::Declined { .. } => {
+                                        tokio::spawn(async move {
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Bad News", "Your insurance has been declined", false
+                                                ).await;
+                                            }
+                                        });
+                                    }
+                                };
 
                                 let next_renter = r_q::renters
                                     .filter(r_q::insurance_liability_expiration.is_null())
