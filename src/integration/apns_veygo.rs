@@ -46,7 +46,7 @@ pub async fn send_notification(
     let client_config = ClientConfig::new(endpoint);
 
     // Connecting to APNs
-    let client = Client::token(private_key, key_id, team_id, client_config).unwrap();
+    let client = Client::token(private_key, key_id, team_id, client_config)?;
 
     let options = NotificationOptions {
         apns_topic: topic.as_deref(),
@@ -60,9 +60,7 @@ pub async fn send_notification(
         .set_sound("default");
 
     let payload = builder.build(device_token.as_ref(), options);
-    let response = client.send(payload).await?;
-
-    println!("Sent: {:?}", response);
+    let _ = client.send(payload).await?;
 
     Ok(())
 }

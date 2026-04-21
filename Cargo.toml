@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.52.0", features = ["full"] }
+tokio = { version = "1.52.1", features = ["full"] }
 warp = { version = "0.4.2", features = ["multipart", "server"] }
 csv = "1.4.0"
 bcrypt = "0.19.0"
