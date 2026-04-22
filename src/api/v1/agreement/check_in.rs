@@ -481,13 +481,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .get_result::<(Option<f64>, Option<f64>, Option<f64>, Option<f64>, f64, f64, f64, f64)>(&mut pool);
 
                         let Ok(result) = result else {
-                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at loading location boundry"))
+                            return methods::standard_replies::internal_server_error_response_500(String::from("agreement/check-in: Database connection error at loading location boundary"))
                         };
 
-                        let lower_latitude = result.0.unwrap_or(result.4);
-                        let higher_latitude = result.1.unwrap_or(result.5);
-                        let lower_longitude = result.2.unwrap_or(result.6);
-                        let higher_longitude = result.3.unwrap_or(result.7);
+                        let (lower_latitude, higher_latitude, lower_longitude, higher_longitude) = {
+                            match (result.0, result.1, result.2, result.3) {
+                                (Some(l_lat), Some(h_lat), Some(l_lon), Some(h_lon)) => (l_lat, h_lat, l_lon, h_lon),
+                                _ => (result.4, result.5, result.6, result.7),
+                            }
+                        };
 
                         (lower_latitude, higher_latitude, lower_longitude, higher_longitude)
                     };
@@ -496,7 +498,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         && lower_longitude <= vehicle_current_longitude && vehicle_current_longitude <= higher_longitude) {
                         let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Check In Not Allowed"),
-                            message: String::from("Please return to the specific location"),
+                            message: String::from(format!("Please return to the specific location, current location ({}, {})", vehicle_current_latitude, vehicle_current_longitude)),
                         };
                         return methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN)
                     }
