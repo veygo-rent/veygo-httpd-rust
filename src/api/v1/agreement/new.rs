@@ -522,15 +522,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                             let init_allowance = user_in_request.plan_total_availability;
 
-                            if init_allowance < body.hours_using_reward {
-                                let err_msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
-                                    title: String::from("Booking Not Allowed"),
-                                    message: String::from("You have exceeded your free hours limit. Please upgrade your plan. "),
-                                };
-                                // RETURN: FORBIDDEN
-                                return Ok((with_status(warp::reply::json(&err_msg), StatusCode::FORBIDDEN).into_response(),));
-                            }
-
                             let (week_start, week_end_exclusive) = {
                                 let days_from_monday = current_naive_date.weekday().num_days_from_monday() as i64;
                                 let monday = current_naive_date - Duration::days(days_from_monday);
