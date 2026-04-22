@@ -149,6 +149,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::response_with_obj(err_msg, StatusCode::FORBIDDEN)
                         }
 
+                        if !user_in_request.is_email_verified() {
+                            return methods::standard_replies::user_email_not_verified();
+                        }
+
                         let return_date = body.end_time.naive_utc().date();
 
                         // Check if Renter DL exp
