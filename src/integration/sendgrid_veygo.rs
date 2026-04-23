@@ -28,7 +28,7 @@ pub async fn send_email<'a>(
     
     let p = Personalization::new(to);
 
-    let from = make_email_obj("no-reply@veygo.rent", from_name.unwrap_or("Team Veygo"));
+    let from = make_email_obj("info@veygo.rent", from_name.unwrap_or("Team Veygo"));
     let mut m = Message::new(from)
         .set_subject(subject)
         .add_content(Content::new().set_content_type("text/html").set_value(text))
