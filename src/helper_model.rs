@@ -1,3 +1,4 @@
+use askama::Template;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde_derive::{Deserialize, Serialize};
 use crate::{model};
@@ -227,6 +228,13 @@ pub struct RewardHoursSummaryResponse {
     pub total: Decimal,
     #[serde(with = "rust_decimal::serde::str")]
     pub used: Decimal,
+}
+
+#[derive(Template)]
+#[template(path = "document_rejection.html")]
+pub struct DocumentRejectionTemplate<'a> {
+    pub document_name: &'a str,
+    pub reason: &'a str,
 }
 
 #[non_exhaustive]

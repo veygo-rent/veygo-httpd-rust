@@ -1,3 +1,4 @@
+use askama::Template;
 use diesel::prelude::*;
 use diesel::result::Error;
 use sha2::{Digest, Sha256};
@@ -162,8 +163,21 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             }
                                         });
                                     }
-                                    helper_model::VerifyLeaseRequest::Declined { .. } => {
+                                    helper_model::VerifyLeaseRequest::Declined { reason, .. } => {
+                                        let renter_moved = renter.clone();
+
                                         tokio::spawn(async move {
+                                            let email = integration::sendgrid_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
+                                            let email_content = helper_model::DocumentRejectionTemplate { document_name: "Proof of Address", reason: &reason };
+                                            let _email_result = integration::sendgrid_veygo::send_email(
+                                                None,
+                                                email,
+                                                "Your Document is Declined",
+                                                &email_content.render().unwrap(),
+                                                None,
+                                                None,
+                                            ).await;
+                                            
                                             if let Some(renter_app_apns) = renter.apple_apns {
                                                 let _ = integration::apns_veygo::send_notification(
                                                     &renter_app_apns, "Bad News", "Your address has been declined", false
