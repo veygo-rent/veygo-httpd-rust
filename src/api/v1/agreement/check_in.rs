@@ -498,7 +498,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         && lower_longitude <= vehicle_current_longitude && vehicle_current_longitude <= higher_longitude) {
                         let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
                             title: String::from("Check In Not Allowed"),
-                            message: String::from(format!("Please return to the specific location, current location ({}, {})", vehicle_current_latitude, vehicle_current_longitude)),
+                            message: String::from("Please return to the specific location"),
                         };
                         return methods::standard_replies::response_with_obj(&msg, StatusCode::FORBIDDEN)
                     }
