@@ -8,7 +8,7 @@ tokio = { version = "1.52.1", features = ["full"] }
 warp = { version = "0.4.2", features = ["multipart", "server"] }
 csv = "1.4.0"
 bcrypt = "0.19.0"
-diesel = { version = "2.3.7", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
+diesel = { version = "2.3.8", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 serde_derive = "1.0.228"
 regex = "1.12.3"
 chrono = { version = "0.4.44", features = ["serde"] }
@@ -26,7 +26,6 @@ async-stripe-types = "1.0.0-rc.5"
 once_cell = "1.21.4"
 rand = "0.10.1"
 sendgrid = { version = "0.27.1" }
-mailgun-rs = "2.0.2"
 twilio = { version = "1.1.0" }
 futures = "0.3.32"
 bytes = "1.11.1"
