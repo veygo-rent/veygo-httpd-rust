@@ -34,12 +34,11 @@ static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
 
 async fn main() {
     spawn(async {
-        if let Err(err) = integration::sendgrid_veygo::send_email(
+        if let Err(err) = integration::mailgun_veygo::send_email(
             Option::from("Veygo Server"),
-            integration::sendgrid_veygo::make_email_obj("szhou@veygo.rent", "Danny"),
+            vec![integration::mailgun_veygo::make_email_obj("szhou@veygo.rent", "Danny")],
             "Main thread now running",
             "Main thread is now running",
-            None,
             None,
         ).await {
             eprintln!("failed to send startup email: {err}");

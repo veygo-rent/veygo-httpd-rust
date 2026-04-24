@@ -1,5 +1,6 @@
 use reqwest::{multipart, Client};
 use std::env;
+use std::fmt::Formatter;
 use tokio::sync::OnceCell;
 
 #[derive(Debug)]
@@ -13,6 +14,22 @@ pub enum MailgunError {
 impl From<env::VarError> for MailgunError {
     fn from(err: env::VarError) -> Self {
         Self::MissingEnvVar(err)
+    }
+}
+
+impl std::fmt::Display for MailgunError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MailgunError::MissingEnvVar(err) => {
+                write!(f, "missing environment variable: {}", err)
+            }
+            MailgunError::Http(err) => {
+                write!(f, "http error while calling Mailgun: {}", err)
+            }
+            MailgunError::Api { status, body } => {
+                write!(f, "Mailgun API error (status {}): {}", status, body)
+            }
+        }
     }
 }
 

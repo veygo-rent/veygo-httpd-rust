@@ -60,7 +60,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::internal_server_error_response_500(String::from("verification/request-password-token: Cannot insert OTP"))
             };
 
-            let email = integration::sendgrid_veygo::make_email_obj(
+            let email = integration::mailgun_veygo::make_email_obj(
                 &renter_email,
                 &renter_name,
             );
@@ -70,12 +70,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 verification_code: &'a str,
             }
             let email_content = EmailVerificationTemplate { verification_code: &otp };
-            let email_result = integration::sendgrid_veygo::send_email(
+            let email_result = integration::mailgun_veygo::send_email(
                 None,
-                email,
+                vec![email],
                 "Your Verification Code",
                 &email_content.render().unwrap(),
-                None,
                 None,
             )
                 .await;

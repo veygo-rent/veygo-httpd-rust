@@ -108,7 +108,7 @@ pub async fn nightly_task() {
                     rent = rent * Decimal::new(100, 1);
                 }
 
-                let renter_email = integration::sendgrid_veygo::make_email_obj(&renter.student_email, &renter.name);
+                let renter_email = integration::mailgun_veygo::make_email_obj(&renter.student_email, &renter.name);
                 if rent != Decimal::zero() {
                     if let Some(renew_id) = renter.subscription_payment_method_id &&
                         let Some(addr) = renter.billing_address.clone() {
@@ -186,7 +186,7 @@ pub async fn nightly_task() {
                                         renter.plan_total_availability = apartment.free_tier_hours;
 
                                         // Downgrade email
-                                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                                        integration::mailgun_veygo::send_email(None, vec![renter_email], "You have been downgraded", "You have been downgraded to free plan due to payment method being declined. \nHowever, you are still welcome to upgrade to other plans anytime. ", None).await.unwrap();
                                     }
                                     _ => {
                                         continue
@@ -200,7 +200,7 @@ pub async fn nightly_task() {
                         renter.plan_total_availability = apartment.free_tier_hours;
 
                         // Downgrade email
-                        integration::sendgrid_veygo::send_email(None, renter_email, "You have been downgraded", "You have been downgraded to free plan due to missing payment method. \nHowever, you are still welcome to upgrade to other plans anytime. ", None, None).await.unwrap();
+                        integration::mailgun_veygo::send_email(None, vec![renter_email], "You have been downgraded", "You have been downgraded to free plan due to missing payment method. \nHowever, you are still welcome to upgrade to other plans anytime. ", None).await.unwrap();
                     }
                 }
 

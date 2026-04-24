@@ -167,14 +167,13 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         let renter_moved = renter.clone();
 
                                         tokio::spawn(async move {
-                                            let email = integration::sendgrid_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
+                                            let email = integration::mailgun_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
                                             let email_content = helper_model::DocumentRejectionTemplate { document_name: "Proof of Address", reason: &reason };
-                                            let _email_result = integration::sendgrid_veygo::send_email(
+                                            let _email_result = integration::mailgun_veygo::send_email(
                                                 None,
-                                                email,
+                                                vec![email],
                                                 "Your Document is Declined",
                                                 &email_content.render().unwrap(),
-                                                None,
                                                 None,
                                             ).await;
                                             
