@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::prelude::*;
 use warp::Filter;
 use crate::helper_model::VeygoError;
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -69,7 +69,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
 
                     use crate::schema::payment_methods::dsl as pm_q;
-                    let mut pool = POOL.get().unwrap();
+                    let mut pool = connection_pool().await.get().unwrap();
 
                     let payment_methods_query_result = pm_q::payment_methods
                         .into_boxed()

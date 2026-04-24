@@ -31,7 +31,7 @@ pub fn main() -> impl Filter<Extract=(impl Reply,), Error=warp::Rejection> + Clo
                 methods::tokens::verify_user_token(&access_token.user_id, &access_token.token)
                     .await;
             if let Ok((valid_token, _)) = if_token_valid {
-                methods::tokens::rm_token(valid_token, access_token.user_id);
+                methods::tokens::rm_token(valid_token, access_token.user_id).await;
             }
             let msg = serde_json::json!({});
             Ok((with_status(reply::json(&msg), StatusCode::OK).into_response(),))

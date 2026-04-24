@@ -1,10 +1,8 @@
 use std::env;
-use std::sync::RwLock;
-
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use tokio::sync::{OnceCell, RwLock};
 
 #[allow(dead_code)]
 const DEFAULT_AUDIENCE: &str = "https://fleet-api.prd.na.vn.cloud.tesla.com";
@@ -43,35 +41,41 @@ impl TeslaToken {
 }
 
 // Thread-safe, process-wide storage for the latest Tesla token
-pub static TESLA_TOKEN: Lazy<RwLock<Option<TeslaToken>>> = Lazy::new(|| RwLock::new(None));
+pub static TESLA_TOKEN: OnceCell<RwLock<Option<TeslaToken>>> = OnceCell::const_new();
+
+async fn tesla_token_store() -> &'static RwLock<Option<TeslaToken>> {
+    TESLA_TOKEN.get_or_init(|| async { RwLock::new(None) }).await
+}
 
 /// Set the current token from a parsed TeslaToken (will stamp obtained_at)
 #[allow(dead_code)]
-pub fn set_tesla_token(token: TeslaToken) {
+pub async fn set_tesla_token(token: TeslaToken) {
     let token = TeslaToken::new(token);
-    if let Ok(mut guard) = TESLA_TOKEN.write() {
-        *guard = Some(token);
-    }
+    let store = tesla_token_store().await;
+    let mut guard = store.write().await;
+    *guard = Some(token);
 }
 
 /// Parse and set the token from a JSON string that looks like Tesla's response
 #[allow(dead_code)]
-pub fn set_tesla_token_from_json(json: &str) -> Result<()> {
+pub async fn set_tesla_token_from_json(json: &str) -> Result<()> {
     let token: TeslaToken = serde_json::from_str(json)?;
-    set_tesla_token(token);
+    set_tesla_token(token).await;
     Ok(())
 }
 
 /// Get a copy of the current token (if any)
 #[allow(dead_code)]
-pub fn get_tesla_token() -> Option<TeslaToken> {
-    TESLA_TOKEN.read().ok().and_then(|g| g.as_ref().cloned())
+pub async fn get_tesla_token() -> Option<TeslaToken> {
+    let store = tesla_token_store().await;
+    let guard = store.read().await;
+    guard.as_ref().cloned()
 }
 
 /// Get a bearer string if token exists and is not expired
 #[allow(dead_code)]
-pub fn get_valid_bearer() -> Option<String> {
-    get_tesla_token().and_then(|t| {
+pub async fn get_valid_bearer() -> Option<String> {
+    get_tesla_token().await.and_then(|t| {
         if !t.is_expired() {
             Some(t.bearer())
         } else {
@@ -130,7 +134,7 @@ async fn fetch_and_store_tesla_token() -> Result<TeslaToken> {
         .await
         .with_context(|| "Failed to parse Tesla auth response JSON")?;
 
-    set_tesla_token(token.clone());
+    set_tesla_token(token.clone()).await;
     Ok(token)
 }
 
@@ -147,11 +151,13 @@ pub async fn tesla_make_request(
     let mut req = client.request(method, &url);
 
     // Ensure we have a valid token; fetch if missing/expired
-    let bearer = match get_valid_bearer() {
+    let bearer = match get_valid_bearer().await {
         Some(b) => b,
         None => {
             fetch_and_store_tesla_token().await?;
-            get_valid_bearer().ok_or_else(|| anyhow!("Failed to obtain Tesla access token"))?
+            get_valid_bearer()
+                .await
+                .ok_or_else(|| anyhow!("Failed to obtain Tesla access token"))?
         }
     };
 

@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply, http::{Method, StatusCode}};
-use crate::{helper_model, methods, model, schema, POOL};
+use crate::{helper_model, methods, model, schema, connection_pool};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct BodyData {
@@ -22,7 +22,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             if method != Method::POST {
                 return methods::standard_replies::method_not_allowed_response_405();
             }
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             use schema::renters::dsl as r_q;
             let usr_result = r_q::renters
                 .filter(r_q::student_email.eq(&body.email))

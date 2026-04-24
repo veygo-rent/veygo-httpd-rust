@@ -1,4 +1,4 @@
-use crate::{model, helper_model, POOL};
+use crate::{model, helper_model, connection_pool};
 use crate::schema::access_tokens::dsl as at_q;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
@@ -28,8 +28,8 @@ pub async fn gen_token_object(user_id: &i32, user_agent: &String, token_type: mo
     }
 }
 
-pub fn extend_token(verified_token_id: i32, user_agent: &String) -> Result<bool, helper_model::VeygoError> {
-    let mut pool = POOL.get().unwrap();
+pub async fn extend_token(verified_token_id: i32, user_agent: &String) -> Result<bool, helper_model::VeygoError> {
+    let mut pool = connection_pool().await.get().unwrap();
     let exp: DateTime<Utc> = if user_agent.contains("veygo") {
         Utc::now().add(chrono::Duration::days(28))
     } else {
@@ -61,7 +61,7 @@ pub async fn verify_user_token(user_id: &i32, token_data: &String) -> Result<(Ve
     match binary_token {
         Err(_) => Err(helper_model::VeygoError::TokenFormatError),
         Ok(binary_token) => {
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
 
             let token_db_result = at_q::access_tokens
                 .filter(at_q::user_id.eq(&user_id))
@@ -116,8 +116,8 @@ pub fn token_invalid_return() -> Result<(warp::reply::Response,), Rejection> {
     .into_response(),))
 }
 
-pub fn rm_token(token: Vec<u8>, user_id: i32) {
-    let mut pool = POOL.get().unwrap();
+pub async fn rm_token(token: Vec<u8>, user_id: i32) {
+    let mut pool = connection_pool().await.get().unwrap();
     let _ = diesel::delete(
         at_q::access_tokens
             .filter(at_q::user_id.eq(&user_id))

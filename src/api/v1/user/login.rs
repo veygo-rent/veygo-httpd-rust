@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{connection_pool, methods, model, helper_model};
 use bcrypt::verify;
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use diesel::result::Error;
@@ -23,7 +23,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::method_not_allowed_response_405();
             }
             use crate::schema::renters::dsl::*;
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             let result = renters.filter(student_email.eq(&login_data.email)).get_result::<model::Renter>(&mut pool);
 
             match result {
@@ -32,7 +32,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         // user and password are verified
                         let user_id_data = renter.id;
                         let new_access_token = methods::tokens::gen_token_object(&user_id_data, &user_agent, model::TokenType::User).await;
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         use crate::schema::access_tokens::dsl as at_q;
                         let _ = diesel::delete(
                             at_q::access_tokens

@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use chrono::prelude::*;
 use diesel::{ExpressionMethods, RunQueryDsl};
 use diesel::result::Error;
-use crate::{POOL, model, schema, methods, helper_model};
+use crate::{connection_pool, model, schema, methods, helper_model};
 use warp::http::{StatusCode, Method};
 use warp::{Filter, Reply};
 
@@ -51,7 +51,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
             };
 
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             use schema::policies::dsl as policy_query;
             let result = policy_query::policies
                     .filter(policy_query::policy_type.eq(&policy_type))

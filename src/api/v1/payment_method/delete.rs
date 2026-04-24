@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use warp::{Filter, Reply, http::Method, http::StatusCode};
@@ -56,7 +56,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -74,7 +74,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
 
                         use crate::schema::payment_methods::dsl as pm_q;
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         let result = diesel::update
                             (
                                 pm_q::payment_methods

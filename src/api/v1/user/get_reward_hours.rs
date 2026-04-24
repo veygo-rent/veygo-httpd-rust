@@ -1,6 +1,6 @@
 use chrono::{DateTime, Datelike, Duration, Utc};
 use warp::{Filter, Reply, http::{Method, StatusCode}};
-use crate::{methods, model, schema, POOL, helper_model, helper_model::VeygoError};
+use crate::{methods, model, schema, connection_pool, helper_model, helper_model::VeygoError};
 use diesel::prelude::*;
 use rust_decimal::prelude::*;
 
@@ -55,7 +55,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -94,7 +94,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         Ok(date) => date >= current_naive_date
                     };
                     
-                    let mut pool = POOL.get().unwrap();
+                    let mut pool = connection_pool().await.get().unwrap();
 
                     let (week_start, week_end_exclusive) = {
                         let days_from_monday = current_naive_date.weekday().num_days_from_monday() as i64;

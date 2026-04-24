@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, integration, helper_model};
+use crate::{connection_pool, methods, model, integration, helper_model};
 use diesel::prelude::*;
 use warp::{Filter, http::Method, http::StatusCode, Rejection};
 use sha2::{Sha256, Digest};
@@ -21,7 +21,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
             }
 
             use crate::schema::vehicles::dsl as v_q;
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             let vehicle_result = v_q::vehicles
                 .filter(v_q::vin.eq(&body.vehicle_vin)).get_result::<model::Vehicle>(&mut pool);
             if vehicle_result.is_err() {
@@ -109,7 +109,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -136,7 +136,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let status_path = format!("/api/1/vehicles/{}", vehicle.remote_mgmt_id);
 
                             for i in 0..16 { // up to ~10s total
-                                if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                if let Ok(response) = integration::tesla_veygo::tesla_make_request(Method::GET, &status_path, None).await {
                                     if let Ok(body_text) = response.text().await {
                                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
                                             let state = json
@@ -150,7 +150,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                                             // Only on the first iteration, if offline, send wake_up once
                                             if i == 0 {
                                                 let wake_path = format!("/api/1/vehicles/{}/wake_up", vehicle.remote_mgmt_id);
-                                                let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                let _ = integration::tesla_veygo::tesla_make_request(Method::POST, &wake_path, None).await;
                                             }
                                         }
                                     }
@@ -162,7 +162,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = Rejection> +
                             let vehicle_tag = &vehicle.remote_mgmt_id;
                             let tesla_path = format!("/api/1/vehicles/{}/vehicle_data?endpoints=location_data%3Bcharge_state%3Bvehicle_state", vehicle_tag);
 
-                            let tesla_resp = match integration::tesla_curl::tesla_make_request(Method::GET, &tesla_path, None).await {
+                            let tesla_resp = match integration::tesla_veygo::tesla_make_request(Method::GET, &tesla_path, None).await {
                                 Ok(r) => r,
                                 Err(_) => {
                                     return methods::standard_replies::internal_server_error_response_500(String::from("vehicle/generate-snapshot: Tesla API error fetching vehicle_data"));

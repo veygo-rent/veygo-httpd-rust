@@ -1,5 +1,5 @@
 use std::option::Option;
-use crate::{POOL, model, schema};
+use crate::{connection_pool, model, schema};
 use crate::helper_model::VeygoError;
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use diesel::prelude::*;
@@ -10,16 +10,16 @@ impl model::Renter {
         user_plan_renewal_date(self)
     }
     
-    pub fn get_university_apartment (&self) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
-        let result = get_university_apartment_by_renter(self);
+    pub async fn get_university_apartment (&self) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
+        let result = get_university_apartment_by_renter(self).await;
         match result {
             Ok(res) => { Ok(res) }
             Err(_) => { Err(VeygoError::InternalServerError) }
         }
     }
     
-    pub fn get_dnr_records (&self) -> Result<Vec<model::DoNotRentList>, VeygoError> {
-        get_dnr_records_for(self)
+    pub async fn get_dnr_records (&self) -> Result<Vec<model::DoNotRentList>, VeygoError> {
+        get_dnr_records_for(self).await
     }
     
     pub fn is_admin (&self) -> bool {
@@ -38,12 +38,12 @@ impl model::Renter {
         user_is_operational_manager(self)
     }
 
-    pub fn is_authorized_for (&self, apartment: &model::Apartment) -> Result<bool, VeygoError> {
+    pub async fn is_authorized_for (&self, apartment: &model::Apartment) -> Result<bool, VeygoError> {
         if self.is_operational_admin() {
             return Ok(true);
         }
 
-        let result = self.get_university_apartment();
+        let result = self.get_university_apartment().await;
 
         let (user_university, user_apartment) = match result {
             Ok( res ) => { res }
@@ -76,8 +76,8 @@ impl model::Renter {
         }
     }
 
-    pub fn get_dnr_count (&self) -> Result<i64, VeygoError> {
-        let mut pool = POOL.get().unwrap();
+    pub async fn get_dnr_count (&self) -> Result<i64, VeygoError> {
+        let mut pool = connection_pool().await.get().unwrap();
 
         let today = Utc::now().date_naive();
 
@@ -108,7 +108,7 @@ impl model::Renter {
 pub async fn get_user_by_id(user_id: &i32) -> Result<model::Renter, VeygoError> {
     // Will VeygoError::RecordNotFound or VeygoError::InternalServerError
     
-    let mut pool = POOL.get().unwrap();
+    let mut pool = connection_pool().await.get().unwrap();
     use crate::schema::renters::dsl::*;
     let result = renters
         .find(&user_id)
@@ -128,8 +128,8 @@ pub async fn get_user_by_id(user_id: &i32) -> Result<model::Renter, VeygoError> 
     }
 }
 
-fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentList>, VeygoError> {
-    let mut pool = POOL.get().unwrap();
+async fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentList>, VeygoError> {
+    let mut pool = connection_pool().await.get().unwrap();
 
     let today = Utc::now().date_naive();
 
@@ -158,8 +158,8 @@ fn get_dnr_records_for(renter: &model::Renter) -> Result<Vec<model::DoNotRentLis
     }
 }
 
-fn get_university_apartment_by_renter(renter: &model::Renter) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
-    let mut pool = POOL.get().unwrap();
+async fn get_university_apartment_by_renter(renter: &model::Renter) -> Result<(model::Apartment, Option<model::Apartment>), VeygoError> {
+    let mut pool = connection_pool().await.get().unwrap();
     use schema::apartments::dsl::*;
     let immediate_record = apartments.find(&renter.apartment_id).get_result::<model::Apartment>(&mut pool);
     if immediate_record.is_err() {

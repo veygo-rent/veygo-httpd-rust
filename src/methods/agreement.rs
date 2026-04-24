@@ -1,18 +1,18 @@
-use crate::POOL;
+use crate::connection_pool;
 use crate::helper_model::VeygoError;
 use diesel::prelude::*;
 use rand::{RngExt};
 use rand::seq::SliceRandom;
 
-pub fn generate_unique_agreement_confirmation() -> Result<String, VeygoError> {
+pub async fn generate_unique_agreement_confirmation() -> Result<String, VeygoError> {
     // Define the allowed characters: digits 0-9 and uppercase A-Z except for I, O, Q.
     let mut charset: Vec<u8> = b"ABCDEFGHJKLMNPRSTUVWXYZ0123456789".to_vec(); // Convert to Vec<u8>
 
+    let mut conn = connection_pool().await.get().unwrap();
     let mut rng = rand::rng();
 
     // Shuffle the character set
     (&mut charset).shuffle(&mut rng);
-    let mut conn = POOL.get().unwrap();
 
     loop {
         // Generate a random 8-character string.

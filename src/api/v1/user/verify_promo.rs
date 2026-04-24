@@ -3,7 +3,7 @@ use diesel::RunQueryDsl;
 use warp::http::{Method, StatusCode};
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply};
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::prelude::*;
 use diesel::result::Error;
 use crate::helper_model::VeygoError;
@@ -67,7 +67,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -79,7 +79,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::internal_server_error_response_500(String::from("user/verify-promo: Token extension error"));
                         }
                     }
-                    let mut pool = POOL.get().unwrap();
+                    let mut pool = connection_pool().await.get().unwrap();
 
                     // check if the apartment is valid
 
@@ -113,7 +113,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::internal_server_error_response_500(String::from("user/verify-promo: Database error loading renter"))
                     };
 
-                    let is_auth = renter.is_authorized_for(&apt);
+                    let is_auth = renter.is_authorized_for(&apt).await;
                     let is_auth = match is_auth {
                         Ok(is_auth) => { is_auth }
                         Err(_) => {

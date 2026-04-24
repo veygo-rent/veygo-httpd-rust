@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::prelude::*;
 use warp::Filter;
 use warp::http::{StatusCode, Method};
@@ -52,7 +52,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -83,7 +83,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
 
                     use crate::schema::transponder_companies::dsl as tc_q;
-                    let mut pool = POOL.get().unwrap();
+                    let mut pool = connection_pool().await.get().unwrap();
                     let results = tc_q::transponder_companies
                         .get_results::<model::TransponderCompany>(&mut pool);
 

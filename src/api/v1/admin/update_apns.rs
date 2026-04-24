@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{methods, model, connection_pool};
 use diesel::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use warp::{Filter, Reply, http::Method, http::StatusCode};
@@ -57,7 +57,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
                     },
                     Ok(token) => {
-                        let result = methods::tokens::extend_token(token.1, &user_agent);
+                        let result = methods::tokens::extend_token(token.1, &user_agent).await;
 
                         match result {
                             Ok(is_renewed) => {
@@ -70,7 +70,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         return methods::standard_replies::user_not_admin();
                                     }
 
-                                    let mut pool = POOL.get().unwrap();
+                                    let mut pool = connection_pool().await.get().unwrap();
                                     use crate::schema::renters::dsl as r_q;
                                     let renter_updated =
                                         diesel::update(r_q::renters.find(&access_token.user_id))

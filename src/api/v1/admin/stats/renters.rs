@@ -1,6 +1,6 @@
 use chrono::{Datelike, Duration, Local, NaiveDate};
 use warp::{Filter, Reply, http::Method, http::StatusCode};
-use crate::{methods, model, POOL, schema};
+use crate::{methods, model, schema, connection_pool};
 use diesel::prelude::*;
 use crate::helper_model::VeygoError;
 use serde::Serialize;
@@ -79,7 +79,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::admin_not_verified()
                         }
 
-                        let result = methods::tokens::extend_token(token_id, &user_agent);
+                        let result = methods::tokens::extend_token(token_id, &user_agent).await;
                         match result {
                             Err(_) => {
                                 methods::standard_replies::internal_server_error_response_500(
@@ -88,7 +88,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                             Ok(is_renewed) => {
                                 if is_renewed {
-                                    let mut pool = POOL.get().unwrap();
+                                    let mut pool = connection_pool().await.get().unwrap();
 
                                     use schema::renters::dsl as r_q;
 

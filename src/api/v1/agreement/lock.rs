@@ -1,5 +1,5 @@
 use diesel::result::Error;
-use crate::{schema, helper_model, methods, model, POOL, integration};
+use crate::{schema, helper_model, methods, model, connection_pool, integration};
 use diesel::prelude::*;
 use warp::{Filter, Reply, http::Method, http::StatusCode};
 
@@ -16,7 +16,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
             }
 
             // Pool connection
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
 
             // Checking token
             let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -58,7 +58,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -134,7 +134,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let status_path = format!("/api/1/vehicles/{}", mgmt_id);
 
                                 for i in 0..16 {
-                                    if let Ok(response) = integration::tesla_curl::tesla_make_request(Method::GET, &status_path, None).await {
+                                    if let Ok(response) = integration::tesla_veygo::tesla_make_request(Method::GET, &status_path, None).await {
                                         if let Ok(body_text) = response.text().await {
                                             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_text) {
                                                 let state = json
@@ -148,7 +148,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                                 // Only on the first iteration, if offline, send wake_up once
                                                 if i == 0 {
                                                     let wake_path = format!("/api/1/vehicles/{}/wake_up", mgmt_id);
-                                                    let _ = integration::tesla_curl::tesla_make_request(Method::POST, &wake_path, None).await;
+                                                    let _ = integration::tesla_veygo::tesla_make_request(Method::POST, &wake_path, None).await;
                                                 }
                                             }
                                         }
@@ -157,7 +157,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 }
                                 // 2) Proceed to lock/unlock once online (or after timeout anyway)
                                 let cmd_path = format!("/api/1/vehicles/{}/command/door_lock", mgmt_id);
-                                let _result = integration::tesla_curl::tesla_make_request(Method::POST, &cmd_path, None).await;
+                                let _result = integration::tesla_veygo::tesla_make_request(Method::POST, &cmd_path, None).await;
                             });
                         }
                         _ => {}

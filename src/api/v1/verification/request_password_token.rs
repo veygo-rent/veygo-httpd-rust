@@ -1,6 +1,6 @@
 use askama::Template;
 use warp::{Filter, Reply, http::{Method, StatusCode}};
-use crate::{schema, methods, model, POOL, integration};
+use crate::{schema, methods, model, connection_pool, integration};
 use diesel::prelude::*;
 use diesel::result::Error;
 use rand::{RngExt};
@@ -21,7 +21,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::method_not_allowed_response_405();
             }
 
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             use schema::renters::dsl as r_q;
             let usr_result = r_q::renters
                 .filter(r_q::student_email.eq(&body.email))

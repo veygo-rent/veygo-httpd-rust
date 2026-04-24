@@ -1,4 +1,4 @@
-use crate::{POOL, integration, model, helper_model::VeygoError, methods};
+use crate::{connection_pool, integration, model, helper_model::VeygoError, methods};
 use chrono::{Datelike, NaiveTime, Utc};
 use diesel::prelude::*;
 use std::time::Duration;
@@ -27,7 +27,7 @@ pub async fn nightly_task() {
         use diesel::dsl::sql;
         use crate::schema::renters::dsl as rt_q;
 
-        let mut pool = POOL.get().unwrap();
+        let mut pool = connection_pool().await.get().unwrap();
 
         let renewal_day_as_number = sql::<Numeric>("plan_renewal_day::numeric");
         let day_from_current_date = sql::<Numeric>("EXTRACT(DAY FROM CURRENT_DATE)");

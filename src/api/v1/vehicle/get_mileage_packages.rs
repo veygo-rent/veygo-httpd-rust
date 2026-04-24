@@ -1,4 +1,4 @@
-use crate::{methods, model, POOL};
+use crate::{methods, model, connection_pool};
 use diesel::prelude::*;
 use warp::{Filter, Reply, http::{Method, StatusCode}};
 
@@ -11,7 +11,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::method_not_allowed_response_405();
             }
             use crate::schema::mileage_packages::dsl as mileage_package_query;
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             let mps = mileage_package_query::mileage_packages
                 .filter(mileage_package_query::is_active)
                 .order(mileage_package_query::miles)

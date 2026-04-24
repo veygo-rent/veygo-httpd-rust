@@ -1,5 +1,5 @@
 use crate::schema::renters::dsl::renters;
-use crate::{POOL, methods, model, schema};
+use crate::{connection_pool, methods, model, schema};
 use diesel::prelude::*;
 use diesel::result::Error;
 use warp::http::{StatusCode, Method};
@@ -68,7 +68,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -97,7 +97,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
 
                         use schema::apartments::dsl as apt_q;
                         let apartment = apt_q::apartments

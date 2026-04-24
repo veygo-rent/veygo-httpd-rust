@@ -1,5 +1,5 @@
 use std::cmp::max;
-use crate::{POOL, integration, methods, model, proj_config, helper_model, schema, helper_model::VeygoError};
+use crate::{integration, methods, model, proj_config, helper_model, schema, helper_model::VeygoError, connection_pool};
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -63,7 +63,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     // RETURN: BAD_REQUEST
                     return methods::standard_replies::bad_request_400("Time is invalid")
                 }
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     // RETURN: UNAUTHORIZED
@@ -104,7 +104,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
                         match ext_result {
                             Ok(bool) => {
                                 if !bool {
@@ -238,7 +238,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         // Check if Renter is on DNR record
 
-                        let dnr_records = user_in_request.get_dnr_count();
+                        let dnr_records = user_in_request.get_dnr_count().await;
                         let Ok(record_count) = dnr_records else {
                             return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Database error checking DNR records")
@@ -406,7 +406,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        let is_auth = user_in_request.is_authorized_for(&req_apt);
+                        let is_auth = user_in_request.is_authorized_for(&req_apt).await;
                         let is_auth = match is_auth {
                             Ok(is_auth) => { is_auth }
                             Err(_) => {
@@ -800,7 +800,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         // insert agreement
 
-                        let conf_id = methods::agreement::generate_unique_agreement_confirmation();
+                        let conf_id = methods::agreement::generate_unique_agreement_confirmation().await;
                         let Ok(conf_id) = conf_id else {
                             return methods::standard_replies::internal_server_error_response_500(
                                 String::from("agreement/new: Failed to generate agreement confirmation")

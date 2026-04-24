@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{connection_pool, methods, model, helper_model};
 use diesel::prelude::*;
 use diesel::result::Error;
 use warp::{Filter, http::Method, http::StatusCode};
@@ -24,7 +24,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     return methods::standard_replies::bad_request_400("Invalid apartment. Please provide a valid apartment.");
                 }
 
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
                 use crate::schema::apartments::dsl as apartment_query;
                 let apartment_query_result = apartment_query::apartments
                     .filter(apartment_query::id.eq(&body.apartment_id))
@@ -71,7 +71,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {

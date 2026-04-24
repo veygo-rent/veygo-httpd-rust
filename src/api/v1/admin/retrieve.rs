@@ -1,5 +1,5 @@
 use diesel::prelude::*;
-use crate::{methods, model, POOL};
+use crate::{connection_pool, methods, model};
 use warp::{Filter, Reply, http::Method, http::StatusCode};
 use crate::helper_model::VeygoError;
 
@@ -62,12 +62,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         if !user.is_manager() {
                             return methods::standard_replies::user_not_admin();
                         }
-                        let result = methods::tokens::extend_token(token.1, &user_agent);
+                        let result = methods::tokens::extend_token(token.1, &user_agent).await;
                         match result {
                             Ok(is_renewed) => {
                                 if is_renewed {
                                     use crate::schema::access_tokens::dsl as at_q;
-                                    let mut pool = POOL.get().unwrap();
+                                    let mut pool = connection_pool().await.get().unwrap();
                                     let _ = diesel::delete(
                                         at_q::access_tokens
                                             .filter(at_q::user_id.eq(&user_id))

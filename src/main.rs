@@ -9,7 +9,7 @@ mod helper_model;
 
 use diesel::{PgConnection, RunQueryDsl};
 use diesel::r2d2::{ConnectionManager, Pool};
-use once_cell::sync::Lazy;
+use tokio::sync::OnceCell;
 use std::env;
 use tokio::spawn;
 use warp::Filter;
@@ -27,8 +27,14 @@ fn get_connection_pool() -> PgPool {
         .expect("Could not build connection pool")
 }
 
-// Global pool initialized once at first access
-static POOL: Lazy<PgPool> = Lazy::new(|| get_connection_pool());
+// Global pool initialized once on first async access
+static POOL: OnceCell<PgPool> = OnceCell::const_new();
+pub async fn connection_pool() -> &'static PgPool {
+    POOL
+        .get_or_init(|| async { get_connection_pool() })
+        .await
+}
+
 
 #[tokio::main]
 
@@ -46,7 +52,7 @@ async fn main() {
     });
 
     // delete all objects in the bucket if there are NO users (fresh installation)
-    let mut pool = POOL.get().unwrap();
+    let mut pool = connection_pool().await.get().unwrap();
     use crate::schema::renters::dsl as renter_query;
 
     // SELECT COUNT(*) FROM renters

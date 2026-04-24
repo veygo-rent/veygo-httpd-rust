@@ -1,5 +1,5 @@
 use diesel::prelude::*;
-use crate::{methods, model, POOL};
+use crate::{methods, model, connection_pool};
 use warp::{Filter, Reply, http::Method};
 use crate::helper_model::VeygoError;
 
@@ -50,7 +50,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -74,7 +74,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
                         use crate::schema::access_tokens::dsl as at_q;
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         let _ = diesel::delete(
                             at_q::access_tokens
                                 .filter(at_q::user_id.eq(&user_id))

@@ -1,5 +1,5 @@
 use crate::model::Apartment;
-use crate::{POOL, schema, methods};
+use crate::{connection_pool, schema, methods};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::{Filter, Reply, http::Method, http::StatusCode};
 
@@ -12,7 +12,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::method_not_allowed_response_405();
             }
             use schema::apartments::dsl::*;
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
             let results = apartments
                 .into_boxed()
                 .filter(is_operating.eq(true))

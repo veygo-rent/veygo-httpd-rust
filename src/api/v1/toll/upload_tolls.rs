@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model, methods::diesel_fn};
+use crate::{connection_pool, methods, model, helper_model, methods::diesel_fn};
 use currency_rs::Currency;
 use diesel::prelude::*;
 use std::collections::HashSet;
@@ -65,7 +65,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -94,7 +94,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         if !admin.is_operational_admin() {
                             return methods::standard_replies::admin_not_verified()
                         }
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
 
                         let toll_company = {
                             use crate::schema::transponder_companies::dsl::*;
@@ -186,7 +186,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let file_bytes_to_move = file_bytes.clone();
                         let toll_company_to_move = toll_company.clone();
                         tokio::spawn(async move {
-                            let mut pool = POOL.get().unwrap();
+                            let mut pool = connection_pool().await.get().unwrap();
                             let mut rdr = csv::ReaderBuilder::new().has_headers(true).from_reader(file_bytes_to_move.as_slice());
                             let _ = (&mut rdr).headers();
 

@@ -1,4 +1,4 @@
-use crate::{POOL, integration, methods, model, schema, helper_model};
+use crate::{connection_pool, integration, methods, model, schema, helper_model};
 use bytes::{Bytes};
 use diesel::prelude::*;
 use warp::Filter;
@@ -22,7 +22,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                 }
 
                 use schema::vehicles::dsl as v_q;
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
                 let vehicle_result = v_q::vehicles
                     .filter(v_q::vin.eq(&vehicle_vin)).get_result::<model::Vehicle>(&mut pool);
 
@@ -68,7 +68,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {

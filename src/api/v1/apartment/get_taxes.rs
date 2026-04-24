@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::{POOL, methods, model, schema, helper_model};
+use crate::{connection_pool, methods, model, schema, helper_model};
 use diesel::prelude::*;
 use diesel::result::Error;
 use warp::{Filter, Reply, http::{StatusCode, Method}};
@@ -54,7 +54,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 }
                 Ok(valid_token) => {
                     // token is valid
-                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                    let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                     match ext_result {
                         Ok(bool) => {
@@ -82,7 +82,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                     let request_apt_id_str = query.get("apartment");
 
-                    let mut pool = POOL.get().unwrap();
+                    let mut pool = connection_pool().await.get().unwrap();
                     return if let Some(request_apt_id_str) = request_apt_id_str {
                         let Ok(request_apt_id) = request_apt_id_str.parse::<i32>() else  {
                             return methods::standard_replies::bad_request_400("Invalid apartment ID");
@@ -113,7 +113,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        match user.is_authorized_for(&apt) {
+                        match user.is_authorized_for(&apt).await {
                             Ok( is_authorized ) => {
                                 if !is_authorized {
                                     let error_msg = helper_model::ErrorResponse {

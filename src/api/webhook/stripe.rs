@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use warp::http::StatusCode;
 use stripe_webhook::{Webhook, EventObject};
 use warp::reply::with_status;
-use crate::{methods, POOL, model};
+use crate::{methods, connection_pool, model};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("stripe")
@@ -29,7 +29,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 let pm_id = pm.id;
                                 if let Some(payment_method_card) = payment_method.card {
                                     tokio::spawn(async move {
-                                        let mut pool = POOL.get().unwrap();
+                                        let mut pool = connection_pool().await.get().unwrap();
                                         use crate::schema::payment_methods::dsl as pm_q;
 
                                         let said_payment = pm_q::payment_methods
@@ -55,7 +55,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             EventObject::PaymentMethodDetached(pm_d) => {
                                 tokio::spawn(async move {
                                     let pmi_id = pm_d.id.to_string();
-                                    let mut pool = POOL.get().unwrap();
+                                    let mut pool = connection_pool().await.get().unwrap();
                                     use crate::schema::payment_methods::dsl as pm_q;
                                     let _ = diesel::update
                                         (
@@ -70,7 +70,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if let Some(pmi) = set_i.payment_method {
                                     let pmi_id = pmi.id().to_string();
                                     tokio::spawn(async move {
-                                        let mut pool = POOL.get().unwrap();
+                                        let mut pool = connection_pool().await.get().unwrap();
                                         use crate::schema::payment_methods::dsl as pm_q;
                                         let _ = diesel::update
                                             (
@@ -86,7 +86,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 if let Some(pmi) = set_i.payment_method {
                                     let pmi_id = pmi.id().to_string();
                                     tokio::spawn(async move {
-                                        let mut pool = POOL.get().unwrap();
+                                        let mut pool = connection_pool().await.get().unwrap();
                                         use crate::schema::payment_methods::dsl as pm_q;
                                         let _ = diesel::delete
                                             (

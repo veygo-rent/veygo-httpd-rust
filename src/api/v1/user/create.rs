@@ -1,5 +1,5 @@
 use crate::integration::stripe_veygo;
-use crate::{POOL, methods, model, helper_model};
+use crate::{connection_pool, methods, model, helper_model};
 use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
@@ -72,7 +72,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 return methods::standard_replies::method_not_allowed_response_405();
             }
             use crate::schema::renters::dsl::*;
-            let mut pool = POOL.get().unwrap();
+            let mut pool = connection_pool().await.get().unwrap();
 
             let email_clone = renter_create_data.student_email.clone();
             let phone_clone = renter_create_data.phone.clone();

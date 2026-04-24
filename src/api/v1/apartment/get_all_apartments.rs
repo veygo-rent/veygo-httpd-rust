@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::{RunQueryDsl};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -84,7 +84,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         }
 
                         use crate::schema::apartments::dsl as apt_q;
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         let publish_apartments = apt_q::apartments
                             .get_results::<model::Apartment>(&mut pool);
 

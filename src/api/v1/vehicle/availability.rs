@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, proj_config};
+use crate::{connection_pool, methods, model, proj_config};
 use chrono::{DateTime, Duration, Utc};
 use diesel::prelude::*;
 use rust_decimal::prelude::*;
@@ -40,7 +40,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     // RETURN: BAD_REQUEST
                     return methods::standard_replies::bad_request_400("Time is invalid")
                 }
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     // RETURN: UNAUTHORIZED
@@ -76,7 +76,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -120,7 +120,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
-                        let is_auth = user.is_authorized_for(&apt);
+                        let is_auth = user.is_authorized_for(&apt).await;
                         let is_auth = match is_auth {
                             Ok(is_auth) => { is_auth }
                             Err(_) => {

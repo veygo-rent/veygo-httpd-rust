@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use sha2::{Digest, Sha256};
 use warp::{Filter, Reply, http::Method, http::StatusCode};
-use crate::{helper_model, integration, methods, model, schema, POOL};
+use crate::{connection_pool, helper_model, integration, methods, model, schema};
 use crate::helper_model::{VeygoError};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
@@ -70,7 +70,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         return methods::standard_replies::admin_not_verified()
                     }
 
-                    let result = methods::tokens::extend_token(token_id, &user_agent);
+                    let result = methods::tokens::extend_token(token_id, &user_agent).await;
                     match result {
                         Err(_) => {
                             methods::standard_replies::internal_server_error_response_500(
@@ -85,7 +85,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             } else {
                                 use schema::renters::dsl as r_q;
 
-                                let mut pool = POOL.get().unwrap();
+                                let mut pool = connection_pool().await.get().unwrap();
 
                                 let renter_id  = match body {
                                     helper_model::VerifyDriversLicenseRequest::DeclinePrimary { renter_id, .. } => { renter_id }

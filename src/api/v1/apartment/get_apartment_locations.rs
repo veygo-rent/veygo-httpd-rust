@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model};
+use crate::{connection_pool, methods, model};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use warp::http::{Method, StatusCode};
 use warp::{Filter, Reply};
@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -87,7 +87,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             return methods::standard_replies::admin_not_allowed()
                         }
 
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
 
                         use crate::schema::locations::dsl as location_query;
                         // get ALL locations

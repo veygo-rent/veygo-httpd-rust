@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{connection_pool, methods, model, helper_model};
 use diesel::prelude::*;
 use diesel::result::Error;
 use regex::Regex;
@@ -85,7 +85,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -98,7 +98,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         }
 
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         use crate::schema::apartments::dsl as a_q;
                         let apartment_result = a_q::apartments.filter(a_q::is_operating).find(&body.apartment_id).get_result::<model::Apartment>(&mut pool);
 

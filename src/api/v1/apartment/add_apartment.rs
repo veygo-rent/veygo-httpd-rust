@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model};
+use crate::{connection_pool, methods, model, helper_model};
 use diesel::prelude::*;
 use diesel::result::Error;
 use warp::{Filter, http::Method, http::StatusCode};
@@ -57,7 +57,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
@@ -88,7 +88,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         }
 
                         use crate::schema::apartments::dsl::*;
-                        let mut pool = POOL.get().unwrap();
+                        let mut pool = connection_pool().await.get().unwrap();
                         let insert_result = diesel::insert_into(apartments)
                             .values(&apartment)
                             .get_result::<model::Apartment>(&mut pool);

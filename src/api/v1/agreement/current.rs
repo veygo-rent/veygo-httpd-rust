@@ -1,4 +1,4 @@
-use crate::{POOL, methods, model, helper_model, schema};
+use crate::{methods, model, helper_model, schema, connection_pool};
 use diesel::prelude::*;
 use rust_decimal::Decimal;
 use warp::{Filter, Rejection, Reply};
@@ -20,7 +20,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                 }
 
                 // Pool connection
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
 
                 // Checking token
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
@@ -61,7 +61,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {

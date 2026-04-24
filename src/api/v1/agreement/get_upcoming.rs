@@ -1,7 +1,7 @@
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, prelude::*};
 use warp::{Filter, Reply};
 use warp::http::{Method, StatusCode};
-use crate::{helper_model, methods, model, POOL};
+use crate::{connection_pool, helper_model, methods, model};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> + Clone {
     warp::path("upcoming")
@@ -16,7 +16,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                 if method != Method::GET {
                     return methods::standard_replies::method_not_allowed_response_405();
                 }
-                let mut pool = POOL.get().unwrap();
+                let mut pool = connection_pool().await.get().unwrap();
                 let token_and_id = auth.split("$").collect::<Vec<&str>>();
                 if token_and_id.len() != 2 {
                     // RETURN: UNAUTHORIZED
@@ -53,7 +53,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                     }
                     Ok(valid_token) => {
                         // token is valid
-                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent);
+                        let ext_result = methods::tokens::extend_token(valid_token.1, &user_agent).await;
 
                         match ext_result {
                             Ok(bool) => {
