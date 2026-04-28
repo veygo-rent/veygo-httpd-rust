@@ -95,20 +95,12 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                         let result = hasher.finalize();
                         let object_path: String = format!("vehicle_pictures/{}/", hex::encode_upper(result));
 
-                        let start = std::time::Instant::now();
-
                         let file_bytes = body.to_vec();
                         let file_path = integration::gcloud_storage_veygo::upload_file(
                             object_path,
                             file_name,
-                            file_bytes.clone(),
+                            file_bytes,
                         ).await;
-
-                        println!(
-                            "Google upload took {:?}, file size = {} bytes",
-                            start.elapsed(),
-                            file_bytes.len()
-                        );
 
                         let msg = helper_model::FilePath { file_path };
                         methods::standard_replies::response_with_obj(msg, StatusCode::CREATED)
