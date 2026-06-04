@@ -4,25 +4,25 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.52.1", features = ["full"] }
-warp = { version = "0.4.2", features = ["multipart", "server"] }
+tokio = { version = "1.52.3", features = ["full"] }
+warp = { version = "0.4.3", features = ["multipart", "server"] }
 csv = "1.4.0"
-bcrypt = "0.19.0"
-diesel = { version = "2.3.8", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
+bcrypt = "0.19.1"
+diesel = { version = "2.3.9", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 serde_derive = "1.0.228"
 regex = "1.12.3"
 chrono = { version = "0.4.44", features = ["serde"] }
 chrono-tz = { version = "0.10.4", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 lazy_static = "1.5.0"
 secrets = "1.3.0"
 hex = "0.4.3"
-async-stripe = "1.0.0-rc.5"
-async-stripe-core = { version = "1.0.0-rc.5", features = ["payment_intent", "setup_intent", "refund", "customer"] }
-async-stripe-payment = { version = "1.0.0-rc.5", features = ["payment_method"] }
-async-stripe-webhook = "1.0.0-rc.5"
-async-stripe-types = "1.0.0-rc.5"
+async-stripe = "1.0.0-rc.6"
+async-stripe-core = { version = "1.0.0-rc.6", features = ["payment_intent", "setup_intent", "refund", "customer"] }
+async-stripe-payment = { version = "1.0.0-rc.6", features = ["payment_method"] }
+async-stripe-webhook = "1.0.0-rc.6"
+async-stripe-types = "1.0.0-rc.6"
 rand = "0.10.1"
 twilio = "1.1.0"
 futures = "0.3.32"
@@ -30,9 +30,9 @@ bytes = "1.11.1"
 currency_rs = "1.3.0"
 anyhow = "1.0.102"
 gcloud-storage = { version = "1.3.0", features = ["auth"] }
-uuid = { version = "1.23.1", features = ["v4", "serde"] }
-reqwest = { version = "0.13.2", features = ["form"] }
+uuid = { version = "1.23.2", features = ["v4", "serde"] }
+reqwest = { version = "0.13.4", features = ["form"] }
 a2 = "0.10.0"
-askama = "0.15.6"
+askama = "0.16.0"
 sha2 = "0.11.0"
-rust_decimal = { version = "1.41.0", features = ["db-diesel-postgres", "macros", "serde-str"] }
+rust_decimal = { version = "1.42.0", features = ["db-diesel-postgres", "macros", "serde-str"] }
