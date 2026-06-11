@@ -26,3 +26,7 @@ Cargo.lock
 
 # MacOS Specific
 .DS_Store
+
+# direnv
+# Link necessary environment variable for compile time
+.envrc
