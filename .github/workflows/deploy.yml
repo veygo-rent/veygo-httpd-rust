@@ -39,7 +39,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build release
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Stage binary
         run: |
