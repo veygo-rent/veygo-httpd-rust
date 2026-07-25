@@ -1,0 +1,144 @@
+name: Build & Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+  workflow_dispatch: {}   # lets you trigger a deploy by hand from the Actions tab
+
+# If you push twice quickly, cancel the older in-flight run so you never
+# race two deploys onto the same box.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Build INSIDE bookworm so the binary links against glibc 2.36,
+    # matching your debian:bookworm-slim runtime container. Building on the
+    # bare runner (glibc 2.39) would produce a binary that won't start in prod.
+    # Pinned to 1.86 (>= 1.85) so edition2024 in Cargo.toml is supported;
+    # keep the -bookworm suffix so glibc stays 2.36 to match the runtime image.
+    container: rust:1.86-slim-bookworm
+    steps:
+      - name: Install build deps
+        # libpq/libsodium/openssl headers for the C-backed crates (diesel, etc.)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            pkg-config libssl-dev libpq-dev libsodium-dev ca-certificates
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@v4
+
+      # Containerized jobs check out as a different user than the one git expects,
+      # which trips "dubious ownership". This silences it.
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Stage binary
+        run: |
+          mkdir -p dist
+          # Cargo package/bin name is veygo-httpd-rust; ship it AS 'api' to match
+          # the container ENTRYPOINT (/usr/local/bin/api).
+          cp target/release/veygo-httpd-rust dist/api
+          chmod +x dist/api
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-binary
+          path: dist/api
+          retention-days: 5
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Matrix with a single host today; add more entries later and it fans out.
+    # max-parallel:1 makes it a rolling deploy (one box at a time).
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        host:
+          - "178.156.150.54"   # Hetzner ash-1. Add more lines to fan out later.
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-binary
+          path: dist
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ matrix.host }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship binary and restart
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          HOST: ${{ matrix.host }}
+        run: |
+          chmod +x dist/api
+
+          # Resolve the server's install path (written by run_server_*.sh).
+          SERVER_PATH=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
+            '. /etc/veygo/deploy.env && printf "%s" "$SERVER_PATH"')
+          echo "Deploying to $SERVER_PATH on $HOST"
+
+          # Upload to a temp name so a half-finished transfer never becomes the
+          # live binary.
+          scp -i ~/.ssh/id_ed25519 dist/api \
+            "$SSH_USER@$HOST:$SERVER_PATH/bin/api.new"
+
+          # Swap in place, keeping the previous binary for rollback, then restart.
+          # 'restart' (not 'up -d') because only the bind-mounted binary changed,
+          # not the compose config -- 'up -d' would see no change and NOT reload
+          # the new binary. 'restart' re-execs the ENTRYPOINT against the new file.
+          ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
+            ". /etc/veygo/deploy.env && cd \"\$SERVER_PATH\" && \
+             chmod +x bin/api.new && \
+             ( [ -e bin/api ] && cp bin/api bin/api.prev || true ) && \
+             mv bin/api.new bin/api && \
+             docker compose -f main-server-docker-compose.yml restart api"
+
+      - name: Verify container is running
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          HOST: ${{ matrix.host }}
+        run: |
+          ok=""
+          for i in $(seq 1 10); do
+            state=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
+              'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+            echo "attempt $i -> $state"
+            # Running=true AND Restarting=false means it started and stayed up
+            if [ "$state" = "true false" ]; then ok=1; sleep 3; 
+              # re-check after a moment to catch immediate crash-loops
+              state2=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
+                'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+              [ "$state2" = "true false" ] && break || ok=""
+            fi
+            sleep 3
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::server-api not stably running, rolling back."
+            ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
+              ". /etc/veygo/deploy.env && cd \"\$SERVER_PATH\" && \
+              ( [ -e bin/api.prev ] && mv bin/api.prev bin/api || true ) && \
+              docker compose -f main-server-docker-compose.yml restart api"
+          exit 1
+          fi
+          echo "Deploy healthy (container running)."
