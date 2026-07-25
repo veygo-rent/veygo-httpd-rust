@@ -25,7 +25,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            pkg-config libssl-dev libpq-dev libsodium-dev ca-certificates
+            git pkg-config libssl-dev libpq-dev libsodium-dev ca-certificates
           rm -rf /var/lib/apt/lists/*
 
       - uses: actions/checkout@v4
