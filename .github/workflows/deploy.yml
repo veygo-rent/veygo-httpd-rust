@@ -66,7 +66,6 @@ jobs:
       max-parallel: 1
       matrix:
         host:
-          - "178.156.150.54"
           - "35.208.20.204"
     steps:
       - name: Download artifact
@@ -108,7 +107,7 @@ jobs:
              chmod +x bin/api.new && \
              ( [ -e bin/api ] && cp bin/api bin/api.prev || true ) && \
              mv bin/api.new bin/api && \
-             docker compose -f main-server-docker-compose.yml restart api"
+             sudo docker compose -f main-server-docker-compose.yml restart api"
 
       - name: Verify container is running
         env:
@@ -118,13 +117,13 @@ jobs:
           ok=""
           for i in $(seq 1 10); do
             state=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
-              'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+              'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
             echo "attempt $i -> $state"
             # Running=true AND Restarting=false means it started and stayed up
             if [ "$state" = "true false" ]; then ok=1; sleep 3; 
               # re-check after a moment to catch immediate crash-loops
               state2=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
-                'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+                'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
               [ "$state2" = "true false" ] && break || ok=""
             fi
             sleep 3
@@ -134,7 +133,7 @@ jobs:
             ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
               ". /etc/veygo/deploy.env && cd \"\$SERVER_PATH\" && \
               ( [ -e bin/api.prev ] && mv bin/api.prev bin/api || true ) && \
-              docker compose -f main-server-docker-compose.yml restart api"
+              sudo docker compose -f main-server-docker-compose.yml restart api"
           exit 1
           fi
           echo "Deploy healthy (container running)."
