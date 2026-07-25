@@ -7,7 +7,9 @@ mod schema;
 mod proj_config;
 mod helper_model;
 
-use diesel::{PgConnection, RunQueryDsl};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel::r2d2::{ConnectionManager, Pool};
 use tokio::sync::OnceCell;
 use std::env;
@@ -19,12 +21,24 @@ use std::str::FromStr;
 use diesel::query_builder::AsQuery;
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
 fn get_connection_pool() -> PgPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     Pool::builder()
         .build(manager)
         .expect("Could not build connection pool")
+}
+
+fn run_migrations() {
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let mut conn = PgConnection::establish(&database_url)
+        .expect("migrations: failed to connect to database");
+    let applied = conn
+        .run_pending_migrations(MIGRATIONS)
+        .expect("migrations: failed to run pending migrations");
+    println!("migrations: applied {} pending migration(s)", applied.len());
 }
 
 // Global pool initialized once on first async access
@@ -39,6 +53,8 @@ pub async fn connection_pool() -> &'static PgPool {
 #[tokio::main]
 
 async fn main() {
+    run_migrations();
+
     spawn(async {
         if let Err(err) = integration::mailgun_veygo::send_email(
             Option::from("Veygo Server"),
@@ -79,7 +95,7 @@ async fn main() {
 
     let httpd = api::api().and(warp::path::end());
     let args: Vec<String> = env::args().collect();
-    let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8080);
+    let port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(8000);
     println!("Starting server on port {}", port);
     let addr = IpAddr::from_str("::0").unwrap();
     // add routines
