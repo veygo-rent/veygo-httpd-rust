@@ -8,10 +8,8 @@ on:
       - "**.md"
       - ".gitignore"
       - "LICENSE"
-  workflow_dispatch: {}   # lets you trigger a deployment by hand from the Actions tab
+  workflow_dispatch: {}
 
-# If you push twice quickly, cancel the older in-flight run so you never
-# race two deploys onto the same box.
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -22,7 +20,6 @@ jobs:
     container: rust:slim-bookworm
     steps:
       - name: Install build deps
-        # libpq/libsodium/openssl headers for the C-backed crates (diesel, etc.)
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
@@ -31,8 +28,6 @@ jobs:
 
       - uses: actions/checkout@v7
 
-      # Containerized jobs check out as a different user than the one git expects,
-      # which trips "dubious ownership". This silences it.
       - name: Mark workspace safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
@@ -45,8 +40,6 @@ jobs:
       - name: Stage binary
         run: |
           mkdir -p dist
-          # Cargo package/bin name is veygo-httpd-rust; ship it AS 'api' to match
-          # the container ENTRYPOINT (/usr/local/bin/api).
           cp target/release/veygo-httpd-rust dist/api
           chmod +x dist/api
 
@@ -55,13 +48,11 @@ jobs:
         with:
           name: api-binary
           path: dist/api
-          retention-days: 5
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    # Matrix with a single host today; add more entries later and it fans out.
-    # max-parallel:1 makes it a rolling deploy (one box at a time).
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -89,20 +80,13 @@ jobs:
         run: |
           chmod +x dist/api
 
-          # Resolve the server's install path (written by run_server_*.sh).
           SERVER_PATH=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
             '. /etc/veygo/deploy.env && printf "%s" "$SERVER_PATH"')
           echo "Deploying to $SERVER_PATH on $HOST"
 
-          # Upload to a temp name so a half-finished transfer never becomes the
-          # live binary.
           scp -i ~/.ssh/id_ed25519 dist/api \
             "$SSH_USER@$HOST:$SERVER_PATH/bin/api.new"
 
-          # Swap in place, keeping the previous binary for rollback, then restart.
-          # 'restart' (not 'up -d') because only the bind-mounted binary changed,
-          # not the compose config -- 'up -d' would see no change and NOT reload
-          # the new binary. 'restart' re-execs the ENTRYPOINT against the new file.
           ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
             ". /etc/veygo/deploy.env && cd \"\$SERVER_PATH\" && \
              chmod +x bin/api.new && \
@@ -120,9 +104,7 @@ jobs:
             state=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
               'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
             echo "attempt $i -> $state"
-            # Running=true AND Restarting=false means it started and stayed up
             if [ "$state" = "true false" ]; then ok=1; sleep 3; 
-              # re-check after a moment to catch immediate crash-loops
               state2=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
                 'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
               [ "$state2" = "true false" ] && break || ok=""
