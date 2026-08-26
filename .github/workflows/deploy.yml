@@ -2,12 +2,12 @@ name: Build & Deploy API
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
     paths-ignore:
       - "**.md"
       - ".gitignore"
       - "LICENSE"
+  workflow_dispatch: {}   # lets you trigger a deployment by hand from the Actions tab
 
 # If you push twice quickly, cancel the older in-flight run so you never
 # race two deploys onto the same box.
@@ -66,7 +66,7 @@ jobs:
       max-parallel: 1
       matrix:
         host:
-          - "35.208.20.204"
+          - "178.156.150.54"   # Hetzner ash-1. Add more lines to fan out later.
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v8
@@ -107,7 +107,7 @@ jobs:
              chmod +x bin/api.new && \
              ( [ -e bin/api ] && cp bin/api bin/api.prev || true ) && \
              mv bin/api.new bin/api && \
-             sudo docker compose -f main-server-docker-compose.yml restart api"
+             docker compose -f main-server-docker-compose.yml restart api"
 
       - name: Verify container is running
         env:
@@ -117,13 +117,13 @@ jobs:
           ok=""
           for i in $(seq 1 10); do
             state=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
-              'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+              'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
             echo "attempt $i -> $state"
             # Running=true AND Restarting=false means it started and stayed up
             if [ "$state" = "true false" ]; then ok=1; sleep 3; 
               # re-check after a moment to catch immediate crash-loops
               state2=$(ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
-                'sudo docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
+                'docker inspect -f "{{.State.Running}} {{.State.Restarting}}" server-api' || true)
               [ "$state2" = "true false" ] && break || ok=""
             fi
             sleep 3
@@ -133,7 +133,7 @@ jobs:
             ssh -i ~/.ssh/id_ed25519 "$SSH_USER@$HOST" \
               ". /etc/veygo/deploy.env && cd \"\$SERVER_PATH\" && \
               ( [ -e bin/api.prev ] && mv bin/api.prev bin/api || true ) && \
-              sudo docker compose -f main-server-docker-compose.yml restart api"
+              docker compose -f main-server-docker-compose.yml restart api"
           exit 1
           fi
           echo "Deploy healthy (container running)."
