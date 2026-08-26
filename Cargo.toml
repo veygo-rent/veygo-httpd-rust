@@ -7,8 +7,8 @@ edition = "2024"
 tokio = { version = "1.53.1", features = ["full"] }
 warp = { version = "0.4.3", features = ["multipart", "server"] }
 csv = "1.4.0"
-bcrypt = "0.19.2"
-diesel = { version = "2.3.11", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
+bcrypt = "0.19.3"
+diesel = { version = "2.3.12", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 diesel_migrations = "2.3.2"
 serde_derive = "1.0.229"
 regex = "1.13.1"
@@ -19,19 +19,19 @@ serde_json = "1.0.151"
 lazy_static = "1.5.0"
 secrets = "1.3.0"
 hex = "0.4.3"
-async-stripe = "1.0.0-rc.6"
-async-stripe-core = { version = "1.0.0-rc.6", features = ["payment_intent", "setup_intent", "refund", "customer"] }
-async-stripe-payment = { version = "1.0.0-rc.6", features = ["payment_method"] }
-async-stripe-webhook = "1.0.0-rc.6"
-async-stripe-types = "1.0.0-rc.6"
+async-stripe = "1.0.0-rc.8"
+async-stripe-core = { version = "1.0.0-rc.8", features = ["payment_intent", "setup_intent", "refund", "customer"] }
+async-stripe-payment = { version = "1.0.0-rc.8", features = ["payment_method"] }
+async-stripe-webhook = "1.0.0-rc.8"
+async-stripe-types = "1.0.0-rc.8"
 rand = "0.10.2"
 twilio = "1.1.0"
-futures = "0.3.33"
+futures = "0.3.34"
 bytes = "1.12.1"
-currency_rs = "1.3.0"
+currency_rs = "1.3.1"
 anyhow = "1.0.104"
 gcloud-storage = { version = "1.3.0", features = ["auth"] }
-uuid = { version = "1.24.0", features = ["v4", "serde"] }
+uuid = { version = "1.25.0", features = ["v4", "serde"] }
 reqwest = { version = "0.13.4", features = ["form"] }
 a2 = "0.10.0"
 askama = "0.16.0"

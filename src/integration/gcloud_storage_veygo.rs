@@ -4,7 +4,7 @@ use gcloud_storage::http::objects::delete::DeleteObjectRequest;
 use gcloud_storage::http::objects::list::ListObjectsRequest;
 use gcloud_storage::http::objects::get::GetObjectRequest;
 use gcloud_storage::sign;
-use gcloud_storage::sign::SignedURLOptions;
+use gcloud_storage::sign::{SignedURLMethod, SignedURLOptions};
 use std::borrow::Cow;
 use std::path::Path;
 use uuid;
@@ -36,7 +36,6 @@ async fn gcs_client() -> Arc<Client> {
         .clone()
 }
 
-#[allow(dead_code)]
 pub async fn get_signed_url(object_path: &str) -> String {
     let client = gcs_client().await;
     client
@@ -46,6 +45,24 @@ pub async fn get_signed_url(object_path: &str) -> String {
             Some(GOOGLE_ACCESS_ID.to_string()),
             Some(sign::SignBy::SignBytes),
             SignedURLOptions::default(),
+        )
+        .await
+        .unwrap()
+}
+
+pub async fn get_signed_upload_url(object_path: &str, content_type: &str) -> String {
+    let client = gcs_client().await;
+    client
+        .signed_url(
+            BUCKET,
+            object_path,
+            Some(GOOGLE_ACCESS_ID.to_string()),
+            Some(sign::SignBy::SignBytes),
+            SignedURLOptions {
+                method: SignedURLMethod::PUT,
+                content_type: Some(String::from(content_type)),
+                ..Default::default()
+            },
         )
         .await
         .unwrap()
@@ -84,7 +101,6 @@ pub async fn upload_file(object_path: String, file_name: String, data_raw: Vec<u
     file_name_with_uuid
 }
 
-#[allow(dead_code)]
 pub async fn delete_object(stored_file_abs_path: String) {
     let client = gcs_client().await;
     let _ = client.delete_object(&DeleteObjectRequest {
@@ -94,7 +110,6 @@ pub async fn delete_object(stored_file_abs_path: String) {
     }).await;
 }
 
-#[allow(dead_code)]
 pub async fn check_exists(stored_file_abs_path: String) -> bool {
     let client = gcs_client().await;
     let result = client.get_object(
@@ -110,7 +125,6 @@ pub async fn check_exists(stored_file_abs_path: String) -> bool {
     }
 }
 
-#[allow(dead_code)]
 pub async fn delete_all_objects() -> Result<(), Box<dyn std::error::Error>> {
     let client = gcs_client().await;
 

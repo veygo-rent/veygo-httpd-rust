@@ -5,6 +5,7 @@ mod get_mileage_packages;
 mod user_identify;
 mod upload_image;
 mod generate_snapshot;
+mod request_upload_link;
 
 use warp::Filter;
 
@@ -17,6 +18,7 @@ pub fn api_v1_vehicle()
         .or(user_identify::main())
         .or(upload_image::main())
         .or(generate_snapshot::main())
+        .or(request_upload_link::main())
         .boxed();
 
     warp::path("vehicle")
