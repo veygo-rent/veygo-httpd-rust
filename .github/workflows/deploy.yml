@@ -7,7 +7,6 @@ on:
       - "**.md"
       - ".gitignore"
       - "LICENSE"
-  workflow_dispatch: {}   # lets you trigger a deployment by hand from the Actions tab
 
 # If you push twice quickly, cancel the older in-flight run so you never
 # race two deploys onto the same box.
