@@ -97,6 +97,7 @@ pub struct FilePath {
 #[derive(Serialize, Debug, Clone)]
 pub struct FileLink {
     pub file_link: String,
+    pub file_name: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

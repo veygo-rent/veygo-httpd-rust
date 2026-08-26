@@ -121,7 +121,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
-                                    let msg = helper_model::FileLink{ file_link: link };
+                                    let msg = helper_model::FileLink{ file_link: link, file_name: None };
                                     methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                                 } else {
                                     let err_msg = helper_model::ErrorResponse {
@@ -141,7 +141,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
-                                    let msg = helper_model::FileLink{ file_link: link };
+                                    let msg = helper_model::FileLink{ file_link: link, file_name: None };
                                     methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                                 } else {
                                     let err_msg = helper_model::ErrorResponse {
@@ -161,7 +161,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
-                                    let msg = helper_model::FileLink{ file_link: link };
+                                    let msg = helper_model::FileLink{ file_link: link, file_name: None };
                                     methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                                 } else {
                                     let err_msg = helper_model::ErrorResponse {
@@ -181,7 +181,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
                                     let link = integration::gcloud_storage_veygo::get_signed_url(
                                         &object_path,
                                     ).await;
-                                    let msg = helper_model::FileLink{ file_link: link };
+                                    let msg = helper_model::FileLink{ file_link: link, file_name: None };
                                     methods::standard_replies::response_with_obj(msg, StatusCode::OK)
                                 } else {
                                     let err_msg = helper_model::ErrorResponse {

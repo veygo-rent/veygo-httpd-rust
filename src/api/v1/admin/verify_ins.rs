@@ -220,7 +220,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     &object_path,
                                 ).await;
 
-                                let link = helper_model::FileLink{ file_link: link };
+                                let link = helper_model::FileLink{ file_link: link, file_name: None };
                                 let msg = helper_model::RenterNeedVerify { renter: next_renter_clone.into(), file_link: link };
 
                                 methods::standard_replies::response_with_obj(&msg, StatusCode::OK)

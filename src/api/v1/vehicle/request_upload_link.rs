@@ -117,7 +117,7 @@ pub fn main() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Reject
 
                     let link = integration::gcloud_storage_veygo::get_signed_upload_url(&stored_file_abs_path, content_type).await;
 
-                    let file_link = helper_model::FileLink { file_link: link };
+                    let file_link = helper_model::FileLink { file_link: link, file_name: Some(file_name_with_uuid) };
                     methods::standard_replies::response_with_obj(file_link, StatusCode::OK)
                 }
             }
