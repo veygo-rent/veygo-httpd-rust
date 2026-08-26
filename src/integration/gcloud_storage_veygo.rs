@@ -44,7 +44,10 @@ pub async fn get_signed_url(object_path: &str) -> String {
             object_path,
             Some(GOOGLE_ACCESS_ID.to_string()),
             Some(sign::SignBy::SignBytes),
-            SignedURLOptions::default(),
+            SignedURLOptions {
+                expires: std::time::Duration::from_mins(2),
+                ..Default::default()
+            },
         )
         .await
         .unwrap()
@@ -61,6 +64,7 @@ pub async fn get_signed_upload_url(object_path: &str, content_type: &str) -> Str
             SignedURLOptions {
                 method: SignedURLMethod::PUT,
                 content_type: Some(String::from(content_type)),
+                expires: std::time::Duration::from_mins(5),
                 ..Default::default()
             },
         )
