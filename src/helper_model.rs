@@ -90,14 +90,9 @@ pub struct TripInfo {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct FilePath {
-    pub file_path: String,
-}
-
-#[derive(Serialize, Debug, Clone)]
 pub struct FileLink {
     pub file_link: String,
-    pub file_name: Option<String>,
+    pub file_name: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
