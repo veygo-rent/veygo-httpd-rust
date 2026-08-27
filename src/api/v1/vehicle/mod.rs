@@ -3,7 +3,6 @@ mod new;
 mod get;
 mod get_mileage_packages;
 mod user_identify;
-mod upload_image;
 mod generate_snapshot;
 mod request_upload_link;
 
@@ -16,7 +15,6 @@ pub fn api_v1_vehicle()
         .or(get::main())
         .or(get_mileage_packages::main())
         .or(user_identify::main())
-        .or(upload_image::main())
         .or(generate_snapshot::main())
         .or(request_upload_link::main())
         .boxed();
