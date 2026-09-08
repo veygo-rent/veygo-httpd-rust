@@ -8,7 +8,7 @@ tokio = { version = "1.53.1", features = ["full"] }
 warp = { version = "0.4.3", features = ["multipart", "server"] }
 csv = "1.4.0"
 bcrypt = "0.19.3"
-diesel = { version = "2.3.12", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
+diesel = { version = "2.3.13", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
 diesel_migrations = "2.3.2"
 serde_derive = "1.0.229"
 regex = "1.13.1"
@@ -31,9 +31,9 @@ bytes = "1.12.1"
 currency_rs = "1.3.1"
 anyhow = "1.0.104"
 gcloud-storage = { version = "1.3.0", features = ["auth"] }
-uuid = { version = "1.25.0", features = ["v4", "serde"] }
-reqwest = { version = "0.13.4", features = ["form"] }
+uuid = { version = "1.26.0", features = ["v4", "serde"] }
+reqwest = { version = "0.13.5", features = ["form"] }
 a2 = "0.10.0"
-askama = "0.16.0"
+askama = "0.16.1"
 sha2 = "0.11.0"
-rust_decimal = { version = "1.42.1", features = ["db-diesel-postgres", "macros", "serde-str"] }
+rust_decimal = { version = "1.43.0", features = ["db-diesel-postgres", "macros", "serde-str"] }
