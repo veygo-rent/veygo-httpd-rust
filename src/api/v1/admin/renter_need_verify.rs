@@ -150,7 +150,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         Err(err) => {
                                             return match err {
                                                 Error::NotFound => {
-                                                    let msg = serde_json::json!({});
+                                                    let msg = helper_model::ErrorResponse { title: "All Caught Up".to_string(), message: "All renters licences are verified.".to_string() };
                                                     methods::standard_replies::response_with_obj(msg, StatusCode::NOT_FOUND)
                                                 }
                                                 _ => {
