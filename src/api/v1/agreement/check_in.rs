@@ -746,17 +746,17 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     };
 
                     // does not including late return
-                    let duration_revenue_after_promo = match agreement_to_be_checked_in.clone().manual_discount {
+                    let duration_revenue_after_manual_discount = match agreement_to_be_checked_in.clone().manual_discount {
                         None => { duration_revenue_after_promo }
                         Some(discount) => {
-                            max(Decimal::zero(), duration_revenue - discount)
+                            max(Decimal::zero(), duration_revenue_after_promo - discount)
                         }
                     };
 
                     // late return fee is calculated separately
                     let late_return_fee = Decimal::new(2, 0) * late_hours * agreement_to_be_checked_in.duration_rate * agreement_to_be_checked_in.msrp_factor * rate_offer;
 
-                    let total_rental_revenue = duration_revenue_after_promo + late_return_fee;
+                    let total_rental_revenue = duration_revenue_after_manual_discount + late_return_fee;
 
                     // 2. total insurance revenue
 

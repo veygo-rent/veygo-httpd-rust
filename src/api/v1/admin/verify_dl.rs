@@ -260,11 +260,44 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             }
                                         });
                                     }
-                                    _ => {
+                                    helper_model::VerifyDriversLicenseRequest::DeclinePrimary { reason, .. } => {
+                                        let renter_moved = renter.clone();
+
                                         tokio::spawn(async move {
+                                            let email = integration::mailgun_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
+                                            let email_content = helper_model::DocumentRejectionTemplate { document_name: "Primary Driver's License", reason: &reason };
+                                            let _email_result = integration::mailgun_veygo::send_email(
+                                                None,
+                                                vec![email],
+                                                "Your Driver's License is Declined",
+                                                &email_content.render().unwrap(),
+                                                None,
+                                            ).await;
+
                                             if let Some(renter_app_apns) = renter.apple_apns {
                                                 let _ = integration::apns_veygo::send_notification(
-                                                    &renter_app_apns, "Bad News", "Your driver's license has been declined", false
+                                                    &renter_app_apns, "Document Declined", "Please check your email for detail", false
+                                                ).await;
+                                            }
+                                        });
+                                    }
+                                    helper_model::VerifyDriversLicenseRequest::DeclineSecondary { reason, .. } => {
+                                        let renter_moved = renter.clone();
+
+                                        tokio::spawn(async move {
+                                            let email = integration::mailgun_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
+                                            let email_content = helper_model::DocumentRejectionTemplate { document_name: "Secondary Driver's License", reason: &reason };
+                                            let _email_result = integration::mailgun_veygo::send_email(
+                                                None,
+                                                vec![email],
+                                                "Your Driver's License is Declined",
+                                                &email_content.render().unwrap(),
+                                                None,
+                                            ).await;
+
+                                            if let Some(renter_app_apns) = renter.apple_apns {
+                                                let _ = integration::apns_veygo::send_notification(
+                                                    &renter_app_apns, "Document Declined", "Please check your email for detail", false
                                                 ).await;
                                             }
                                         });

@@ -172,14 +172,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             let _email_result = integration::mailgun_veygo::send_email(
                                                 None,
                                                 vec![email],
-                                                "Your Document is Declined",
+                                                "Your Proof of Address is Declined",
                                                 &email_content.render().unwrap(),
                                                 None,
                                             ).await;
                                             
                                             if let Some(renter_app_apns) = renter.apple_apns {
                                                 let _ = integration::apns_veygo::send_notification(
-                                                    &renter_app_apns, "Bad News", "Your address has been declined", false
+                                                    &renter_app_apns, "Document Declined", "Please check your email for detail", false
                                                 ).await;
                                             }
                                         });

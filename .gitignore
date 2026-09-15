@@ -30,3 +30,6 @@ Cargo.lock
 # direnv
 # Link necessary environment variable for compile time
 .envrc
+
+# Agentic Helper
+*.ai.md
