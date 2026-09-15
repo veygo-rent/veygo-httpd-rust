@@ -165,20 +165,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             .await;
 
                                         renter.drivers_license_image = None;
-
-                                        let renter_moved = renter.clone();
-
-                                        tokio::spawn(async move {
-                                            let email = integration::mailgun_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
-                                            let email_content = helper_model::DocumentRejectionTemplate { document_name: "Driver's License", reason: &reason };
-                                            let _email_result = integration::mailgun_veygo::send_email(
-                                                None,
-                                                vec![email],
-                                                "Your Document is Declined",
-                                                &email_content.render().unwrap(),
-                                                None,
-                                            ).await;
-                                        });
                                     }
                                     helper_model::VerifyDriversLicenseRequest::DeclineSecondary { renter_id, reason, .. } => {
                                         let mut hasher = Sha256::new();
@@ -191,20 +177,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                             .await;
 
                                         renter.drivers_license_image_secondary = None;
-
-                                        let renter_moved = renter.clone();
-
-                                        tokio::spawn(async move {
-                                            let email = integration::mailgun_veygo::make_email_obj(&renter_moved.student_email, &renter_moved.name);
-                                            let email_content = helper_model::DocumentRejectionTemplate { document_name: "Driver's License", reason: &reason };
-                                            let _email_result = integration::mailgun_veygo::send_email(
-                                                None,
-                                                vec![email],
-                                                "Your Document is Declined",
-                                                &email_content.render().unwrap(),
-                                                None,
-                                            ).await;
-                                        });
                                     }
                                     helper_model::VerifyDriversLicenseRequest::RequireSecondary { drivers_license_number, drivers_license_state_region, reason, .. } => {
                                         renter.drivers_license_number = drivers_license_number;
