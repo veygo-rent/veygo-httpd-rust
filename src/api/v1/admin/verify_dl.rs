@@ -154,7 +154,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 };
 
                                 match body.clone() {
-                                    helper_model::VerifyDriversLicenseRequest::DeclinePrimary { renter_id, reason, .. } => {
+                                    helper_model::VerifyDriversLicenseRequest::DeclinePrimary { renter_id, .. } => {
                                         let mut hasher = Sha256::new();
                                         let data = renter_id.to_le_bytes();
                                         (& mut hasher).update(data);
@@ -166,7 +166,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                                         renter.drivers_license_image = None;
                                     }
-                                    helper_model::VerifyDriversLicenseRequest::DeclineSecondary { renter_id, reason, .. } => {
+                                    helper_model::VerifyDriversLicenseRequest::DeclineSecondary { renter_id, .. } => {
                                         let mut hasher = Sha256::new();
                                         let data = renter_id.to_le_bytes();
                                         (& mut hasher).update(data);

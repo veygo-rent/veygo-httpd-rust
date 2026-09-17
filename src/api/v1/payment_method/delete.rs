@@ -78,6 +78,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let result = diesel::update
                             (
                                 pm_q::payment_methods
+                                    .filter(pm_q::renter_id.eq(&user_id))
                                     .find(&payment_id)
                             )
                             .set(pm_q::is_enabled.eq(false))
