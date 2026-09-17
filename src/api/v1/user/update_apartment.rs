@@ -133,6 +133,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                 renter.lease_agreement_expiration = None;
                                 renter.student_email_expiration = None;
 
+                                use crate::schema::verifications::dsl as verify_q;
+
+                                let _delete_result = diesel::delete
+                                    (
+                                        verify_q::verifications
+                                            .filter(verify_q::verification_method.eq(model::VerificationType::Email))
+                                            .filter(verify_q::renter_id.eq(&access_token.user_id))
+                                    ).execute(&mut pool);
+
                                 let renter_updated = diesel::update(r_q::renters.find(&access_token.user_id))
                                     .set(&renter).get_result::<model::Renter>(&mut pool);
 

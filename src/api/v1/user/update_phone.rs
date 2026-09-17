@@ -1,3 +1,4 @@
+use chrono::Utc;
 use crate::{connection_pool, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
@@ -86,6 +87,15 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
 
                         use crate::schema::renters::dsl as r_q;
                         let mut pool = connection_pool().await.get().unwrap();
+
+                        use crate::schema::verifications::dsl as verify_q;
+
+                        let _delete_result = diesel::delete
+                            (
+                                verify_q::verifications
+                                    .filter(verify_q::verification_method.eq(model::VerificationType::Phone))
+                                    .filter(verify_q::renter_id.eq(&access_token.user_id))
+                            ).execute(&mut pool);
 
                         let update_result = diesel::update
                             (
