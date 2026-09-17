@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1.53.1", features = ["full"] }
-warp = { version = "0.4.3", features = ["multipart", "server"] }
+warp = { version = "0.4.3", features = ["server"] }
 csv = "1.4.0"
 bcrypt = "0.19.3"
 diesel = { version = "2.3.13", features = ["numeric", "chrono", "postgres", "r2d2", "64-column-tables"] }
