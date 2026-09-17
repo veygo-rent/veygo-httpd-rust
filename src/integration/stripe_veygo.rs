@@ -2,7 +2,8 @@ use crate::{model, helper_model};
 use std::env;
 use tokio::sync::OnceCell;
 
-use stripe::{Client, StripeError, ApiErrorsType, ApiErrorsCode};
+use stripe::{Client, StripeError, ApiErrorsType, ApiErrorsCode, StripeRequest,
+             IdempotencyKey, RequestStrategy};
 use stripe_types::Currency;
 
 use stripe_core::payment_intent::{
@@ -40,9 +41,15 @@ pub async fn retrieve_payment_method_from_stripe(
     renter_id: &i32,
     nickname: &Option<String>,
     is_enabled: bool,
+    idempotency_key_str: &str
 ) -> Result<model::NewPaymentMethod, helper_model::VeygoError> {
+    let idempotency_key = IdempotencyKey::new(idempotency_key_str)
+        .map_err(|_| helper_model::VeygoError::InputDataError)?;
     let client = stripe_client().await;
-    let payment_method = RetrievePaymentMethod::new(pi_id).send(client).await;
+    let payment_method = RetrievePaymentMethod::new(pi_id)
+        .customize()
+        .request_strategy(RequestStrategy::Idempotent(idempotency_key))
+        .send(client).await;
     match payment_method {
         Ok(payment_method) => {
             if let Some(card) = payment_method.card {
@@ -53,10 +60,11 @@ pub async fn retrieve_payment_method_from_stripe(
                 {
                     return Err(helper_model::VeygoError::CardNotSupported)
                 }
-                let mut masked_card_number = format!("**** **** **** {}", card.last4);
-                if card.brand == "amex" {
-                    masked_card_number = format!("**** ****** *{}", card.last4);
-                }
+                let masked_card_number: String = if card.brand == "amex" {
+                    format!("**** ****** *{}", card.last4)
+                } else {
+                    format!("**** **** **** {}", card.last4)
+                };
                 let network = card.brand; // Visa, Mastercard, etc.
                 let expiration = format!("{:02}/{}", card.exp_month, card.exp_year);
 

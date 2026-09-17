@@ -20,10 +20,11 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
+        .and(warp::header::<String>("request-id"))
         .and(warp::path::end())
         .and_then(async move |method: Method,
                               request_body: CreatePaymentMethodsRequestBody,
-                              auth: String, user_agent: String| {
+                              auth: String, user_agent: String, request_id: String| {
             if method != Method::POST {
                 return methods::standard_replies::method_not_allowed_response_405();
             }
@@ -89,8 +90,8 @@ pub fn main() -> impl Filter<Extract=(impl warp::Reply,), Error=warp::Rejection>
                             &access_token.user_id,
                             &request_body.nickname,
                             false,
-                    )
-                        .await;
+                            &request_id,
+                    ).await;
 
                     match new_pm_result {
                         Ok(mut new_pm) => {
