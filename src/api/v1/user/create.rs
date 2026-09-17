@@ -67,7 +67,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::method())
         .and(warp::body::json())
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |method: Method, mut renter_create_data: CreateUserData, user_agent: String| {
+        .and(warp::header::<String>("request-id"))
+        .and_then(async move |method: Method, mut renter_create_data: CreateUserData,
+                              user_agent: String, request_id: String| {
             if method != Method::POST {
                 return methods::standard_replies::method_not_allowed_response_405();
             }
@@ -149,7 +151,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     }
 
                                     let stripe_result = stripe_veygo::create_stripe_customer(
-                                        &renter_create_data.name, &renter_create_data.phone, &renter_create_data.student_email
+                                        &renter_create_data.name, &renter_create_data.phone, &renter_create_data.student_email, &request_id
                                     ).await;
 
                                     let Ok(customer) = stripe_result else {

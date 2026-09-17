@@ -41,7 +41,7 @@ pub async fn retrieve_payment_method_from_stripe(
     renter_id: &i32,
     nickname: &Option<String>,
     is_enabled: bool,
-    idempotency_key_str: &str
+    idempotency_key_str: &str,
 ) -> Result<model::NewPaymentMethod, helper_model::VeygoError> {
     let idempotency_key = IdempotencyKey::new(idempotency_key_str)
         .map_err(|_| helper_model::VeygoError::InputDataError)?;
@@ -104,12 +104,17 @@ pub async fn create_stripe_customer(
     name_data: &String,
     phone_data: &String,
     email_data: &String,
+    idempotency_key_str: &str,
 ) -> Result<Customer, helper_model::VeygoError> {
+    let idempotency_key = IdempotencyKey::new(idempotency_key_str)
+        .map_err(|_| helper_model::VeygoError::InputDataError)?;
     let client = stripe_client().await;
     let result = CreateCustomer::new()
         .name(name_data)
         .email(email_data)
         .phone(phone_data)
+        .customize()
+        .request_strategy(RequestStrategy::Idempotent(idempotency_key))
         .send(client)
         .await;
 
@@ -122,10 +127,15 @@ pub async fn create_stripe_customer(
 pub async fn update_stripe_customer_email(
     customer_id: &str,
     email_data: &String,
+    idempotency_key_str: &str,
 ) -> Result<Customer, helper_model::VeygoError> {
+    let idempotency_key = IdempotencyKey::new(idempotency_key_str)
+        .map_err(|_| helper_model::VeygoError::InputDataError)?;
     let client = stripe_client().await;
     let result = UpdateCustomer::new(customer_id)
         .email(email_data)
+        .customize()
+        .request_strategy(RequestStrategy::Idempotent(idempotency_key))
         .send(client)
         .await;
 
@@ -307,7 +317,6 @@ pub async fn create_payment_intent(
     }
 }
 
-#[allow(dead_code)]
 pub async fn drop_auth(intent_id: &str) -> Result<PaymentIntent, helper_model::VeygoError> {
     let client = stripe_client().await;
     let result = CancelPaymentIntent::new(intent_id).send(client).await;

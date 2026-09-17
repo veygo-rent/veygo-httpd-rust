@@ -39,8 +39,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
         .and(warp::body::json())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
+        .and(warp::header::<String>("request-id"))
         .and_then(
-            async move |method: Method, body: UpdateApartmentBody, auth: String, user_agent: String| {
+            async move |method: Method, body: UpdateApartmentBody, auth: String, 
+                        user_agent: String, request_id: String| {
                 if method != Method::POST {
                     return methods::standard_replies::method_not_allowed_response_405();
                 }
@@ -118,7 +120,9 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                     return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Database error loading renter"))
                                 };
 
-                                let stripe_result = stripe_veygo::update_stripe_customer_email(&renter.stripe_id, &body.student_email).await;
+                                let stripe_result = stripe_veygo::update_stripe_customer_email(
+                                    &renter.stripe_id, &body.student_email, &request_id
+                                ).await;
                                 if stripe_result.is_err() {
                                     return methods::standard_replies::internal_server_error_response_500(String::from("user/update-apartment: Stripe error updating email"))
                                 }
