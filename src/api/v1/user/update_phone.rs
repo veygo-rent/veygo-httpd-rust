@@ -1,4 +1,3 @@
-use chrono::Utc;
 use crate::{connection_pool, methods, model};
 use diesel::prelude::*;
 use regex::Regex;
