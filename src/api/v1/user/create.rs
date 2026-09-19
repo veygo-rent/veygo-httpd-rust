@@ -2,7 +2,7 @@ use crate::integration::stripe_veygo;
 use crate::{connection_pool, methods, model, helper_model};
 use bcrypt::{DEFAULT_COST, hash};
 use chrono::{Datelike, NaiveDate, Utc};
-use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::prelude::*;
 use regex::Regex;
 use serde_derive::{Deserialize, Serialize};
 use warp::reply::with_status;
@@ -178,10 +178,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                                         .values(&to_be_inserted)
                                         .get_result::<model::Renter>(&mut pool);
 
-                                    let Ok(renter) = renter else {
-                                        return methods::standard_replies::internal_server_error_response_500(
-                                            String::from("user/create: SQL error inserting renter")
-                                        );
+                                    let renter = match renter {
+                                        Ok( renter ) => { renter }
+                                        Err( err ) => {
+                                            let msg = err.to_string();
+                                            return methods::standard_replies::internal_server_error_response_500(
+                                                String::from("user/create: SQL error inserting renter".to_owned() + &msg)
+                                            );
+                                        }
                                     };
 
                                     let user_id_data = renter.id;
