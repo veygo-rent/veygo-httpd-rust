@@ -72,6 +72,22 @@ pub fn apartment_not_operational() -> Result<(warp::reply::Response,), Rejection
     Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN).into_response(),))
 }
 
+pub fn agreement_not_authorized() -> Result<(warp::reply::Response,), Rejection> {
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+        title: String::from("Agreement Not Allowed"),
+        message: String::from("You don't have access to this agreement."),
+    };
+    Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN).into_response(),))
+}
+
+pub fn snapshot_not_authorized() -> Result<(warp::reply::Response,), Rejection> {
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+        title: String::from("Snapshot Not Allowed"),
+        message: String::from("You don't have access to this snapshot."),
+    };
+    Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN).into_response(),))
+}
+
 pub fn double_booking_not_allowed() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Booking Not Allowed"),

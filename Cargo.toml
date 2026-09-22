@@ -24,7 +24,7 @@ async-stripe-core = { version = "1.0.0-rc.9", features = ["payment_intent", "set
 async-stripe-payment = { version = "1.0.0-rc.9", features = ["payment_method"] }
 async-stripe-webhook = "1.0.0-rc.9"
 async-stripe-types = "1.0.0-rc.9"
-rand = "0.10.2"
+rand = "0.10.3"
 twilio = "1.1.0"
 futures = "0.3.34"
 bytes = "1.12.1"

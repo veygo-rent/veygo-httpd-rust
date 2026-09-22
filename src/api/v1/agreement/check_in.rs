@@ -67,7 +67,7 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                         Err(err) => {
                             return match err {
                                 Error::NotFound => {
-                                    methods::standard_replies::bad_request_400("Loading vehicles failed")
+                                    methods::standard_replies::agreement_not_authorized()
                                 }
                                 _ => {
                                     methods::standard_replies::internal_server_error_response_500(
@@ -179,19 +179,42 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     let vehicle_snapshot_id = match body {
                         helper_model::CheckInOutRequest::WithSnapshotId { vehicle_snapshot_id, .. } => {
 
+                            use schema::vehicle_snapshots::dsl as vs_q;
+
+                            let vs_record = vs_q::vehicle_snapshots
+                                .filter(vs_q::renter_id.eq(user_id))
+                                .find(vehicle_snapshot_id)
+                                .select((vs_q::odometer, vs_q::level))
+                                .get_result::<(i32, i32)>(&mut pool);
+
+                            let Ok((odometer_i32, battery_level_i32)) = vs_record else {
+                                return methods::standard_replies::snapshot_not_authorized()
+                            };
+
                             use schema::agreements::dsl as ag_q;
                             use schema::vehicles::dsl as veh_q;
 
                             let vehicle = ag_q::agreements
+                                .filter(ag_q::renter_id.eq(user_id))
                                 .find(&agreement_id)
                                 .inner_join(veh_q::vehicles)
                                 .select(veh_q::vehicles::all_columns())
                                 .get_result::<model::Vehicle>(&mut pool);
 
-                            let Ok(mut vehicle) = vehicle else {
-                                return methods::standard_replies::internal_server_error_response_500(
-                                    String::from("agreement/check-in: Loading vehicle error DB"),
-                                );
+                            let mut vehicle = match vehicle {
+                                Ok( v ) => { v }
+                                Err( err ) => {
+                                    return match err {
+                                        Error::NotFound => {
+                                            methods::standard_replies::agreement_not_authorized()
+                                        }
+                                        _ => {
+                                            methods::standard_replies::internal_server_error_response_500(
+                                                String::from("agreement/check-in: Loading vehicle error DB"),
+                                            )
+                                        }
+                                    }
+                                }
                             };
 
 
@@ -245,9 +268,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                         }
                                     };
 
-                                    let odometer_i32: i32 = tesla_body.response.vehicle_state.odometer.round() as i32;
-                                    let battery_level_i32: i32 = tesla_body.response.charge_state.battery_level;
-
                                     let lat = tesla_body.response.drive_state.latitude;
                                     let lon = tesla_body.response.drive_state.longitude;
 
@@ -297,17 +317,27 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use schema::vehicles::dsl as veh_q;
 
                             let vehicle = ag_q::agreements
+                                .filter(ag_q::renter_id.eq(user_id))
                                 .find(&agreement_id)
                                 .inner_join(veh_q::vehicles)
                                 .select(veh_q::vehicles::all_columns())
                                 .get_result::<model::Vehicle>(&mut pool);
 
-                            let Ok(mut vehicle) = vehicle else {
-                                return methods::standard_replies::internal_server_error_response_500(
-                                    String::from("agreement/check-in: Loading vehicle error DB"),
-                                );
+                            let mut vehicle = match vehicle {
+                                Ok( v ) => { v }
+                                Err( err ) => {
+                                    return match err {
+                                        Error::NotFound => {
+                                            methods::standard_replies::agreement_not_authorized()
+                                        }
+                                        _ => {
+                                            methods::standard_replies::internal_server_error_response_500(
+                                                String::from("agreement/check-in: Loading vehicle error DB"),
+                                            )
+                                        }
+                                    }
+                                }
                             };
-
 
                             let (fuel, odo, latitude, longitude) = match vehicle.remote_mgmt {
                                 model::RemoteMgmtType::Tesla => {
@@ -635,6 +665,8 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             .map(|s| (s.start_date_time, s.location.name, s.total_cost.excl_vat, s.total_cost.incl_vat))
                             .collect();
 
+                        let mut charging_records: Vec<model::NewCharge> = vec![];
+
                         for (session_time, location, _excl_vat, incl_vat) in sessions_min {
                             let charging_note = format!("Tesla charging at {}", location);
                             let incl_vat_opt = Decimal::try_from(incl_vat);
@@ -655,23 +687,22 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                                 is_taxed: true,
                             };
 
-                            use schema::charges::dsl as c_q;
+                            charging_records.push(new_charge);
+                        }
 
+                        use schema::charges::dsl as c_q;
+
+                        if !charging_records.is_empty() {
                             let res = diesel::insert_into(c_q::charges)
-                                .values(&new_charge)
-                                .get_result::<model::Charge>(&mut pool);
+                                .values(&charging_records)
+                                .on_conflict((c_q::name, c_q::time, c_q::vehicle_id))
+                                .do_nothing()
+                                .execute(&mut pool);
 
-                            if let Err(err) = res {
-                                match err {
-                                    Error::DatabaseError(_, _) => {
-                                        continue;
-                                    }
-                                    _ => {
-                                        return methods::standard_replies::internal_server_error_response_500(
-                                            String::from("agreement/check-in: DB error inserting charges")
-                                        )
-                                    }
-                                }
+                            if res.is_err() {
+                                return methods::standard_replies::internal_server_error_response_500(
+                                    String::from("agreement/check-in: DB error inserting charges")
+                                );
                             }
                         }
                     }
