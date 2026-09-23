@@ -20,6 +20,19 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
         .and(warp::header::<String>("user-agent"))
         .and_then(async move |method: Method, body: helper_model::CheckInOutRequest, auth: String, user_agent: String| {
 
+            let token_and_id = auth.split("$").collect::<Vec<&str>>();
+            if token_and_id.len() != 2 {
+                return methods::tokens::token_invalid_return();
+            }
+            let user_id;
+            let user_id_parsed_result = token_and_id[1].parse::<i32>();
+            user_id = match user_id_parsed_result {
+                Ok(int) => int,
+                Err(_) => {
+                    return methods::tokens::token_invalid_return();
+                }
+            };
+
             let mut pool = connection_pool().await.get().unwrap();
             
             // Checking method is POST
@@ -57,6 +70,12 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                     use schema::vehicles::dsl as veh_q;
 
                     let vin_num = ag_q::agreements
+                        .filter(
+                            ag_q::vehicle_snapshot_after.is_null()
+                                .and(ag_q::vehicle_snapshot_before.is_not_null())
+                        )
+                        .filter(ag_q::status.eq(model::AgreementStatus::Rental))
+                        .filter(ag_q::renter_id.eq(user_id))
                         .find(&agreement_id)
                         .inner_join(veh_q::vehicles)
                         .select(veh_q::vin)
@@ -123,19 +142,6 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                 }
             }
 
-            let token_and_id = auth.split("$").collect::<Vec<&str>>();
-            if token_and_id.len() != 2 {
-                return methods::tokens::token_invalid_return();
-            }
-            let user_id;
-            let user_id_parsed_result = token_and_id[1].parse::<i32>();
-            user_id = match user_id_parsed_result {
-                Ok(int) => int,
-                Err(_) => {
-                    return methods::tokens::token_invalid_return();
-                }
-            };
-
             let access_token = model::RequestToken {
                 user_id,
                 token: String::from(token_and_id[0]),
@@ -195,6 +201,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use schema::vehicles::dsl as veh_q;
 
                             let vehicle = ag_q::agreements
+                                .filter(
+                                    ag_q::vehicle_snapshot_after.is_null()
+                                        .and(ag_q::vehicle_snapshot_before.is_not_null())
+                                )
+                                .filter(ag_q::status.eq(model::AgreementStatus::Rental))
                                 .filter(ag_q::renter_id.eq(user_id))
                                 .find(&agreement_id)
                                 .inner_join(veh_q::vehicles)
@@ -317,6 +328,11 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
                             use schema::vehicles::dsl as veh_q;
 
                             let vehicle = ag_q::agreements
+                                .filter(
+                                    ag_q::vehicle_snapshot_after.is_null()
+                                        .and(ag_q::vehicle_snapshot_before.is_not_null())
+                                )
+                                .filter(ag_q::status.eq(model::AgreementStatus::Rental))
                                 .filter(ag_q::renter_id.eq(user_id))
                                 .find(&agreement_id)
                                 .inner_join(veh_q::vehicles)
