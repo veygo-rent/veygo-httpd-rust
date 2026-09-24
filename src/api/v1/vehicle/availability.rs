@@ -96,6 +96,14 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                             }
                         };
 
+                        if !user.phone_is_verified {
+                            return methods::standard_replies::user_phone_not_verified();
+                        }
+
+                        if !user.is_email_verified() {
+                            return methods::standard_replies::user_email_not_verified();
+                        }
+
                         if body.apartment_id <= 1 {
                             // RETURN: FORBIDDEN
                             // apartment id should be greater than 1, since 1 is the HQ and is for mgmt only

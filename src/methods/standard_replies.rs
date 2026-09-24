@@ -112,6 +112,14 @@ pub fn user_email_not_verified() -> Result<(warp::reply::Response,), Rejection> 
     Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN).into_response(),))
 }
 
+pub fn user_phone_not_verified() -> Result<(warp::reply::Response,), Rejection> {
+    let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
+        title: String::from("Permission Denied"),
+        message: String::from("Your phone is not verified."),
+    };
+    Ok((warp::reply::with_status(warp::reply::json(&msg), StatusCode::FORBIDDEN).into_response(),))
+}
+
 pub fn admin_not_verified() -> Result<(warp::reply::Response,), Rejection> {
     let msg: helper_model::ErrorResponse = helper_model::ErrorResponse {
         title: String::from("Permission Denied"),

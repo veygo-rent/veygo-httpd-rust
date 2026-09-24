@@ -130,6 +130,10 @@ pub fn main() -> impl Filter<Extract = (impl Reply,), Error = warp::Rejection> +
                         let current_time = Utc::now();
                         let current_naive_date = chrono::NaiveDate::from_ymd_opt(current_time.year(), current_time.month(), current_time.day()).unwrap();
                         let user_plan_renew_date = user_in_request.plan_renewal_date();
+                        
+                        if !user_in_request.phone_is_verified {
+                            return methods::standard_replies::user_phone_not_verified();
+                        }
 
                         let is_active_plan = match user_plan_renew_date {
                             Err(_) => {

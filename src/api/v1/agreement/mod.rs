@@ -1,13 +1,13 @@
 mod new;
 mod current;
 mod check_out;
-
 mod check_in;
 mod get_upcoming;
 mod get_past;
 mod get;
 mod lock;
 mod unlock;
+mod cancel;
 
 use warp::Filter;
 
@@ -22,6 +22,7 @@ pub fn api_v1_agreement()
         .or(get::main())
         .or(lock::main())
         .or(unlock::main())
+        .or(cancel::main())
         .boxed();
 
     warp::path("agreement")
