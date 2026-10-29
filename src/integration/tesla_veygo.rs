@@ -9,7 +9,7 @@ const DEFAULT_AUDIENCE: &str = "https://fleet-api.prd.na.vn.cloud.tesla.com";
 #[allow(dead_code)]
 const DEFAULT_AUTH_URL: &str = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token";
 #[allow(dead_code)]
-const BASE_URL: &str = "https://tesla-commend.veygo.rent";
+const BASE_URL: &str = "https://tesla-command.veygo.rent";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeslaToken {
