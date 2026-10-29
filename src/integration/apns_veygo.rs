@@ -15,15 +15,18 @@ pub async fn send_notification(
     } else {
         (false, device_token)
     };
-    let key_file: String;
     let team_id = String::from("F84843HABV");
     let key_id: String;
+    let key_file: String;
+    let endpoint: Endpoint;
     if sandbox {
-        key_file = String::from("/app/cert/apple/Sandbox_595B69789J.p8");
         key_id = String::from("595B69789J");
+        key_file = String::from("/app/cert/apple/Sandbox_595B69789J.p8");
+        endpoint = Endpoint::Sandbox;
     } else {
-        key_file = String::from("/app/cert/apple/Production_3C3L4DRJYN.p8");
         key_id = String::from("3C3L4DRJYN");
+        key_file = String::from("/app/cert/apple/Production_3C3L4DRJYN.p8");
+        endpoint = Endpoint::Production;
     }
     let topic: Option<String>;
     if is_admin_app {
@@ -34,13 +37,6 @@ pub async fn send_notification(
 
     // Read the private key from the disk
     let private_key = File::open(key_file)?;
-
-    // Which service to call, test or production?
-    let endpoint = if sandbox {
-        Endpoint::Sandbox
-    } else {
-        Endpoint::Production
-    };
 
     // Create config with the given endpoint and default timeouts
     let client_config = ClientConfig::new(endpoint);

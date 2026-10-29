@@ -3,12 +3,12 @@ use warp::{Filter, Rejection, Reply};
 use crate::{methods};
 
 pub fn main() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path!(i32)
+    warp::path!(String)
         .and(warp::path::end())
         .and(warp::method())
         .and(warp::header::<String>("auth"))
         .and(warp::header::<String>("user-agent"))
-        .and_then(async move |agreemen_id: i32, method: Method, auth: String, user_agent: String| {
+        .and_then(async move |_agreement_conf: String, method: Method, _auth: String, _user_agent: String| {
 
             // Checking method is POST
             if method != Method::DELETE {
