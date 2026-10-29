@@ -10,7 +10,7 @@ use stripe_core::payment_intent::{
     CapturePaymentIntent, CancelPaymentIntent, CreatePaymentIntent, CreatePaymentIntentOffSession,
     CreatePaymentIntentPaymentMethodOptions, CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization,
     CreatePaymentIntentPaymentMethodOptionsCardRequestIncrementalAuthorization,
-    CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard
+    CreatePaymentIntentPaymentMethodOptionsCardRequestMulticapture, CreatePaymentIntentPaymentMethodOptionsCard,
 };
 use stripe_core::setup_intent::{
     CreateSetupIntent, CreateSetupIntentPaymentMethodOptions, CreateSetupIntentPaymentMethodOptionsCard,
@@ -19,7 +19,10 @@ use stripe_core::setup_intent::{
 use stripe_core::refund::{CreateRefund};
 use stripe_core::customer::{CreateCustomer, OptionalFieldsCustomerAddress, UpdateCustomer};
 
-use stripe_core::{PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer, SetupIntentStatus};
+use stripe_core::{
+    PaymentIntent, PaymentIntentCaptureMethod, SetupIntent, Refund, Customer, SetupIntentStatus,
+    SetupIntentAllowedPaymentMethodTypes,
+};
 
 use stripe_payment::payment_method::{RetrievePaymentMethod};
 
@@ -218,8 +221,10 @@ pub async fn attach_payment_method_to_stripe_customer(
     let result = CreateSetupIntent::new()
         .attach_to_self(false)
         .customer(stripe_customer_id)
+        .allowed_payment_method_types(vec![
+            SetupIntentAllowedPaymentMethodTypes::Card
+        ])
         .payment_method(pm_id)
-        .payment_method_types(vec![String::from("card")])
         .payment_method_options(CreateSetupIntentPaymentMethodOptions {
             card: Some(CreateSetupIntentPaymentMethodOptionsCard {
                 request_three_d_secure:
@@ -278,7 +283,6 @@ pub async fn create_payment_intent(
         .payment_method(payment_id_data)
         .description(description)
         .off_session(CreatePaymentIntentOffSession::Bool(true))
-        .payment_method_types(vec![String::from("card")])
         .payment_method_options(CreatePaymentIntentPaymentMethodOptions {
             card: Some(CreatePaymentIntentPaymentMethodOptionsCard {
                 request_extended_authorization: Some(CreatePaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable),
